@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { useAuth } from '@/contexts/AuthContext';
 import pb from '@/lib/pocketbaseClient';
 
-const AlertContext = createContext(null);
+export const AlertContext = createContext(null);
 
 export const AlertProvider = ({ children }) => {
   const { currentUser, isAuthenticated } = useAuth();

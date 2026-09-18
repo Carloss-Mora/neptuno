@@ -17,6 +17,11 @@ const IrrigationHistoryPage = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // '7days', '30days', 'all'
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [minDuration, setMinDuration] = useState('');
+  const [maxDuration, setMaxDuration] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -24,15 +29,12 @@ const IrrigationHistoryPage = () => {
     try {
       setLoading(true);
       
-      let filterStr = `userId = "${currentUser.id}"`;
-      
-      if (filter === '7days') {
-        const date = subDays(new Date(), 7).toISOString();
-        filterStr += ` && created >= "${date}"`;
-      } else if (filter === '30days') {
-        const date = subDays(new Date(), 30).toISOString();
-        filterStr += ` && created >= "${date}"`;
-      }
+      const filterStr = `userId = "${currentUser.id}"`;
+      const cutoff = filter === '7days'
+        ? subDays(new Date(), 7)
+        : filter === '30days'
+          ? subDays(new Date(), 30)
+          : null;
 
       // Fetch all matching logs to calculate durations properly
       const records = await pb.collection('irrigation_logs').getFullList({
@@ -41,33 +43,58 @@ const IrrigationHistoryPage = () => {
         $autoCancel: false,
       });
 
-      // Process records to calculate duration
-      const processedLogs = [];
-      let lastOffTime = null;
+      const orderedRecords = [...records].sort(
+        (first, second) => new Date(first.created) - new Date(second.created)
+      );
+      const sessions = [];
+      let openSession = null;
 
-      // Since we sorted by -created (newest first), we iterate backwards in time
-      for (let i = 0; i < records.length; i++) {
-        const current = records[i];
-        let duration = null;
-
-        if (current.status === 'OFF') {
-          lastOffTime = new Date(current.created);
-          duration = 'N/A';
-        } else if (current.status === 'ON') {
-          if (lastOffTime) {
-            const onTime = new Date(current.created);
-            duration = formatDistanceStrict(lastOffTime, onTime, { locale: es });
-            lastOffTime = null; // Reset after pairing
-          } else {
-            duration = 'En curso...';
-          }
+      orderedRecords.forEach((record) => {
+        if (record.status === 'ON' && !openSession) {
+          openSession = record;
+          return;
         }
 
-        processedLogs.push({
-          ...current,
-          durationStr: duration
+        if (record.status === 'OFF' && openSession) {
+          const activationDate = new Date(openSession.created);
+          const closingDate = new Date(record.created);
+          sessions.push({
+            id: `${openSession.id}-${record.id}`,
+            activationDate,
+            closingDate,
+            status: 'OFF',
+            durationMs: closingDate - activationDate,
+            durationStr: formatDistanceStrict(activationDate, closingDate, { locale: es }),
+          });
+          openSession = null;
+        }
+      });
+
+      if (openSession) {
+        const activationDate = new Date(openSession.created);
+        sessions.push({
+          id: openSession.id,
+          activationDate,
+          closingDate: null,
+          status: 'ON',
+          durationMs: new Date() - activationDate,
+          durationStr: `${formatDistanceStrict(activationDate, new Date(), { locale: es })} (en curso)`,
         });
       }
+
+      const startDate = dateFrom ? new Date(`${dateFrom}T00:00:00`) : cutoff;
+      const endDate = dateTo ? new Date(`${dateTo}T23:59:59.999`) : null;
+      const minimumMs = minDuration === '' ? null : Number(minDuration) * 60 * 1000;
+      const maximumMs = maxDuration === '' ? null : Number(maxDuration) * 60 * 1000;
+      const processedLogs = sessions
+        .filter((session) => {
+          const sessionEnd = session.closingDate || new Date();
+          return (!startDate || sessionEnd >= startDate)
+            && (!endDate || session.activationDate <= endDate)
+            && (minimumMs === null || session.durationMs >= minimumMs)
+            && (maximumMs === null || session.durationMs <= maximumMs);
+        })
+        .sort((first, second) => second.activationDate - first.activationDate);
 
       setLogs(processedLogs);
       setPage(1);
@@ -80,9 +107,17 @@ const IrrigationHistoryPage = () => {
 
   useEffect(() => {
     fetchLogs();
-  }, [currentUser, filter]);
+  }, [currentUser, filter, dateFrom, dateTo, minDuration, maxDuration]);
 
-  const totalActivations = logs.filter(l => l.status === 'ON').length;
+  const clearFilters = () => {
+    setFilter('all');
+    setDateFrom('');
+    setDateTo('');
+    setMinDuration('');
+    setMaxDuration('');
+  };
+
+  const totalActivations = logs.length;
   
   // Pagination logic
   const totalPages = Math.ceil(logs.length / itemsPerPage);
@@ -124,7 +159,7 @@ const IrrigationHistoryPage = () => {
                   <History className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Registros Totales</p>
+                  <p className="text-sm font-medium text-gray-600">Sesiones Registradas</p>
                   <p className="text-3xl font-bold text-gray-900">{logs.length}</p>
                 </div>
               </CardContent>
@@ -137,30 +172,44 @@ const IrrigationHistoryPage = () => {
               <CardTitle className="text-xl flex items-center space-x-2">
                 <Clock className="w-5 h-5 text-teal-600" />
                 <span>Registro de Actividad</span>
+                <button
+                  type="button"
+                  onClick={() => setShowFilters((isVisible) => !isVisible)}
+                  className={`ml-2 inline-flex h-9 w-9 items-center justify-center rounded-md border transition-colors ${showFilters ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-500 hover:border-teal-400 hover:text-teal-700'}`}
+                  aria-label={showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
+                  title={showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
+                >
+                  <Filter className="h-4 w-4" />
+                </button>
               </CardTitle>
-              <div className="flex items-center space-x-2">
-                <Filter className="w-4 h-4 text-gray-500" />
-                <div className="flex bg-gray-100 p-1 rounded-lg">
-                  <button
-                    onClick={() => setFilter('7days')}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${filter === '7days' ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
-                  >
-                    Últimos 7 días
-                  </button>
-                  <button
-                    onClick={() => setFilter('30days')}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${filter === '30days' ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
-                  >
-                    Últimos 30 días
-                  </button>
-                  <button
-                    onClick={() => setFilter('all')}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${filter === 'all' ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
-                  >
-                    Todo el tiempo
-                  </button>
+              {showFilters && (
+                <div className="grid w-full grid-cols-1 gap-3 border-t border-gray-100 pt-4 sm:grid-cols-2 lg:grid-cols-5">
+                  <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-5">
+                    <div className="flex bg-gray-100 p-1 rounded-lg">
+                      <button type="button" onClick={() => setFilter('7days')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${filter === '7days' ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>Últimos 7 días</button>
+                      <button type="button" onClick={() => setFilter('30days')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${filter === '30days' ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>Últimos 30 días</button>
+                      <button type="button" onClick={() => setFilter('all')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${filter === 'all' ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>Todo el tiempo</button>
+                    </div>
+                  </div>
+                  <label className="text-sm text-gray-600">
+                    Desde
+                    <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} className="mt-1 h-9 w-full rounded-md border border-gray-300 px-2 text-sm text-gray-900" />
+                  </label>
+                  <label className="text-sm text-gray-600">
+                    Hasta
+                    <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} className="mt-1 h-9 w-full rounded-md border border-gray-300 px-2 text-sm text-gray-900" />
+                  </label>
+                  <label className="text-sm text-gray-600">
+                    Duración mínima (min)
+                    <input type="number" min="0" value={minDuration} onChange={(event) => setMinDuration(event.target.value)} className="mt-1 h-9 w-full rounded-md border border-gray-300 px-2 text-sm text-gray-900" placeholder="Sin mínimo" />
+                  </label>
+                  <label className="text-sm text-gray-600">
+                    Duración máxima (min)
+                    <input type="number" min="0" value={maxDuration} onChange={(event) => setMaxDuration(event.target.value)} className="mt-1 h-9 w-full rounded-md border border-gray-300 px-2 text-sm text-gray-900" placeholder="Sin máximo" />
+                  </label>
+                  <Button type="button" variant="outline" className="self-end" onClick={clearFilters}>Limpiar filtros</Button>
                 </div>
-              </div>
+              )}
             </CardHeader>
             <CardContent className="p-0">
               {loading ? (
@@ -177,7 +226,8 @@ const IrrigationHistoryPage = () => {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-gray-50/50">
-                        <TableHead className="font-semibold text-gray-900">Fecha / Hora</TableHead>
+                        <TableHead className="font-semibold text-gray-900">Activación</TableHead>
+                        <TableHead className="font-semibold text-gray-900">Cierre</TableHead>
                         <TableHead className="font-semibold text-gray-900">Estado</TableHead>
                         <TableHead className="font-semibold text-gray-900">Duración</TableHead>
                         <TableHead className="font-semibold text-gray-900">Usuario</TableHead>
@@ -187,13 +237,16 @@ const IrrigationHistoryPage = () => {
                       {paginatedLogs.map((log) => (
                         <TableRow key={log.id} className="hover:bg-gray-50/50">
                           <TableCell className="font-medium text-gray-700">
-                            {new Date(log.created).toLocaleString('es-ES')}
+                            {log.activationDate.toLocaleString('es-ES')}
+                          </TableCell>
+                          <TableCell className="font-medium text-gray-700">
+                            {log.closingDate ? log.closingDate.toLocaleString('es-ES') : 'En curso'}
                           </TableCell>
                           <TableCell>
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               log.status === 'ON' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                             }`}>
-                              {log.status === 'ON' ? 'Activado' : 'Desactivado'}
+                              {log.status === 'ON' ? 'Activo' : 'Cerrado'}
                             </span>
                           </TableCell>
                           <TableCell className="text-gray-600">

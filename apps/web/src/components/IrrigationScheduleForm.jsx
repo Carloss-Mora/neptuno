@@ -2,76 +2,146 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Clock, CalendarDays } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-const DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+const getDefaultDate = () => {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
+const formatHourTo12 = (hourValue) => {
+  const hour = Number.parseInt(hourValue, 10);
+  if (Number.isNaN(hour)) return '12';
+  const normalized = ((hour + 11) % 12) + 1;
+  return String(normalized);
+};
+
+const getPeriodForHour = (hourValue) => {
+  const hour = Number.parseInt(hourValue, 10);
+  if (Number.isNaN(hour)) return 'AM';
+  return hour >= 12 ? 'PM' : 'AM';
+};
+
+const to24Hour = (hourValue, period) => {
+  const hour = Number.parseInt(hourValue, 10);
+  if (Number.isNaN(hour)) return 0;
+
+  let normalized = hour % 12;
+  if (period === 'PM') normalized += 12;
+  if (period === 'AM' && hour === 12) normalized = 0;
+  return normalized;
+};
 
 const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
   const { toast } = useToast();
-  const [selectedDays, setSelectedDays] = useState([]);
-  const [hour, setHour] = useState('08');
-  const [minute, setMinute] = useState('00');
+  const [startHour, setStartHour] = useState('08');
+  const [startMinute, setStartMinute] = useState('00');
+  const [endHour, setEndHour] = useState('09');
+  const [endMinute, setEndMinute] = useState('00');
+  const [startPeriod, setStartPeriod] = useState('AM');
+  const [endPeriod, setEndPeriod] = useState('AM');
+  const [scheduleDate, setScheduleDate] = useState(getDefaultDate());
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (initialData) {
-      setSelectedDays(initialData.days || []);
-      if (initialData.time) {
-        const [h, m] = initialData.time.split(':');
-        setHour(h || '08');
-        setMinute(m || '00');
-      }
+      const dateValue = initialData.date || initialData.startDate || initialData.endDate || getDefaultDate();
+      setScheduleDate(dateValue);
+
+      const startTime = initialData.startTime || initialData.time || '08:00';
+      const endTime = initialData.endTime || '09:00';
+
+      const [startH, startM] = startTime.split(':');
+      const [endH, endM] = endTime.split(':');
+
+      setStartHour(formatHourTo12(startH || '08'));
+      setStartMinute(startM || '00');
+      setEndHour(formatHourTo12(endH || '09'));
+      setEndMinute(endM || '00');
+      setStartPeriod(getPeriodForHour(startH || '08'));
+      setEndPeriod(getPeriodForHour(endH || '09'));
+    } else {
+      setStartHour('08');
+      setStartMinute('00');
+      setEndHour('09');
+      setEndMinute('00');
+      setStartPeriod('AM');
+      setEndPeriod('AM');
+      setScheduleDate(getDefaultDate());
     }
   }, [initialData]);
-
-  const handleDayToggle = (day) => {
-    setSelectedDays(prev => 
-      prev.includes(day) 
-        ? prev.filter(d => d !== day)
-        : [...prev, day]
-    );
-    setFormError('');
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
 
-    if (selectedDays.length === 0) {
-      setFormError('Por favor, selecciona al menos un día.');
+    if (!scheduleDate) {
+      setFormError('Selecciona una fecha para el horario.');
       return;
     }
 
-    const h = parseInt(hour, 10);
-    const m = parseInt(minute, 10);
+    if (!initialData && scheduleDate < getDefaultDate()) {
+      setFormError('La fecha del horario no puede ser anterior a hoy.');
+      return;
+    }
 
-    if (isNaN(h) || h < 0 || h > 23 || isNaN(m) || m < 0 || m > 59) {
-      setFormError('Por favor, introduce una hora válida (00-23) y minutos (00-59).');
+    const startH = Number.parseInt(startHour, 10);
+    const startM = Number.parseInt(startMinute, 10);
+    const endH = Number.parseInt(endHour, 10);
+    const endM = Number.parseInt(endMinute, 10);
+
+    if (Number.isNaN(startH) || startH < 1 || startH > 12 || Number.isNaN(startM) || startM < 0 || startM > 59) {
+      setFormError('Introduce una hora de inicio válida.');
+      return;
+    }
+
+    if (Number.isNaN(endH) || endH < 1 || endH > 12 || Number.isNaN(endM) || endM < 0 || endM > 59) {
+      setFormError('Introduce una hora de finalización válida.');
+      return;
+    }
+
+    const normalizedStartHour = to24Hour(startHour, startPeriod);
+    const normalizedEndHour = to24Hour(endHour, endPeriod);
+
+    const startDateTime = new Date(`${scheduleDate}T${String(normalizedStartHour).padStart(2, '0')}:${String(startM).padStart(2, '0')}`);
+    const endDateTime = new Date(`${scheduleDate}T${String(normalizedEndHour).padStart(2, '0')}:${String(endM).padStart(2, '0')}`);
+    const now = new Date();
+
+    if (startDateTime >= endDateTime) {
+      setFormError('La hora de finalización debe ser posterior a la de inicio.');
+      return;
+    }
+
+    if (!initialData && scheduleDate === getDefaultDate() && startDateTime <= now) {
+      setFormError('La hora de inicio debe ser posterior a la hora actual.');
       return;
     }
 
     setIsSubmitting(true);
-    const formattedTime = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-    
+    const formattedStartTime = `${String(normalizedStartHour).padStart(2, '0')}:${String(startM).padStart(2, '0')}`;
+    const formattedEndTime = `${String(normalizedEndHour).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+
     try {
-      const result = await onSave(selectedDays, formattedTime);
-      
+      const result = await onSave(formattedStartTime, formattedEndTime, scheduleDate);
+
       if (result && result.success) {
         toast({
           title: 'Éxito',
           description: 'Horario guardado exitosamente',
         });
-        
+
         if (!initialData) {
-          // Reset form if it's a new schedule
-          setSelectedDays([]);
-          setHour('08');
-          setMinute('00');
+          setStartHour('08');
+          setStartMinute('00');
+          setEndHour('09');
+          setEndMinute('00');
+          setStartPeriod('AM');
+          setEndPeriod('AM');
+          setScheduleDate(getDefaultDate());
         }
       } else {
         toast({
@@ -101,56 +171,115 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
       </CardHeader>
       <CardContent className="pt-6">
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Days Selection */}
-          <div className="space-y-3">
-            <Label className="text-gray-700 font-semibold">Días de la semana</Label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {DAYS_OF_WEEK.map(day => (
-                <div key={day} className="flex items-center space-x-2 bg-gray-50 p-2 rounded-md border border-gray-100">
-                  <Checkbox 
-                    id={`day-${day}`} 
-                    checked={selectedDays.includes(day)}
-                    onCheckedChange={() => handleDayToggle(day)}
-                    className="data-[state=checked]:bg-teal-600 data-[state=checked]:border-teal-600"
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <Label htmlFor="start-time" className="text-gray-700 font-semibold">Hora de inicio</Label>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Clock className="w-5 h-5 text-gray-400" />
+                <div className="flex items-center space-x-2">
+                  <Input
+                    id="start-time"
+                    type="number"
+                    min="1"
+                    max="12"
+                    value={startHour}
+                    onChange={(e) => setStartHour(e.target.value)}
+                    className="w-20 text-center text-lg font-medium text-gray-900"
+                    placeholder="HH"
+                    aria-label="Hora de inicio"
                   />
-                  <label 
-                    htmlFor={`day-${day}`}
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-gray-700"
-                  >
-                    {day}
-                  </label>
+                  <span className="text-xl font-bold text-gray-500">:</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="59"
+                    value={startMinute}
+                    onChange={(e) => setStartMinute(e.target.value)}
+                    className="w-20 text-center text-lg font-medium text-gray-900"
+                    placeholder="MM"
+                    aria-label="Minutos de inicio"
+                  />
                 </div>
-              ))}
+                <div className="flex rounded-md border border-gray-300 overflow-hidden bg-white">
+                  {['AM', 'PM'].map((period) => (
+                    <button
+                      key={period}
+                      type="button"
+                      onClick={() => setStartPeriod(period)}
+                      className={`px-3 py-2 text-sm font-medium transition ${
+                        startPeriod === period
+                          ? 'bg-teal-600 text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-100'
+                      }`}
+                      aria-label={`Periodo de inicio ${period}`}
+                    >
+                      {period}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label htmlFor="end-time" className="text-gray-700 font-semibold">Hora de finalización</Label>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Clock className="w-5 h-5 text-gray-400" />
+                <div className="flex items-center space-x-2">
+                  <Input
+                    id="end-time"
+                    type="number"
+                    min="1"
+                    max="12"
+                    value={endHour}
+                    onChange={(e) => setEndHour(e.target.value)}
+                    className="w-20 text-center text-lg font-medium text-gray-900"
+                    placeholder="HH"
+                    aria-label="Hora de finalización"
+                  />
+                  <span className="text-xl font-bold text-gray-500">:</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="59"
+                    value={endMinute}
+                    onChange={(e) => setEndMinute(e.target.value)}
+                    className="w-20 text-center text-lg font-medium text-gray-900"
+                    placeholder="MM"
+                    aria-label="Minutos de finalización"
+                  />
+                </div>
+                <div className="flex rounded-md border border-gray-300 overflow-hidden bg-white">
+                  {['AM', 'PM'].map((period) => (
+                    <button
+                      key={period}
+                      type="button"
+                      onClick={() => setEndPeriod(period)}
+                      className={`px-3 py-2 text-sm font-medium transition ${
+                        endPeriod === period
+                          ? 'bg-teal-600 text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-100'
+                      }`}
+                      aria-label={`Periodo de finalización ${period}`}
+                    >
+                      {period}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Time Selection */}
-          <div className="space-y-3">
-            <Label className="text-gray-700 font-semibold">Hora de inicio</Label>
-            <div className="flex items-center space-x-2">
-              <Clock className="w-5 h-5 text-gray-400" />
-              <div className="flex items-center space-x-2">
-                <Input
-                  type="number"
-                  min="0"
-                  max="23"
-                  value={hour}
-                  onChange={(e) => setHour(e.target.value)}
-                  className="w-20 text-center text-lg font-medium text-gray-900"
-                  placeholder="HH"
-                />
-                <span className="text-xl font-bold text-gray-500">:</span>
-                <Input
-                  type="number"
-                  min="0"
-                  max="59"
-                  value={minute}
-                  onChange={(e) => setMinute(e.target.value)}
-                  className="w-20 text-center text-lg font-medium text-gray-900"
-                  placeholder="MM"
-                />
-              </div>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="schedule-date" className="text-gray-700 font-semibold">Fecha</Label>
+            <Input
+              id="schedule-date"
+              type="date"
+              value={scheduleDate}
+              onChange={(e) => setScheduleDate(e.target.value)}
+              min={initialData ? undefined : getDefaultDate()}
+              className="text-gray-900"
+              aria-label="Fecha"
+            />
           </div>
 
           {formError && (
@@ -158,17 +287,17 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
           )}
 
           <div className="flex space-x-3 pt-2">
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={isSubmitting}
               className="flex-1 bg-teal-600 hover:bg-teal-700 text-white"
             >
               {isSubmitting ? 'Guardando...' : (initialData ? 'Actualizar Horario' : 'Añadir Horario')}
             </Button>
             {initialData && onCancel && (
-              <Button 
-                type="button" 
-                variant="outline" 
+              <Button
+                type="button"
+                variant="outline"
                 onClick={onCancel}
                 disabled={isSubmitting}
               >
