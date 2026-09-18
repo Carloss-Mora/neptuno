@@ -3,6 +3,27 @@ import { useState, useEffect, useCallback } from 'react';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 
+const normalizeScheduleEntries = (value) => {
+  if (!value) return [];
+
+  if (Array.isArray(value)) return value;
+
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  if (typeof value === 'object') {
+    return Array.isArray(value.items) ? value.items : [];
+  }
+
+  return [];
+};
+
 export const useIrrigationSchedule = () => {
   const { currentUser } = useAuth();
   const [schedules, setSchedules] = useState([]);
@@ -12,11 +33,11 @@ export const useIrrigationSchedule = () => {
 
   const fetchSchedules = useCallback(async () => {
     if (!currentUser) return;
-    
+
     try {
       setLoading(true);
       setError(null);
-      
+
       const records = await pb.collection('user_settings').getList(1, 1, {
         filter: `userId = "${currentUser.id}"`,
         $autoCancel: false,
@@ -25,11 +46,11 @@ export const useIrrigationSchedule = () => {
       if (records.items.length > 0) {
         const settings = records.items[0];
         setSettingsId(settings.id);
-        
+
         if (settings.irrigation_schedule_times) {
           try {
-            const parsed = JSON.parse(settings.irrigation_schedule_times);
-            setSchedules(Array.isArray(parsed) ? parsed : []);
+            const parsed = normalizeScheduleEntries(settings.irrigation_schedule_times);
+            setSchedules(parsed);
           } catch (e) {
             console.error('Error parsing schedules JSON', e);
             setSchedules([]);
@@ -55,24 +76,25 @@ export const useIrrigationSchedule = () => {
 
   const saveSchedules = async (newSchedules) => {
     if (!currentUser) return { success: false, error: 'Usuario no autenticado' };
-    
+
     try {
       setError(null);
-      const schedulesJson = JSON.stringify(newSchedules);
-      
+      const safeSchedules = Array.isArray(newSchedules) ? newSchedules : [];
+      const schedulesJson = JSON.stringify(safeSchedules);
+
       if (settingsId) {
         await pb.collection('user_settings').update(settingsId, {
-          irrigation_schedule_times: schedulesJson
+          irrigation_schedule_times: schedulesJson,
         }, { $autoCancel: false });
       } else {
         const newSettings = await pb.collection('user_settings').create({
           userId: currentUser.id,
-          irrigation_schedule_times: schedulesJson
+          irrigation_schedule_times: schedulesJson,
         }, { $autoCancel: false });
         setSettingsId(newSettings.id);
       }
-      
-      setSchedules(newSchedules);
+
+      setSchedules(safeSchedules);
       return { success: true };
     } catch (err) {
       console.error('Error saving schedules:', err);
@@ -82,62 +104,74 @@ export const useIrrigationSchedule = () => {
     }
   };
 
-  const addSchedule = async (days, time) => {
+  const addSchedule = async (startTime, endTime, date) => {
+    const normalizedSchedules = Array.isArray(schedules) ? schedules : [];
     const newSchedule = {
       id: crypto.randomUUID(),
-      days,
-      time
+      date,
+      startTime,
+      endTime,
+      time: startTime,
+      days: [],
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Bogota',
     };
-    const newSchedules = [...schedules, newSchedule];
+    const newSchedules = [...normalizedSchedules, newSchedule];
     return await saveSchedules(newSchedules);
   };
 
-  const updateSchedule = async (id, days, time) => {
-    const newSchedules = schedules.map(s => 
-      s.id === id ? { ...s, days, time } : s
+  const updateSchedule = async (id, startTime, endTime, date) => {
+    const normalizedSchedules = Array.isArray(schedules) ? schedules : [];
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Bogota';
+    const newSchedules = normalizedSchedules.map((schedule) =>
+      schedule.id === id
+        ? { ...schedule, date, startTime, endTime, time: startTime, days: [], timeZone }
+        : schedule
     );
     return await saveSchedules(newSchedules);
   };
 
   const deleteSchedule = async (id) => {
-    const newSchedules = schedules.filter(s => s.id !== id);
+    const newSchedules = schedules.filter((schedule) => schedule.id !== id);
     return await saveSchedules(newSchedules);
   };
 
-  const getNextScheduledTime = () => {
-    if (!schedules || schedules.length === 0) return null;
-    
-    const now = new Date();
-    const dayMap = { 'Domingo': 0, 'Lunes': 1, 'Martes': 2, 'Miércoles': 3, 'Jueves': 4, 'Viernes': 5, 'Sábado': 6 };
-    let nextDate = null;
+  const getScheduleStatus = (referenceDate = new Date()) => {
+    const now = referenceDate;
+    let activeSchedule = null;
+    let nextSchedule = null;
 
-    schedules.forEach(schedule => {
-      if (!schedule.days || !schedule.time) return;
-      
-      schedule.days.forEach(dayStr => {
-        const targetDay = dayMap[dayStr];
-        if (targetDay === undefined) return;
+    schedules.forEach((schedule) => {
+      const dateValue = schedule.date || schedule.startDate || schedule.endDate;
+      const startTime = schedule.startTime || schedule.time;
+      const endTime = schedule.endTime;
 
-        const [hours, minutes] = schedule.time.split(':').map(Number);
-        let candidate = new Date(now);
-        candidate.setHours(hours, minutes, 0, 0);
+      if (!dateValue || !startTime || !endTime) return;
 
-        // If the day doesn't match or the time has already passed today, move to the next occurrence
-        if (candidate.getDay() !== targetDay || candidate <= now) {
-          let daysToAdd = (targetDay - candidate.getDay() + 7) % 7;
-          if (daysToAdd === 0 && candidate <= now) {
-            daysToAdd = 7;
-          }
-          candidate.setDate(candidate.getDate() + daysToAdd);
+      const [year, month, day] = String(dateValue).split('-').map(Number);
+      const [startHours, startMinutes] = String(startTime).split(':').map(Number);
+      const [endHours, endMinutes] = String(endTime).split(':').map(Number);
+      const startDate = new Date(year, month - 1, day, startHours, startMinutes, 0, 0);
+      const endDate = new Date(year, month - 1, day, endHours, endMinutes, 0, 0);
+
+      if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return;
+
+      if (startDate <= now && now < endDate) {
+        if (!activeSchedule || endDate < activeSchedule.endDate) {
+          activeSchedule = { ...schedule, startDate, endDate };
         }
+        return;
+      }
 
-        if (!nextDate || candidate < nextDate) {
-          nextDate = candidate;
-        }
-      });
+      if (startDate > now && (!nextSchedule || startDate < nextSchedule.startDate)) {
+        nextSchedule = { ...schedule, startDate, endDate };
+      }
     });
 
-    return nextDate;
+    return { activeSchedule, nextSchedule };
+  };
+
+  const getNextScheduledTime = () => {
+    return getScheduleStatus().nextSchedule?.startDate || null;
   };
 
   return {
@@ -148,6 +182,7 @@ export const useIrrigationSchedule = () => {
     updateSchedule,
     deleteSchedule,
     getNextScheduledTime,
-    refreshSchedules: fetchSchedules
+    getScheduleStatus,
+    refreshSchedules: fetchSchedules,
   };
 };

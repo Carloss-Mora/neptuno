@@ -65,8 +65,46 @@ const DashboardPage = () => {
 
   const getScheduleTimes = () => {
     if (!scheduleData?.irrigation_schedule_times) return [];
-    const times = scheduleData.irrigation_schedule_times.split(',');
-    return times.slice(0, 3); // Show next 3 scheduled times
+
+    try {
+      const parsed = JSON.parse(scheduleData.irrigation_schedule_times);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((schedule) => schedule && typeof schedule === 'object')
+          .sort((first, second) => {
+            const firstValue = `${first.date || ''}T${first.startTime || first.time || '00:00'}`;
+            const secondValue = `${second.date || ''}T${second.startTime || second.time || '00:00'}`;
+            return firstValue.localeCompare(secondValue);
+          })
+          .slice(0, 3);
+      }
+    } catch {
+      // Keep compatibility with schedules saved in the original comma-separated format.
+    }
+
+    return String(scheduleData.irrigation_schedule_times)
+      .split(',')
+      .map((time) => ({ startTime: time.trim() }))
+      .filter((schedule) => schedule.startTime)
+      .slice(0, 3);
+  };
+
+  const formatScheduleTime = (timeValue) => {
+    if (!timeValue) return '00:00';
+    const [hours, minutes] = String(timeValue).split(':');
+    const hour = Number.parseInt(hours, 10);
+    const minute = Number.parseInt(minutes, 10) || 0;
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = ((hour + 11) % 12) + 1;
+    return `${hour12}:${String(minute).padStart(2, '0')} ${period}`;
+  };
+
+  const formatScheduleDate = (dateValue) => {
+    if (!dateValue) return 'Fecha no especificada';
+    const date = new Date(`${dateValue}T00:00:00`);
+    return Number.isNaN(date.getTime())
+      ? dateValue
+      : date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
   if (loading) {
@@ -170,7 +208,7 @@ const DashboardPage = () => {
               {getScheduleTimes().length > 0 ? (
                 <div className="space-y-3">
                   <p className="text-sm text-gray-600 mb-4">Próximos horarios programados:</p>
-                  {getScheduleTimes().map((time, index) => (
+                  {getScheduleTimes().map((schedule, index) => (
                     <div
                       key={index}
                       className="flex items-center justify-between p-4 bg-teal-50 rounded-lg border border-teal-100"
@@ -180,8 +218,13 @@ const DashboardPage = () => {
                           <Clock className="w-5 h-5 text-white" />
                         </div>
                         <div>
-                          <p className="font-semibold text-gray-900">{time}</p>
-                          <p className="text-sm text-gray-600">Riego diario</p>
+                          <p className="font-semibold text-gray-900">
+                            {formatScheduleTime(schedule.startTime || schedule.time)}
+                            {schedule.endTime && ` - ${formatScheduleTime(schedule.endTime)}`}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {schedule.date ? formatScheduleDate(schedule.date) : 'Riego diario'}
+                          </p>
                         </div>
                       </div>
                     </div>

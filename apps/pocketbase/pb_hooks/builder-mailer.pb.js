@@ -6,35 +6,35 @@ onMailerSend((e) => {
     }
 
     const senderAddress = $os.getenv("BUILDER_MAILER_SENDER_ADDRESS");
+    const apiUrl = ($os.getenv("BUILDER_MAILER_API_URL") || "https://api.resend.com").replace(/\/+$/, "");
+    const apiKey = $os.getenv("BUILDER_MAILER_API_KEY");
 
-    const payload = {
-        "subject": e.message.subject,
-        "content": {
-            ...(e.message.html ? {
-                "html": e.message.html,
-            } : {
-                "text": e.message.text,
-            }),
-            "type": "plain",
-        },
-        "from": senderAddress,
-        "replyTo": senderAddress,
-        "to": e.message.to[0].address,
+    if (!senderAddress || !apiKey) {
+        throw new Error('Falta la configuración del servicio de correo. Revisa BUILDER_MAILER_SENDER_ADDRESS y BUILDER_MAILER_API_KEY.');
     }
 
+    const emailTarget = e.message.to?.[0]?.address || e.message.to || '';
+    const payload = {
+        from: senderAddress,
+        to: Array.isArray(emailTarget) ? emailTarget.map((item) => item.address || item) : [emailTarget],
+        subject: e.message.subject || 'Sin asunto',
+        html: e.message.html || `<p>${(e.message.text || '').replace(/\n/g, '<br/>')}</p>`,
+        text: e.message.text || '',
+    };
+
     const response = $http.send({
-        url: `${$os.getenv("BUILDER_MAILER_API_URL")}/api/v2/email`,
+        url: `${apiUrl}/emails`,
         method: "POST",
         headers: {
-            "Authorization": `Bearer ${$os.getenv("BUILDER_MAILER_API_KEY")}`,
+            "Authorization": `Bearer ${apiKey}`,
             "Content-Type": "application/json"
         },
         body: JSON.stringify(payload)
     });
-    
-    if (response.statusCode !== 200) {
-        $app.logger().error("Failed to send email", "error", response.json);
 
-        throw new ApiError(500, response.json?.message || 'Failed to send email');
+    if (response.statusCode >= 400) {
+        const errorMessage = response.json?.message || response.json?.error || response.text || 'No se pudo enviar el correo.';
+        $app.logger().error("Failed to send email", "error", response.json || response.text);
+        throw new ApiError(response.statusCode || 500, `No se pudo enviar el correo: ${errorMessage}`);
     }
 })

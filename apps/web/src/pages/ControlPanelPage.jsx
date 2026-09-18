@@ -30,10 +30,12 @@ const ControlPanelPage = () => {
     addSchedule, 
     updateSchedule, 
     deleteSchedule, 
-    getNextScheduledTime 
+    getNextScheduledTime,
+    getScheduleStatus,
   } = useIrrigationSchedule();
 
   const [editingSchedule, setEditingSchedule] = useState(null);
+  const [scheduleClock, setScheduleClock] = useState(() => new Date());
 
   const fetchCurrentStatus = async () => {
     try {
@@ -56,10 +58,18 @@ const ControlPanelPage = () => {
 
   useEffect(() => {
     fetchCurrentStatus();
+
+    const statusInterval = window.setInterval(fetchCurrentStatus, 15000);
+    return () => window.clearInterval(statusInterval);
   }, [currentUser]);
 
+  useEffect(() => {
+    const clockInterval = window.setInterval(() => setScheduleClock(new Date()), 1000);
+    return () => window.clearInterval(clockInterval);
+  }, []);
+
   const handleToggleClick = () => {
-    const newStatus = currentStatus === 'ON' ? 'OFF' : 'ON';
+    const newStatus = displayedStatus === 'ON' ? 'OFF' : 'ON';
     setPendingStatus(newStatus);
     setShowConfirmDialog(true);
   };
@@ -72,6 +82,7 @@ const ControlPanelPage = () => {
       const newLog = await pb.collection('irrigation_logs').create({
         userId: currentUser.id,
         status: pendingStatus,
+        source: 'MANUAL',
       }, { $autoCancel: false });
 
       setCurrentStatus(pendingStatus);
@@ -100,14 +111,14 @@ const ControlPanelPage = () => {
     setPendingStatus(null);
   };
 
-  const handleSaveSchedule = async (days, time) => {
+  const handleSaveSchedule = async (startTime, endTime, date) => {
     if (editingSchedule && Object.keys(editingSchedule).length > 0) {
-      const result = await updateSchedule(editingSchedule.id, days, time);
+      const result = await updateSchedule(editingSchedule.id, startTime, endTime, date);
       if (result.success) setEditingSchedule(null);
       return result;
-    } else {
-      return await addSchedule(days, time);
     }
+
+    return await addSchedule(startTime, endTime, date);
   };
 
   const handleDeleteSchedule = async (id) => {
@@ -126,7 +137,27 @@ const ControlPanelPage = () => {
     }
   };
 
-  const nextTime = getNextScheduledTime();
+  const scheduleStatus = getScheduleStatus(scheduleClock);
+  const activeSchedule = scheduleStatus.activeSchedule;
+  const nextTime = scheduleStatus.nextSchedule?.startDate || getNextScheduledTime();
+  const manualStop = lastLog?.status === 'OFF' && lastLog?.source === 'MANUAL';
+  const automaticScheduleEnded = lastLog?.source === 'AUTOMATIC' && !activeSchedule;
+  const displayedStatus = manualStop || automaticScheduleEnded
+    ? 'OFF'
+    : activeSchedule
+      ? 'ON'
+      : currentStatus;
+  const statusDescription = activeSchedule
+    ? 'Riego activado por horario'
+    : automaticScheduleEnded
+      ? 'Riego finalizado según el horario'
+      : displayedStatus === 'ON'
+        ? 'Riego activado manualmente'
+        : 'Riego desactivado';
+  const remainingMs = activeSchedule ? Math.max(0, activeSchedule.endDate - scheduleClock) : 0;
+  const remainingMinutes = Math.floor(remainingMs / 60000);
+  const remainingHours = Math.floor(remainingMinutes / 60);
+  const remainingMinutesPart = remainingMinutes % 60;
 
   return (
     <>
@@ -159,17 +190,17 @@ const ControlPanelPage = () => {
                   {/* Status Display */}
                   <div className="text-center">
                     <div className={`inline-flex items-center space-x-3 px-6 py-3 rounded-2xl ${
-                      currentStatus === 'ON' 
+                      displayedStatus === 'ON'
                         ? 'bg-green-100 border-2 border-green-300' 
                         : 'bg-gray-100 border-2 border-gray-300'
                     }`}>
                       <div className={`w-3 h-3 rounded-full ${
-                        currentStatus === 'ON' ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                        displayedStatus === 'ON' ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
                       }`}></div>
                       <span className={`text-xl font-bold ${
-                        currentStatus === 'ON' ? 'text-green-700' : 'text-gray-700'
+                        displayedStatus === 'ON' ? 'text-green-700' : 'text-gray-700'
                       }`}>
-                        Sistema {currentStatus === 'ON' ? 'ACTIVADO' : 'DESACTIVADO'}
+                        Sistema {displayedStatus === 'ON' ? 'ACTIVADO' : 'DESACTIVADO'}
                       </span>
                     </div>
                   </div>
@@ -181,15 +212,18 @@ const ControlPanelPage = () => {
                       disabled={loading}
                       size="lg"
                       className={`w-full max-w-[240px] h-16 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 ${
-                        currentStatus === 'ON'
+                        displayedStatus === 'ON'
                           ? 'bg-red-600 hover:bg-red-700 text-white'
                           : 'bg-green-600 hover:bg-green-700 text-white'
                       }`}
                     >
                       <Power className="w-6 h-6 mr-3" />
-                      {loading ? 'Procesando...' : currentStatus === 'ON' ? 'Desactivar Riego' : 'Activar Riego'}
+                      {loading ? 'Procesando...' : displayedStatus === 'ON' ? 'Desactivar Riego' : 'Activar Riego'}
                     </Button>
                   </div>
+                  <p className={`text-center text-sm font-medium ${displayedStatus === 'ON' ? 'text-green-700' : 'text-gray-500'}`}>
+                    {statusDescription}
+                  </p>
 
                   {/* Last Activity */}
                   {lastLog && (
@@ -219,8 +253,20 @@ const ControlPanelPage = () => {
                       <CalendarClock className="w-8 h-8 text-white" />
                     </div>
                     <div>
-                      <p className="text-teal-100 font-medium mb-1">Próximo Riego Programado</p>
-                      {nextTime ? (
+                      <p className="text-teal-100 font-medium mb-1">
+                        {activeSchedule ? 'Riego activo' : 'Próximo Riego Programado'}
+                      </p>
+                      {activeSchedule ? (
+                        <>
+                          <p className="text-2xl font-bold">En uso</p>
+                          <p className="text-sm text-teal-50 mt-0.5">
+                            Cierra a las {activeSchedule.endDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                          <p className="text-sm font-semibold text-white mt-1">
+                            Tiempo restante: {remainingHours} h {String(remainingMinutesPart).padStart(2, '0')} min
+                          </p>
+                        </>
+                      ) : nextTime ? (
                         <>
                           <p className="text-2xl font-bold">
                             {nextTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}

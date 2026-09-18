@@ -39,21 +39,21 @@ const ScheduledIrrigationList = ({ schedules, loading, error, onEdit, onDelete }
     );
   }
 
-  // Helper to format days nicely
-  const formatDays = (days) => {
-    if (!days || days.length === 0) return '';
-    if (days.length === 7) return 'Todos los días';
-    
-    const workDays = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-    const weekend = ['Sábado', 'Domingo'];
-    
-    const isWorkDays = workDays.every(d => days.includes(d)) && days.length === 5;
-    if (isWorkDays) return 'Lunes a Viernes';
-    
-    const isWeekend = weekend.every(d => days.includes(d)) && days.length === 2;
-    if (isWeekend) return 'Fines de semana';
+  const formatTimeLabel = (timeValue) => {
+    if (!timeValue) return '00:00';
+    const [hours, minutes] = String(timeValue).split(':');
+    const hour = Number.parseInt(hours, 10);
+    const minute = Number.parseInt(minutes, 10) || 0;
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = ((hour + 11) % 12) + 1;
+    return `${hour12}:${String(minute).padStart(2, '0')} ${period}`;
+  };
 
-    return days.join(', ');
+  const formatSchedule = (schedule) => {
+    const date = schedule.date || schedule.startDate || 'Sin fecha';
+    const startTime = schedule.startTime || schedule.time || '00:00';
+    const endTime = schedule.endTime || '00:00';
+    return `${date} · ${formatTimeLabel(startTime)} - ${formatTimeLabel(endTime)}`;
   };
 
   return (
@@ -66,26 +66,29 @@ const ScheduledIrrigationList = ({ schedules, loading, error, onEdit, onDelete }
                 <Clock className="w-6 h-6" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{schedule.time}</p>
+                <p className="text-2xl font-bold text-gray-900">{formatTimeLabel(schedule.startTime || schedule.time)}</p>
                 <p className="text-sm font-medium text-gray-600 mt-0.5">
-                  {formatDays(schedule.days)}
+                  {schedule.endTime ? `Hasta ${formatTimeLabel(schedule.endTime)}` : 'Horario de riego'}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {formatSchedule(schedule)}
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-2 w-full sm:w-auto justify-end border-t sm:border-t-0 pt-3 sm:pt-0 border-gray-100">
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => onEdit(schedule)}
                 className="text-blue-600 border-blue-200 hover:bg-blue-50"
               >
                 <Edit2 className="w-4 h-4 mr-1.5" />
                 Editar
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => {
                   if (window.confirm('¿Estás seguro de que deseas eliminar este horario?')) {
                     onDelete(schedule.id);
