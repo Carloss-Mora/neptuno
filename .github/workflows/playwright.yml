@@ -15,6 +15,42 @@ jobs:
         node-version: lts/*
     - name: Install dependencies
       run: npm ci
+    - name: Install PocketBase 0.36.1
+      run: node apps/pocketbase/install-pocketbase.cjs
+    - name: Start disposable PocketBase for end-to-end smoke tests
+      shell: bash
+      run: |
+        set -euo pipefail
+        PB_DATA_DIR=/tmp/neptuno-pb-e2e
+        PB_ENCRYPTION_KEY="$(openssl rand -hex 16)"
+        PB_ADMIN_EMAIL="ci-superuser@example.test"
+        PB_ADMIN_PASSWORD="$(openssl rand -hex 24)"
+        mkdir -p "$PB_DATA_DIR"
+        echo "PB_ENCRYPTION_KEY=$PB_ENCRYPTION_KEY" >> "$GITHUB_ENV"
+        echo "PB_URL=http://127.0.0.1:8090" >> "$GITHUB_ENV"
+        echo "PB_ADMIN_EMAIL=$PB_ADMIN_EMAIL" >> "$GITHUB_ENV"
+        echo "PB_ADMIN_PASSWORD=$PB_ADMIN_PASSWORD" >> "$GITHUB_ENV"
+        env PB_ENCRYPTION_KEY="$PB_ENCRYPTION_KEY" apps/pocketbase/pocketbase superuser create "$PB_ADMIN_EMAIL" "$PB_ADMIN_PASSWORD" \
+          --encryptionEnv=PB_ENCRYPTION_KEY --dir="$PB_DATA_DIR"
+        nohup env PB_ENCRYPTION_KEY="$PB_ENCRYPTION_KEY" apps/pocketbase/pocketbase serve \
+          --http=127.0.0.1:8090 \
+          --encryptionEnv=PB_ENCRYPTION_KEY \
+          --dir="$PB_DATA_DIR" \
+          --migrationsDir="$GITHUB_WORKSPACE/apps/pocketbase/pb_migrations" \
+          --hooksDir="$GITHUB_WORKSPACE/apps/pocketbase/pb_hooks" \
+          --hooksWatch=false >/tmp/neptuno-pb-e2e.log 2>&1 &
+        for attempt in $(seq 1 30); do
+          if curl --fail --silent http://127.0.0.1:8090/api/health >/dev/null; then exit 0; fi
+          sleep 1
+        done
+        cat /tmp/neptuno-pb-e2e.log
+        exit 1
+    - name: Run PocketBase end-to-end smoke tests
+      run: node tools/e2e-smoke.mjs
+    - name: Run web unit tests
+      run: npm run test:run --prefix apps/web
+    - name: Run web lint
+      run: npm run lint --prefix apps/web
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
     - name: Run Playwright tests

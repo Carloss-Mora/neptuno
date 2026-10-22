@@ -1,6 +1,13 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 cronAdd('notification-delivery', '* * * * *', () => {
+  const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[character]);
   const queue = $app.findRecordsByFilter('notification_queue', '', 'created', 100, 0);
   for (const item of queue) {
     try {
@@ -32,7 +39,7 @@ cronAdd('notification-delivery', '* * * * *', () => {
         to: [{ address: user.get('email') }],
         subject: item.get('subject'),
         text: item.get('message'),
-        html: `<p>${item.get('message')}</p>`,
+        html: `<p>${escapeHtml(item.get('message'))}</p>`,
       }));
       $app.save(new Record($app.findCollectionByNameOrId('notification_deliveries'), {
         userId: item.get('userId'),

@@ -47,6 +47,7 @@ const formatDuration = (milliseconds) => {
 
 const StatisticsPage = () => {
   const { currentUser } = useAuth();
+  const userId = currentUser?.id || '';
   const { selectedCrop } = useCrop();
   const cropId = selectedCrop?.id || '';
   const [consumptionData, setConsumptionData] = useState([]);
@@ -59,7 +60,7 @@ const StatisticsPage = () => {
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
-    if (!currentUser || !cropId) {
+    if (!userId || !cropId) {
       setIrrigationLogs([]);
       setConsumptionData([]);
       setSensorHistory([]);
@@ -142,7 +143,7 @@ const StatisticsPage = () => {
       isMounted = false;
       window.clearInterval(refreshInterval);
     };
-  }, [currentUser, cropId]);
+  }, [userId, cropId]);
 
   const sessions = useMemo(() => buildIrrigationSessions(irrigationLogs, now), [irrigationLogs, now]);
   const recentSessions = useMemo(() => {
