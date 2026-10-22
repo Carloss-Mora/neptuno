@@ -1,6 +1,11 @@
-import '../../../pocketbase/pb_hooks/control-policy.pb.js';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import vm from 'node:vm';
 
-const decide = globalThis.NeptunoIrrigationPolicy.decide;
+const policyModule = { exports: {} };
+const policySource = readFileSync(resolve(process.cwd(), '../pocketbase/pb_hooks/irrigation-policy.js'), 'utf8');
+vm.runInNewContext(policySource, { module: policyModule, exports: policyModule.exports });
+const { decide } = policyModule.exports;
 
 const policyInput = {
   humidity: 20,
@@ -45,6 +50,17 @@ describe('server irrigation control policy', () => {
     expect(decide({ ...policyInput, currentState: 'ON', humidityMax: Number.NaN })).toEqual({
       state: 'OFF',
       reason: 'configuration_missing',
+    });
+  });
+
+  it('holds the current state while a manual override is active', () => {
+    expect(decide({ ...policyInput, currentState: 'OFF', manualOverrideUntilMs: 100001 })).toEqual({
+      state: 'OFF',
+      reason: 'manual_override',
+    });
+    expect(decide({ ...policyInput, currentState: 'ON', manualOverrideUntilMs: 100001 })).toEqual({
+      state: 'ON',
+      reason: 'manual_override',
     });
   });
 });

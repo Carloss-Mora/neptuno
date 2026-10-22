@@ -1,4 +1,4 @@
-globalThis.NeptunoIrrigationPolicy = Object.freeze({
+module.exports = {
   decide({
     humidity,
     humidityMin,
@@ -10,6 +10,7 @@ globalThis.NeptunoIrrigationPolicy = Object.freeze({
     lastStoppedAtMs,
     maxContinuousMs,
     minRestMs,
+    manualOverrideUntilMs,
   }) {
     const current = currentState === 'ON' ? 'ON' : 'OFF';
     if (
@@ -28,6 +29,9 @@ globalThis.NeptunoIrrigationPolicy = Object.freeze({
     }
 
     if (waterLevel < 20) return { state: 'OFF', reason: 'low_water' };
+    if (Number.isFinite(manualOverrideUntilMs) && nowMs < manualOverrideUntilMs) {
+      return { state: current, reason: 'manual_override' };
+    }
 
     if (current === 'ON') {
       if (Number.isFinite(activeSinceMs) && nowMs - activeSinceMs >= maxContinuousMs) {
@@ -43,4 +47,4 @@ globalThis.NeptunoIrrigationPolicy = Object.freeze({
     if (humidity < humidityMin) return { state: 'ON', reason: 'humidity_low' };
     return { state: 'OFF', reason: 'humidity_sufficient' };
   },
-});
+};
