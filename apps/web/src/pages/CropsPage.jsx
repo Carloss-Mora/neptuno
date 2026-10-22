@@ -20,6 +20,8 @@ const emptyCrop = {
   max_irrigation_minutes: '',
   min_rest_minutes: '',
   manual_override_minutes: '30',
+  alert_water_min: '',
+  alert_temp_max: '',
   control_mode: 'MANUAL',
 };
 
@@ -52,6 +54,8 @@ const CropsPage = () => {
         max_irrigation_minutes: crop.max_irrigation_minutes == null ? '' : String(crop.max_irrigation_minutes),
         min_rest_minutes: crop.min_rest_minutes == null ? '' : String(crop.min_rest_minutes),
         manual_override_minutes: crop.manual_override_minutes == null ? '30' : String(crop.manual_override_minutes),
+        alert_water_min: crop.alert_water_min == null ? '' : String(crop.alert_water_min),
+        alert_temp_max: crop.alert_temp_max == null ? '' : String(crop.alert_temp_max),
         control_mode: crop.control_mode || 'MANUAL',
       });
     }
@@ -85,6 +89,8 @@ const CropsPage = () => {
       max_irrigation_minutes: crop.max_irrigation_minutes == null ? '' : String(crop.max_irrigation_minutes),
       min_rest_minutes: crop.min_rest_minutes == null ? '' : String(crop.min_rest_minutes),
       manual_override_minutes: crop.manual_override_minutes == null ? '30' : String(crop.manual_override_minutes),
+      alert_water_min: crop.alert_water_min == null ? '' : String(crop.alert_water_min),
+      alert_temp_max: crop.alert_temp_max == null ? '' : String(crop.alert_temp_max),
       control_mode: crop.control_mode || 'MANUAL',
     });
     setError('');
@@ -214,6 +220,14 @@ const CropsPage = () => {
                     <div className="space-y-2">
                       <Label htmlFor="crop-manual-override">Duración del control manual (min)</Label>
                       <Input id="crop-manual-override" name="manual_override_minutes" type="number" min="1" max="1440" step="1" value={form.manual_override_minutes} onChange={handleChange} required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="crop-alert-water">Alertar si el nivel de agua baja de (%)</Label>
+                      <Input id="crop-alert-water" name="alert_water_min" type="number" min="0" max="100" step="any" value={form.alert_water_min} onChange={handleChange} placeholder="Desactivada" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="crop-alert-temperature">Alertar si la temperatura supera (°C)</Label>
+                      <Input id="crop-alert-temperature" name="alert_temp_max" type="number" min="-10" max="60" step="any" value={form.alert_temp_max} onChange={handleChange} placeholder="Desactivada" />
                     </div>
                   </div>
                   <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">

@@ -74,6 +74,7 @@ const createCropsCollection = () => ({
     area_m2: 120,
     humidity_min: 30,
     humidity_max: 60,
+    alert_water_min: 20,
     control_mode: 'MANUAL',
   }]),
 });
@@ -88,6 +89,7 @@ const createSensorReadingsCollection = () => ({
       created: '2024-01-01T00:00:00.000Z',
     }],
   })),
+  subscribe: vi.fn(async () => vi.fn()),
 });
 
 describe('Neptuno app behavior', () => {

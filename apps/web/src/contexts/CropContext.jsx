@@ -64,6 +64,8 @@ const normalizeCrop = (data) => {
   const manualOverrideMinutes = data.manual_override_minutes === '' || data.manual_override_minutes == null
     ? 30
     : Number(data.manual_override_minutes);
+  const alertWaterMinimum = data.alert_water_min === '' || data.alert_water_min == null ? null : Number(data.alert_water_min);
+  const alertTemperatureMaximum = data.alert_temp_max === '' || data.alert_temp_max == null ? null : Number(data.alert_temp_max);
   if (maxIrrigationMinutes !== null && (!Number.isInteger(maxIrrigationMinutes) || maxIrrigationMinutes < 1 || maxIrrigationMinutes > 1440)) {
     throw new Error('El tiempo máximo de riego debe ser de 1 a 1440 minutos.');
   }
@@ -72,6 +74,12 @@ const normalizeCrop = (data) => {
   }
   if (!Number.isInteger(manualOverrideMinutes) || manualOverrideMinutes < 1 || manualOverrideMinutes > 1440) {
     throw new Error('La anulación manual debe durar de 1 a 1440 minutos.');
+  }
+  if (alertWaterMinimum !== null && (!Number.isFinite(alertWaterMinimum) || alertWaterMinimum < 0 || alertWaterMinimum > 100)) {
+    throw new Error('El mínimo de alerta del nivel de agua debe estar entre 0 y 100%.');
+  }
+  if (alertTemperatureMaximum !== null && (!Number.isFinite(alertTemperatureMaximum) || alertTemperatureMaximum < -10 || alertTemperatureMaximum > 60)) {
+    throw new Error('La temperatura máxima de alerta debe estar entre -10 y 60 °C.');
   }
   return {
     name: String(data.name || '').trim(),
@@ -84,6 +92,8 @@ const normalizeCrop = (data) => {
     max_irrigation_minutes: maxIrrigationMinutes,
     min_rest_minutes: minRestMinutes,
     manual_override_minutes: manualOverrideMinutes,
+    alert_water_min: alertWaterMinimum,
+    alert_temp_max: alertTemperatureMaximum,
     control_mode: data.control_mode || 'MANUAL',
   };
 };
