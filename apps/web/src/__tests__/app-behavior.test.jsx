@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
@@ -8,6 +8,7 @@ import { AlertProvider, useAlert } from '@/contexts/AlertContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import LoginPage from '@/pages/LoginPage';
 import SignupPage from '@/pages/SignupPage';
+import NotificationBell from '@/components/NotificationBell';
 import { useIrrigationSchedule } from '@/hooks/useIrrigationSchedule';
 
 const mockPb = vi.hoisted(() => ({
@@ -54,6 +55,8 @@ const createUsersCollection = () => ({
     id: 'user-1',
     ...payload,
   })),
+  requestOTP: vi.fn(async () => ({ otpId: 'otp-1' })),
+  listAuthMethods: vi.fn(async () => ({ oauth2: { providers: [] } })),
 });
 
 const createSettingsCollection = () => ({
@@ -78,31 +81,7 @@ describe('Neptuno app behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFetch.mockReset();
-    mockFetch.mockImplementation(async (url, options = {}) => {
-      if (url.includes('/api/send-verification-code')) {
-        return {
-          ok: true,
-          json: async () => ({ success: true, message: 'Código enviado correctamente.' }),
-        };
-      }
-
-      if (url.includes('/api/verify-email-code')) {
-        const body = JSON.parse(options.body || '{}');
-        const submittedCode = String(body.code || '');
-
-        if (submittedCode === '000000') {
-          return {
-            ok: false,
-            json: async () => ({ message: 'El código de verificación no coincide. Revisa tu correo e inténtalo de nuevo.' }),
-          };
-        }
-
-        return {
-          ok: true,
-          json: async () => ({ success: true, message: 'Código verificado correctamente.' }),
-        };
-      }
-
+    mockFetch.mockImplementation(async () => {
       return {
         ok: true,
         json: async () => ({ success: true }),
@@ -121,6 +100,10 @@ describe('Neptuno app behavior', () => {
         update: vi.fn(async (id, payload) => ({ id, ...payload })),
       };
     });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('logs in, keeps the user session and logs out', async () => {
@@ -201,7 +184,7 @@ describe('Neptuno app behavior', () => {
     });
   });
 
-  it('validates the signup form and creates the account without Gmail verification', async () => {
+  it('creates the account and shows the email verification notice', async () => {
     const user = userEvent.setup();
 
     render(
@@ -221,9 +204,8 @@ describe('Neptuno app behavior', () => {
     await user.type(screen.getByLabelText(/confirmar contraseña/i), '12345678');
     await user.click(screen.getByRole('button', { name: /crear cuenta/i }));
 
-    await waitFor(() => {
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    });
+    expect(await screen.findByRole('heading', { name: /verifica tu correo/i })).toBeInTheDocument();
+    expect(screen.getByText(/test@example.com/i)).toBeInTheDocument();
   });
 
   it('muestra mensajes claros para validaciones de signup y correo duplicado', async () => {
@@ -345,6 +327,69 @@ describe('Neptuno app behavior', () => {
     });
   });
 
+  it('notifies in the bell when irrigation starts and finishes', async () => {
+    mockPb.authStore.isValid = true;
+    mockPb.authStore.model = createAuthenticatedUser();
+    let irrigationLogs = [{
+      id: 'log-on',
+      status: 'ON',
+      created: '2026-10-20T10:00:00.000Z',
+    }];
+    let pollAlerts;
+    const getIrrigationLogs = vi.fn(async () => ({ items: irrigationLogs }));
+    const setInterval = globalThis.setInterval.bind(globalThis);
+    vi.spyOn(globalThis, 'setInterval').mockImplementation((callback, delay) => {
+      if (delay === 5000) pollAlerts = callback;
+      return setInterval(callback, delay);
+    });
+    mockPb.collection.mockImplementation((name) => {
+      if (name === 'sensor_readings') {
+        return {
+          getList: vi.fn(async () => ({
+            items: [{ soil_humidity: 50, temperature: 20, water_level: 50 }],
+          })),
+        };
+      }
+      if (name === 'irrigation_logs') {
+        return { getList: getIrrigationLogs };
+      }
+      return createSettingsCollection();
+    });
+
+    const { unmount } = render(
+      <AuthProvider>
+        <AlertProvider>
+          <NotificationBell />
+        </AlertProvider>
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(getIrrigationLogs).toHaveBeenCalled();
+    });
+
+    irrigationLogs = [
+      { id: 'log-off', status: 'OFF', created: '2026-10-20T10:10:00.000Z' },
+      { id: 'log-on', status: 'ON', created: '2026-10-20T10:00:00.000Z' },
+    ];
+    await act(async () => {
+      await pollAlerts();
+    });
+
+    await userEvent.setup().click(screen.getByRole('button'));
+    expect(await screen.findByText('El riego ha finalizado')).toBeInTheDocument();
+
+    irrigationLogs = [
+      { id: 'log-on-2', status: 'ON', created: '2026-10-20T10:15:00.000Z' },
+      ...irrigationLogs,
+    ];
+    await act(async () => {
+      await pollAlerts();
+    });
+    expect(await screen.findByText('Nuevo riego iniciado')).toBeInTheDocument();
+    unmount();
+  });
+
   it('stores and calculates irrigation schedules correctly', async () => {
     const user = userEvent.setup();
     mockPb.authStore.isValid = true;
@@ -380,5 +425,113 @@ describe('Neptuno app behavior', () => {
       expect(screen.getByTestId('schedule-count')).toHaveTextContent('1');
       expect(screen.getByTestId('next-time')).not.toHaveTextContent('none');
     });
+  });
+
+  it('saves a schedule when the browser does not provide crypto.randomUUID', async () => {
+    const originalCrypto = globalThis.crypto;
+    vi.stubGlobal('crypto', {});
+    mockPb.authStore.isValid = true;
+    mockPb.authStore.model = createAuthenticatedUser();
+    const getSettings = vi.fn(async () => ({ items: [] }));
+    const createSettings = vi.fn(async (payload) => ({ id: 'settings-new', ...payload }));
+    mockPb.collection.mockImplementation((name) => {
+      if (name === 'user_settings') {
+        return { getList: getSettings, create: createSettings };
+      }
+      return { getList: vi.fn(async () => ({ items: [] })) };
+    });
+
+    function ScheduleProbe() {
+      const { schedules, addSchedule } = useIrrigationSchedule();
+      return (
+        <div>
+          <span data-testid="schedule-count">{schedules.length}</span>
+          <button onClick={() => addSchedule('08:30', '09:30', '2099-01-01')}>save</button>
+        </div>
+      );
+    }
+
+    try {
+      const user = userEvent.setup();
+      render(
+        <AuthProvider>
+          <ScheduleProbe />
+        </AuthProvider>
+      );
+
+      await user.click(screen.getByRole('button', { name: /save/i }));
+      await waitFor(() => {
+        expect(screen.getByTestId('schedule-count')).toHaveTextContent('1');
+      });
+      expect(createSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-1',
+          irrigation_schedule_times: expect.any(String),
+        }),
+        { $autoCancel: false }
+      );
+      const savedSchedule = JSON.parse(createSettings.mock.calls[0][0].irrigation_schedule_times)[0];
+      expect(savedSchedule).toMatchObject({
+        date: '2099-01-01',
+        startTime: '08:30',
+        endTime: '09:30',
+        utcOffsetMinutes: expect.any(Number),
+      });
+      expect(savedSchedule.id).toMatch(/^schedule-/);
+    } finally {
+      vi.stubGlobal('crypto', originalCrypto);
+    }
+  });
+
+  it('updates an existing settings record if it appears before a schedule is saved', async () => {
+    const user = userEvent.setup();
+    mockPb.authStore.isValid = true;
+    mockPb.authStore.model = createAuthenticatedUser();
+    const getSettings = vi.fn()
+      .mockResolvedValueOnce({ items: [] })
+      .mockResolvedValueOnce({
+        items: [{ id: 'settings-existing', irrigation_schedule_times: '[]' }],
+      });
+    const updateSettings = vi.fn(async (id, payload) => ({ id, ...payload }));
+    const createSettings = vi.fn();
+
+    mockPb.collection.mockImplementation((name) => {
+      if (name === 'user_settings') {
+        return {
+          getList: getSettings,
+          update: updateSettings,
+          create: createSettings,
+        };
+      }
+      return { getList: vi.fn(async () => ({ items: [] })) };
+    });
+
+    function ScheduleProbe() {
+      const { addSchedule } = useIrrigationSchedule();
+      return <button onClick={() => addSchedule('08:30', '09:30', '2099-01-01')}>save</button>;
+    }
+
+    render(
+      <AuthProvider>
+        <ScheduleProbe />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(getSettings).toHaveBeenCalledTimes(1);
+    });
+    await user.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(() => {
+      expect(updateSettings).toHaveBeenCalledWith(
+        'settings-existing',
+        expect.objectContaining({
+          userId: 'user-1',
+          irrigation_schedule_times: expect.any(String),
+        }),
+        { $autoCancel: false }
+      );
+    });
+    expect(createSettings).not.toHaveBeenCalled();
   });
 });

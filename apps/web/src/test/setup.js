@@ -1,5 +1,9 @@
 import '@testing-library/jest-dom/vitest';
 
+if (!document.elementFromPoint) {
+  document.elementFromPoint = () => null;
+}
+
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: (query) => ({

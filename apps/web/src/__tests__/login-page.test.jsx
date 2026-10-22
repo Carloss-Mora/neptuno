@@ -25,6 +25,14 @@ const createUsersCollection = () => ({
     if (email === 'bad@demo.com' && password === 'wrong') {
       throw new Error('Failed to authenticate.');
     }
+    if (email === 'unverified@demo.com') {
+      const error = new Error("The request doesn't satisfy the collection requirements to authenticate.");
+      error.status = 400;
+      error.data = {
+        message: "The request doesn't satisfy the collection requirements to authenticate.",
+      };
+      throw error;
+    }
 
     const user = { id: 'u-1', email, name: 'Demo User' };
     mockPb.authStore.isValid = true;
@@ -33,6 +41,14 @@ const createUsersCollection = () => ({
   }),
   create: vi.fn(async (payload) => ({ id: 'u-1', ...payload })),
   getFullList: vi.fn(async () => []),
+  requestOTP: vi.fn(async () => ({ otpId: 'otp-1' })),
+  authWithOTP: vi.fn(async () => {
+    const user = { id: 'u-1', email: 'unverified@demo.com', verified: true };
+    mockPb.authStore.isValid = true;
+    mockPb.authStore.model = user;
+    return { record: user };
+  }),
+  listAuthMethods: vi.fn(async () => ({ oauth2: { providers: [] } })),
 });
 
 beforeEach(() => {
@@ -101,7 +117,35 @@ describe('Login page module', () => {
     await user.click(screen.getByRole('button', { name: /iniciar sesión/i }));
 
     await waitFor(() => {
-      expect(screen.getByText('Correo o contraseña incorrectos.')).toBeInTheDocument();
+      expect(screen.getByText(/no se pudo iniciar sesión/i)).toBeInTheDocument();
     });
+  });
+
+  it('explains that PocketBase rejected an unverified email and offers resend', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/login']}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/dashboard" element={<div>Dashboard</div>} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>
+    );
+
+    await user.type(screen.getByLabelText(/correo electrónico/i), 'unverified@demo.com');
+    await user.type(screen.getByLabelText(/contraseña/i), 'a-valid-length-password');
+    await user.click(screen.getByRole('button', { name: /iniciar sesión/i }));
+
+    expect(await screen.findByText(/esta cuenta todavía no ha verificado su correo/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /enviar código de verificación/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /enviar código de verificación/i }));
+    expect(await screen.findByLabelText(/código de verificación/i)).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/código de verificación/i), '123456');
+    await user.click(screen.getByRole('button', { name: /verificar código/i }));
+    expect(await screen.findByText('Dashboard')).toBeInTheDocument();
   });
 });

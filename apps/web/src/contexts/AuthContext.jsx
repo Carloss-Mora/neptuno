@@ -24,6 +24,12 @@ const extractErrorMessage = (error, fallback = 'Ha ocurrido un error inesperado.
   addValue(error?.message);
 
   const normalized = values.join(' ').toLowerCase();
+  if (
+    /not verified|unverified|verification required|must be verified/.test(normalized)
+    || /request does not satisfy the collection requirements to authenticate|request doesn't satisfy the collection requirements to authenticate/.test(normalized)
+  ) {
+    return 'Esta cuenta todavía no ha verificado su correo. Solicita un código de seis dígitos para confirmarlo. No es un error de formato de contraseña.';
+  }
   const isDuplicateEmailError = (
     /validation_not_unique|already.*exists|already.*registered|duplicate.*email|email.*already.*used|value must be unique/i.test(normalized)
     || payload?.email?.code === 'validation_not_unique'
@@ -48,7 +54,7 @@ const extractErrorMessage = (error, fallback = 'Ha ocurrido un error inesperado.
   }
 
   if (/invalid.*login|invalid.*credentials|auth.*failed|failed to authenticate|incorrect.*password|incorrect.*credentials|invalid.*email|email.*password/.test(normalized)) {
-    return 'Correo o contraseña incorrectos.';
+    return 'No se pudo iniciar sesión. Revisa el correo y la contraseña (mínimo 8 caracteres; distingue mayúsculas y minúsculas). Si la cuenta es nueva, verifica tu correo o solicita un código.';
   }
 
   if (/email.*valid|invalid.*email|email.*format|must be a valid email/.test(normalized)) {
@@ -75,7 +81,9 @@ export const AuthProvider = ({ children }) => {
   const [initialLoading, setInitialLoading] = useState(true);
 
   useEffect(() => {
-    if (pb.authStore.isValid) {
+    if (pb.authStore.isValid && pb.authStore.model?.verified === false) {
+      pb.authStore.clear();
+    } else if (pb.authStore.isValid) {
       setCurrentUser(pb.authStore.model);
     }
     setInitialLoading(false);
@@ -88,11 +96,18 @@ export const AuthProvider = ({ children }) => {
       }
 
       const authData = await pb.collection('users').authWithPassword(email, password);
+      if (authData.record?.verified === false) {
+        pb.authStore.clear();
+        throw new Error('Tu correo aún no está verificado. Solicita un código de seis dígitos para confirmarlo.');
+      }
       setCurrentUser(authData.record);
       return { success: true, user: authData.record };
     } catch (error) {
       console.error('Login error:', error);
-      throw new Error(extractErrorMessage(error, 'Correo o contraseña incorrectos.'));
+      throw new Error(extractErrorMessage(
+        error,
+        'Correo o contraseña incorrectos. Si tu cuenta es nueva, verifica tu correo antes de iniciar sesión.',
+      ));
     }
   };
 
@@ -154,13 +169,84 @@ export const AuthProvider = ({ children }) => {
 
       await usersCollection.create(payload);
 
-      const authData = await pb.collection('users').authWithPassword(email, password);
-      setCurrentUser(authData.record);
-
-      return { success: true, user: authData.record };
+      try {
+        const otp = await usersCollection.requestOTP(email, { $autoCancel: false });
+        return {
+          success: true,
+          requiresVerification: true,
+          emailSent: true,
+          email,
+          otpId: otp.otpId,
+        };
+      } catch (verificationError) {
+        console.error('Account created but verification code could not be sent:', verificationError);
+        return {
+          success: true,
+          requiresVerification: true,
+          emailSent: false,
+          email,
+          verificationErrorMessage: extractErrorMessage(verificationError, 'No se pudo solicitar el código de verificación.'),
+        };
+      }
     } catch (error) {
       console.error('Signup error:', error);
       throw new Error(extractErrorMessage(error, 'No se pudo crear la cuenta. Inténtalo de nuevo.', email));
+    }
+  };
+
+  const resendVerification = async (email) => {
+    if (!email) throw new Error('Escribe el correo con el que creaste tu cuenta.');
+    try {
+      return await pb.collection('users').requestOTP(email.trim(), { $autoCancel: false });
+    } catch (error) {
+      console.error('Email verification code request failed:', error);
+      throw new Error(extractErrorMessage(
+        error,
+        'No se pudo solicitar el código de verificación. Revisa la dirección e inténtalo de nuevo.',
+      ));
+    }
+  };
+
+  const verifyEmailCode = async (otpId, code) => {
+    if (!otpId) throw new Error('Solicita un nuevo código de verificación para continuar.');
+    if (!/^\d{6}$/.test(code || '')) throw new Error('Introduce el código de seis dígitos que recibiste por correo.');
+
+    try {
+      const authData = await pb.collection('users').authWithOTP(otpId, code, { $autoCancel: false });
+      if (authData.record?.verified === false) {
+        pb.authStore.clear();
+        throw new Error('El correo todavía no aparece verificado. Solicita un nuevo código.');
+      }
+      setCurrentUser(authData.record);
+      return authData.record;
+    } catch (error) {
+      console.error('Email verification code validation failed:', error);
+      throw new Error(extractErrorMessage(error, 'El código venció o no es válido. Solicita uno nuevo e inténtalo otra vez.'));
+    }
+  };
+
+  const confirmEmailVerification = async (token) => {
+    if (!token) throw new Error('El enlace de verificación no contiene un token válido.');
+    try {
+      await pb.collection('users').confirmVerification(token, { $autoCancel: false });
+      return true;
+    } catch (error) {
+      console.error('Email verification confirmation failed:', error);
+      throw new Error('El enlace venció o no es válido. Solicita un nuevo correo de verificación.');
+    }
+  };
+
+  const loginWithGoogle = async () => {
+    try {
+      const authData = await pb.collection('users').authWithOAuth2({
+        provider: 'google',
+        createData: { emailVisibility: false },
+      });
+      setCurrentUser(authData.record);
+      return authData.record;
+    } catch (error) {
+      console.error('Google authentication failed:', error);
+      throw new Error('No se pudo iniciar sesión con Google. Inténtalo de nuevo.');
     }
   };
 
@@ -173,6 +259,10 @@ export const AuthProvider = ({ children }) => {
     currentUser,
     login,
     signup,
+    resendVerification,
+    verifyEmailCode,
+    confirmEmailVerification,
+    loginWithGoogle,
     logout,
     isAuthenticated: !!currentUser,
     initialLoading,

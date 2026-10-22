@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Clock, CalendarDays } from 'lucide-react';
+import { Clock, CalendarDays, AlertCircle, Droplets, LoaderCircle, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { getScheduleState } from '@/utils/irrigationMetrics';
 
 const getDefaultDate = () => {
   const date = new Date();
@@ -46,6 +47,7 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
   const [scheduleDate, setScheduleDate] = useState(getDefaultDate());
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isPastSchedule = Boolean(initialData && getScheduleState(initialData) === 'past');
 
   useEffect(() => {
     if (initialData) {
@@ -78,6 +80,11 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
+
+    if (isPastSchedule) {
+      setFormError('Este horario ya pasó y no se puede editar.');
+      return;
+    }
 
     if (!scheduleDate) {
       setFormError('Selecciona una fecha para el horario.');
@@ -151,9 +158,12 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
         });
       }
     } catch (err) {
+      console.error('Error submitting irrigation schedule:', err);
+      const errorMessage = err?.message || 'Ocurrió un error inesperado al guardar.';
+      setFormError(errorMessage);
       toast({
         title: 'Error',
-        description: 'Ocurrió un error inesperado al guardar.',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -162,21 +172,31 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
   };
 
   return (
-    <Card className="border-teal-100 shadow-md">
-      <CardHeader className="bg-teal-50/50 border-b border-teal-100 pb-4">
-        <CardTitle className="text-lg flex items-center text-teal-800">
-          <CalendarDays className="w-5 h-5 mr-2" />
-          {initialData ? 'Editar Horario' : 'Nuevo Horario de Riego'}
+    <Card className="overflow-hidden border-teal-100/80 bg-white shadow-xl shadow-teal-950/5">
+      <CardHeader className="border-b border-teal-100 bg-gradient-to-r from-teal-50 via-cyan-50 to-white pb-5">
+        <CardTitle className="flex items-center gap-3 text-xl text-slate-900">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 text-white shadow-lg shadow-teal-600/20">
+            <Droplets className="h-5 w-5" />
+          </span>
+          <span>{initialData ? 'Editar horario' : 'Programar un riego'}</span>
         </CardTitle>
+        <p className="pl-14 text-sm text-slate-600">Elige cuándo comienza y termina el riego.</p>
       </CardHeader>
       <CardContent className="pt-6">
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
-            <div className="space-y-3">
-              <Label htmlFor="start-time" className="text-gray-700 font-semibold">Hora de inicio</Label>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Clock className="w-5 h-5 text-gray-400" />
-                <div className="flex items-center space-x-2">
+          {isPastSchedule && (
+            <p role="status" className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+              Este horario ya pasó y no se puede editar.
+            </p>
+          )}
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="space-y-3 rounded-2xl border border-teal-100 bg-teal-50/40 p-4">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-teal-500 ring-4 ring-teal-100" />
+                <Label htmlFor="start-time" className="font-semibold text-slate-800">Hora de inicio</Label>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-center gap-2">
                   <Input
                     id="start-time"
                     type="number"
@@ -184,32 +204,33 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
                     max="12"
                     value={startHour}
                     onChange={(e) => setStartHour(e.target.value)}
-                    className="w-20 text-center text-lg font-medium text-gray-900"
+                    className="h-12 w-20 flex-1 border-slate-200 bg-white text-center text-lg font-semibold text-slate-900 shadow-sm focus-visible:ring-teal-500 sm:flex-none"
                     placeholder="HH"
                     aria-label="Hora de inicio"
                   />
-                  <span className="text-xl font-bold text-gray-500">:</span>
+                  <span className="text-xl font-bold text-slate-400">:</span>
                   <Input
                     type="number"
                     min="0"
                     max="59"
                     value={startMinute}
                     onChange={(e) => setStartMinute(e.target.value)}
-                    className="w-20 text-center text-lg font-medium text-gray-900"
+                    className="h-12 w-20 flex-1 border-slate-200 bg-white text-center text-lg font-semibold text-slate-900 shadow-sm focus-visible:ring-teal-500 sm:flex-none"
                     placeholder="MM"
                     aria-label="Minutos de inicio"
                   />
                 </div>
-                <div className="flex rounded-md border border-gray-300 overflow-hidden bg-white">
+                <div className="grid w-full grid-cols-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                   {['AM', 'PM'].map((period) => (
                     <button
                       key={period}
                       type="button"
                       onClick={() => setStartPeriod(period)}
-                      className={`px-3 py-2 text-sm font-medium transition ${
+                      aria-pressed={startPeriod === period}
+                      className={`min-h-11 w-full px-3 py-3 text-sm font-bold transition ${
                         startPeriod === period
                           ? 'bg-teal-600 text-white'
-                          : 'bg-white text-gray-700 hover:bg-gray-100'
+                          : 'bg-white text-slate-600 hover:bg-teal-50'
                       }`}
                       aria-label={`Periodo de inicio ${period}`}
                     >
@@ -220,11 +241,13 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
               </div>
             </div>
 
-            <div className="space-y-3">
-              <Label htmlFor="end-time" className="text-gray-700 font-semibold">Hora de finalización</Label>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Clock className="w-5 h-5 text-gray-400" />
-                <div className="flex items-center space-x-2">
+            <div className="space-y-3 rounded-2xl border border-cyan-100 bg-cyan-50/40 p-4">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-cyan-500 ring-4 ring-cyan-100" />
+                <Label htmlFor="end-time" className="font-semibold text-slate-800">Hora de finalización</Label>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-center gap-2">
                   <Input
                     id="end-time"
                     type="number"
@@ -232,32 +255,33 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
                     max="12"
                     value={endHour}
                     onChange={(e) => setEndHour(e.target.value)}
-                    className="w-20 text-center text-lg font-medium text-gray-900"
+                    className="h-12 w-20 flex-1 border-slate-200 bg-white text-center text-lg font-semibold text-slate-900 shadow-sm focus-visible:ring-cyan-500 sm:flex-none"
                     placeholder="HH"
                     aria-label="Hora de finalización"
                   />
-                  <span className="text-xl font-bold text-gray-500">:</span>
+                  <span className="text-xl font-bold text-slate-400">:</span>
                   <Input
                     type="number"
                     min="0"
                     max="59"
                     value={endMinute}
                     onChange={(e) => setEndMinute(e.target.value)}
-                    className="w-20 text-center text-lg font-medium text-gray-900"
+                    className="h-12 w-20 flex-1 border-slate-200 bg-white text-center text-lg font-semibold text-slate-900 shadow-sm focus-visible:ring-cyan-500 sm:flex-none"
                     placeholder="MM"
                     aria-label="Minutos de finalización"
                   />
                 </div>
-                <div className="flex rounded-md border border-gray-300 overflow-hidden bg-white">
+                <div className="grid w-full grid-cols-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                   {['AM', 'PM'].map((period) => (
                     <button
                       key={period}
                       type="button"
                       onClick={() => setEndPeriod(period)}
-                      className={`px-3 py-2 text-sm font-medium transition ${
+                      aria-pressed={endPeriod === period}
+                      className={`min-h-11 w-full px-3 py-3 text-sm font-bold transition ${
                         endPeriod === period
                           ? 'bg-teal-600 text-white'
-                          : 'bg-white text-gray-700 hover:bg-gray-100'
+                          : 'bg-white text-slate-600 hover:bg-cyan-50'
                       }`}
                       aria-label={`Periodo de finalización ${period}`}
                     >
@@ -270,29 +294,39 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="schedule-date" className="text-gray-700 font-semibold">Fecha</Label>
+            <Label htmlFor="schedule-date" className="flex items-center gap-2 font-semibold text-slate-800">
+              <CalendarDays className="h-4 w-4 text-teal-600" />
+              Fecha del riego
+            </Label>
             <Input
               id="schedule-date"
               type="date"
               value={scheduleDate}
               onChange={(e) => setScheduleDate(e.target.value)}
               min={initialData ? undefined : getDefaultDate()}
-              className="text-gray-900"
+              className="h-12 border-slate-200 bg-white text-slate-900 shadow-sm focus-visible:ring-teal-500"
               aria-label="Fecha"
             />
           </div>
 
           {formError && (
-            <p className="text-sm text-red-600 bg-red-50 p-2 rounded border border-red-100">{formError}</p>
+            <p role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              {formError}
+            </p>
           )}
 
           <div className="flex space-x-3 pt-2">
             <Button
               type="submit"
-              disabled={isSubmitting}
-              className="flex-1 bg-teal-600 hover:bg-teal-700 text-white"
+              disabled={isSubmitting || isPastSchedule}
+              className="h-12 flex-1 bg-gradient-to-r from-teal-600 to-cyan-600 font-semibold text-white shadow-lg shadow-teal-600/20 transition hover:-translate-y-0.5 hover:from-teal-500 hover:to-cyan-500 hover:shadow-xl disabled:translate-y-0"
             >
-              {isSubmitting ? 'Guardando...' : (initialData ? 'Actualizar Horario' : 'Añadir Horario')}
+              {isSubmitting ? (
+                <><LoaderCircle className="mr-2 h-4 w-4 animate-spin" />Guardando...</>
+              ) : (
+                <><Save className="mr-2 h-4 w-4" />{initialData ? 'Guardar cambios' : 'Guardar horario'}</>
+              )}
             </Button>
             {initialData && onCancel && (
               <Button

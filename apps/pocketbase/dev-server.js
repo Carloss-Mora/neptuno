@@ -9,7 +9,6 @@ const __dirname = path.dirname(__filename);
 const appDir = __dirname;
 const rootDir = path.resolve(appDir, '..', '..');
 const envPath = path.join(rootDir, '.env');
-const defaultKey = '12345678901234567890123456789012';
 
 const envFromFile = {};
 if (fs.existsSync(envPath)) {
@@ -37,16 +36,27 @@ if (!binaryPath) {
   process.exit(1);
 }
 
-const env = {
-  ...envFromFile,
-  ...process.env,
-  PB_ENCRYPTION_KEY: process.env.PB_ENCRYPTION_KEY || envFromFile.PB_ENCRYPTION_KEY || defaultKey,
-};
+const env = { ...envFromFile, ...process.env };
+const encryptionKey = env.PB_ENCRYPTION_KEY;
+
+if (!encryptionKey || encryptionKey.length !== 32) {
+  console.error('PB_ENCRYPTION_KEY is required and must contain exactly 32 characters.');
+  process.exit(1);
+}
+
+if (env.BUILDER_MAILER_SENDER_ADDRESS?.toLowerCase().endsWith('@resend.dev')) {
+  console.warn('El remitente de prueba de Resend solo entrega a destinatarios autorizados. Verifica tu propio dominio y usa una dirección de ese dominio para enviar códigos a otros usuarios.');
+}
 
 const ensureDemoUser = async () => {
-  const demoEmail = process.env.DEMO_EMAIL || 'demo@neptuno.com';
-  const demoPassword = process.env.DEMO_PASSWORD || 'Neptuno123!';
-  const demoName = process.env.DEMO_NAME || 'Demo Neptuno';
+  const demoEmail = env.DEMO_EMAIL;
+  const demoPassword = env.DEMO_PASSWORD;
+  const demoName = env.DEMO_NAME || 'Demo Neptuno';
+
+  if (!demoEmail || !demoPassword) {
+    console.error('Demo user setup requires both DEMO_EMAIL and DEMO_PASSWORD.');
+    return;
+  }
 
   for (let attempt = 0; attempt < 20; attempt += 1) {
     try {
@@ -71,7 +81,7 @@ const ensureDemoUser = async () => {
       });
 
       if (createResponse.ok) {
-        console.log(`Demo user ready: ${demoEmail} / ${demoPassword}`);
+        console.log(`Demo user ready: ${demoEmail}`);
         return;
       }
 
@@ -125,5 +135,7 @@ child.on('error', (error) => {
 });
 
 setTimeout(() => {
-  ensureDemoUser();
+  if (env.NODE_ENV !== 'production' && env.ENABLE_DEMO_USER === 'true') {
+    ensureDemoUser();
+  }
 }, 2000);

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { History, Clock, Power, Filter } from 'lucide-react';
+import { History, Clock, Power, Filter, Sprout, Timer, AlertCircle } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
 import { formatDistanceStrict, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -16,6 +16,7 @@ const IrrigationHistoryPage = () => {
   const { currentUser } = useAuth();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [filter, setFilter] = useState('all'); // '7days', '30days', 'all'
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -26,8 +27,11 @@ const IrrigationHistoryPage = () => {
   const itemsPerPage = 10;
 
   const fetchLogs = async () => {
+    if (!currentUser) return;
+
     try {
       setLoading(true);
+      setError('');
       
       const filterStr = `userId = "${currentUser.id}"`;
       const cutoff = filter === '7days'
@@ -65,6 +69,7 @@ const IrrigationHistoryPage = () => {
             status: 'OFF',
             durationMs: closingDate - activationDate,
             durationStr: formatDistanceStrict(activationDate, closingDate, { locale: es }),
+            source: openSession.source,
           });
           openSession = null;
         }
@@ -79,6 +84,7 @@ const IrrigationHistoryPage = () => {
           status: 'ON',
           durationMs: new Date() - activationDate,
           durationStr: `${formatDistanceStrict(activationDate, new Date(), { locale: es })} (en curso)`,
+          source: openSession.source,
         });
       }
 
@@ -101,6 +107,7 @@ const IrrigationHistoryPage = () => {
       setLoading(false);
     } catch (err) {
       console.error('Error fetching irrigation logs:', err);
+      setError('No se pudo cargar el historial de riego. Intenta actualizar la página.');
       setLoading(false);
     }
   };
@@ -118,6 +125,10 @@ const IrrigationHistoryPage = () => {
   };
 
   const totalActivations = logs.length;
+  const totalRuntimeMs = logs.reduce((total, log) => total + log.durationMs, 0);
+  const totalRuntimeLabel = totalRuntimeMs < 3600000
+    ? `${Math.floor(totalRuntimeMs / 60000)} min`
+    : `${Math.floor(totalRuntimeMs / 3600000)} h ${String(Math.floor((totalRuntimeMs % 3600000) / 60000)).padStart(2, '0')} min`;
   
   // Pagination logic
   const totalPages = Math.ceil(logs.length / itemsPerPage);
@@ -132,50 +143,52 @@ const IrrigationHistoryPage = () => {
 
       <Header />
 
-      <div className="min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-emerald-50 py-16">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+      <main className="relative min-h-screen overflow-hidden bg-[#f4fbfa] py-10 sm:py-14">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-gradient-to-br from-cyan-100/80 via-teal-50/70 to-transparent" />
+        <div className="container relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           {/* Page Header */}
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Historial de Riego</h1>
-            <p className="text-lg text-gray-600">Registro de actividad del sistema de riego</p>
+          <div className="mb-8 rounded-3xl border border-teal-100 bg-white p-6 shadow-sm sm:p-8">
+            <span className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-teal-700"><History className="h-4 w-4" /> Actividad del sistema</span>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Historial de riego</h1>
+            <p className="mt-2 max-w-xl text-slate-600">Revisa cada sesión, cuánto duró y cuándo estuvo activo el riego.</p>
           </div>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <Card className="rounded-xl shadow-md border-gray-100">
-              <CardContent className="p-6 flex items-center space-x-4">
-                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-md">
+          <div className="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <Card className="rounded-3xl border-white/80 shadow-lg shadow-slate-900/5">
+              <CardContent className="flex items-center gap-4 p-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 shadow-md">
                   <Power className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total de Activaciones</p>
-                  <p className="text-3xl font-bold text-gray-900">{totalActivations}</p>
+                  <p className="text-sm font-medium text-slate-500">Sesiones de riego</p>
+                  <p className="text-3xl font-extrabold text-slate-900">{totalActivations}</p>
                 </div>
               </CardContent>
             </Card>
-            <Card className="rounded-xl shadow-md border-gray-100">
-              <CardContent className="p-6 flex items-center space-x-4">
-                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
-                  <History className="w-6 h-6 text-white" />
+            <Card className="rounded-3xl border-white/80 shadow-lg shadow-slate-900/5">
+              <CardContent className="flex items-center gap-4 p-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 shadow-md">
+                  <Timer className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Sesiones Registradas</p>
-                  <p className="text-3xl font-bold text-gray-900">{logs.length}</p>
+                  <p className="text-sm font-medium text-slate-500">Tiempo registrado</p>
+                  <p className="text-3xl font-extrabold text-slate-900">{totalRuntimeLabel}</p>
                 </div>
               </CardContent>
             </Card>
           </div>
 
           {/* Filters and Table */}
-          <Card className="rounded-xl shadow-lg border-gray-100">
-            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-gray-100">
-              <CardTitle className="text-xl flex items-center space-x-2">
-                <Clock className="w-5 h-5 text-teal-600" />
+          <Card className="overflow-hidden rounded-3xl border-white/80 shadow-lg shadow-slate-900/5">
+            <CardHeader className="flex flex-col items-start justify-between gap-4 border-b border-slate-100 pb-6 sm:flex-row sm:items-center">
+              <CardTitle className="flex items-center gap-2 text-xl text-slate-900">
+                <Clock className="h-5 w-5 text-teal-600" />
                 <span>Registro de Actividad</span>
                 <button
                   type="button"
                   onClick={() => setShowFilters((isVisible) => !isVisible)}
-                  className={`ml-2 inline-flex h-9 w-9 items-center justify-center rounded-md border transition-colors ${showFilters ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-500 hover:border-teal-400 hover:text-teal-700'}`}
+                  className={`ml-2 inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${showFilters ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-200 text-slate-500 hover:border-teal-400 hover:text-teal-700'}`}
                   aria-label={showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
                   title={showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
                 >
@@ -211,6 +224,11 @@ const IrrigationHistoryPage = () => {
                 </div>
               )}
             </CardHeader>
+            {error && (
+              <div role="alert" className="mx-6 mt-5 flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-800">
+                <AlertCircle className="h-5 w-5 shrink-0" /> {error}
+              </div>
+            )}
             <CardContent className="p-0">
               {loading ? (
                 <div className="p-6 space-y-4">
@@ -218,24 +236,25 @@ const IrrigationHistoryPage = () => {
                 </div>
               ) : logs.length === 0 ? (
                 <div className="text-center py-12">
-                  <History className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500">No se encontraron registros de riego</p>
+                  <Sprout className="mx-auto mb-3 h-12 w-12 text-teal-300" />
+                  <p className="font-semibold text-slate-700">No se encontraron sesiones de riego</p>
+                  <p className="mt-1 text-sm text-slate-500">Prueba otro periodo o activa el sistema para crear registros.</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-gray-50/50">
-                        <TableHead className="font-semibold text-gray-900">Activación</TableHead>
-                        <TableHead className="font-semibold text-gray-900">Cierre</TableHead>
-                        <TableHead className="font-semibold text-gray-900">Estado</TableHead>
-                        <TableHead className="font-semibold text-gray-900">Duración</TableHead>
-                        <TableHead className="font-semibold text-gray-900">Usuario</TableHead>
+                      <TableRow className="bg-slate-50/80">
+                        <TableHead className="font-semibold text-slate-800">Inicio</TableHead>
+                        <TableHead className="font-semibold text-slate-800">Finalización</TableHead>
+                        <TableHead className="font-semibold text-slate-800">Estado</TableHead>
+                        <TableHead className="font-semibold text-slate-800">Duración</TableHead>
+                        <TableHead className="font-semibold text-slate-800">Origen</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {paginatedLogs.map((log) => (
-                        <TableRow key={log.id} className="hover:bg-gray-50/50">
+                        <TableRow key={log.id} className="transition-colors hover:bg-teal-50/40">
                           <TableCell className="font-medium text-gray-700">
                             {log.activationDate.toLocaleString('es-ES')}
                           </TableCell>
@@ -244,7 +263,7 @@ const IrrigationHistoryPage = () => {
                           </TableCell>
                           <TableCell>
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              log.status === 'ON' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                              log.status === 'ON' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'
                             }`}>
                               {log.status === 'ON' ? 'Activo' : 'Cerrado'}
                             </span>
@@ -252,8 +271,8 @@ const IrrigationHistoryPage = () => {
                           <TableCell className="text-gray-600">
                             {log.durationStr}
                           </TableCell>
-                          <TableCell className="text-gray-500 text-sm">
-                            {currentUser.name || currentUser.email}
+                          <TableCell className="text-sm text-slate-600">
+                            {log.source === 'AUTOMATIC' ? 'Automático' : log.source === 'MANUAL' ? 'Manual' : 'Registro'}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -291,7 +310,7 @@ const IrrigationHistoryPage = () => {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </main>
     </>
   );
 };

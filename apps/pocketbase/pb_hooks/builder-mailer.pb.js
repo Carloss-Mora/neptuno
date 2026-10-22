@@ -1,4 +1,3 @@
-
 /// <reference path="../pb_data/types.d.ts" />
 onMailerSend((e) => {
     if (e.app.settings().smtp.enabled) {
@@ -37,4 +36,5 @@ onMailerSend((e) => {
         $app.logger().error("Failed to send email", "error", response.json || response.text);
         throw new ApiError(response.statusCode || 500, `No se pudo enviar el correo: ${errorMessage}`);
     }
+
 })

@@ -1,13 +1,14 @@
 import path from 'node:path';
 import react from '@vitejs/plugin-react';
-import { createLogger, defineConfig } from 'vite';
+import { createLogger, defineConfig, loadEnv } from 'vite';
 import inlineEditPlugin from './plugins/visual-editor/vite-plugin-react-inline-editor.js';
 import editModeDevPlugin from './plugins/visual-editor/vite-plugin-edit-mode.js';
 import selectionModePlugin from './plugins/selection-mode/vite-plugin-selection-mode.js';
 import iframeRouteRestorationPlugin from './plugins/vite-plugin-iframe-route-restoration.js';
 import pocketbaseAuthPlugin from './plugins/vite-plugin-pocketbase-auth.js';
 
-const isDev = process.env.NODE_ENV !== 'production';
+let isDev = process.env.NODE_ENV !== 'production';
+const envDir = path.resolve(__dirname, '../..');
 
 const configHorizonsViteErrorHandler = `
 const observer = new MutationObserver((mutations) => {
@@ -279,35 +280,64 @@ logger.error = (msg, options) => {
 	loggerError(msg, options);
 }
 
-export default defineConfig({
-	customLogger: logger,
-	plugins: [
-		...(isDev ? [inlineEditPlugin(), editModeDevPlugin(), selectionModePlugin(), iframeRouteRestorationPlugin(), pocketbaseAuthPlugin()] : []),
-		react(),
-		addTransformIndexHtml
-	],
-	server: {
-		port: 3000,
-		cors: true,
-		headers: {
-			'Cross-Origin-Embedder-Policy': 'credentialless',
+export default defineConfig(({ mode }) => {
+	isDev = mode !== 'production';
+
+	if (mode === 'production') {
+		const productionEnv = loadEnv(mode, envDir, 'VITE_');
+		const apiUrl = process.env.VITE_POCKETBASE_URL || productionEnv.VITE_POCKETBASE_URL;
+		let apiHost = '';
+
+		try {
+			apiHost = new URL(apiUrl).hostname;
+		} catch {
+			throw new Error('Set VITE_POCKETBASE_URL to the public HTTPS PocketBase URL before building for production.');
+		}
+
+		if (
+			!apiUrl.startsWith('https://')
+			|| !apiHost
+			|| apiHost === 'localhost'
+			|| apiHost.endsWith('.localhost')
+			|| apiHost === '::1'
+			|| /^127\./.test(apiHost)
+			|| apiHost.endsWith('.example')
+		) {
+			throw new Error('Production builds require VITE_POCKETBASE_URL to use a public HTTPS host.');
+		}
+	}
+
+	return {
+		envDir,
+		customLogger: logger,
+		plugins: [
+			...(isDev ? [inlineEditPlugin(), editModeDevPlugin(), selectionModePlugin(), iframeRouteRestorationPlugin(), pocketbaseAuthPlugin()] : []),
+			react(),
+			addTransformIndexHtml
+		],
+		server: {
+			port: 3000,
+			cors: true,
+			headers: {
+				'Cross-Origin-Embedder-Policy': 'credentialless',
+			},
+			allowedHosts: true,
 		},
-		allowedHosts: true,
-	},
-	resolve: {
-		extensions: ['.jsx', '.js', '.tsx', '.ts', '.json', ],
-		alias: {
-			'@': path.resolve(__dirname, './src'),
+		resolve: {
+			extensions: ['.jsx', '.js', '.tsx', '.ts', '.json', ],
+			alias: {
+				'@': path.resolve(__dirname, './src'),
+			},
 		},
-	},
-	build: {
-		rollupOptions: {
-			external: [
-				'@babel/parser',
-				'@babel/traverse',
-				'@babel/generator',
-				'@babel/types'
-			]
+		build: {
+			rollupOptions: {
+				external: [
+					'@babel/parser',
+					'@babel/traverse',
+					'@babel/generator',
+					'@babel/types'
+				]
+			}
 		}
 	}
 });

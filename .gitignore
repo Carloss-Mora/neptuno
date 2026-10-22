@@ -1,4 +1,11 @@
 
 node_modules/
 .env
-.env.example
+apps/pocketbase/pb_data/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

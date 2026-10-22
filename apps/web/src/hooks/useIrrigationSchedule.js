@@ -24,10 +24,28 @@ const normalizeScheduleEntries = (value) => {
   return [];
 };
 
+const getUserSettings = async (userId) => {
+  const records = await pb.collection('user_settings').getList(1, 1, {
+    filter: `userId = "${userId}"`,
+    sort: '-updated',
+    $autoCancel: false,
+  });
+
+  return records.items[0] || null;
+};
+
+const createScheduleId = () => {
+  const randomUUID = globalThis.crypto?.randomUUID;
+  if (typeof randomUUID === 'function') {
+    return randomUUID.call(globalThis.crypto);
+  }
+
+  return `schedule-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+};
+
 export const useIrrigationSchedule = () => {
   const { currentUser } = useAuth();
   const [schedules, setSchedules] = useState([]);
-  const [settingsId, setSettingsId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -38,15 +56,8 @@ export const useIrrigationSchedule = () => {
       setLoading(true);
       setError(null);
 
-      const records = await pb.collection('user_settings').getList(1, 1, {
-        filter: `userId = "${currentUser.id}"`,
-        $autoCancel: false,
-      });
-
-      if (records.items.length > 0) {
-        const settings = records.items[0];
-        setSettingsId(settings.id);
-
+      const settings = await getUserSettings(currentUser.id);
+      if (settings) {
         if (settings.irrigation_schedule_times) {
           try {
             const parsed = normalizeScheduleEntries(settings.irrigation_schedule_times);
@@ -60,7 +71,6 @@ export const useIrrigationSchedule = () => {
         }
       } else {
         setSchedules([]);
-        setSettingsId(null);
       }
     } catch (err) {
       console.error('Error fetching schedules:', err);
@@ -81,24 +91,31 @@ export const useIrrigationSchedule = () => {
       setError(null);
       const safeSchedules = Array.isArray(newSchedules) ? newSchedules : [];
       const schedulesJson = JSON.stringify(safeSchedules);
+      const settings = await getUserSettings(currentUser.id);
 
-      if (settingsId) {
-        await pb.collection('user_settings').update(settingsId, {
-          irrigation_schedule_times: schedulesJson,
-        }, { $autoCancel: false });
-      } else {
-        const newSettings = await pb.collection('user_settings').create({
+      if (settings) {
+        await pb.collection('user_settings').update(settings.id, {
           userId: currentUser.id,
           irrigation_schedule_times: schedulesJson,
         }, { $autoCancel: false });
-        setSettingsId(newSettings.id);
+      } else {
+        await pb.collection('user_settings').create({
+          userId: currentUser.id,
+          irrigation_schedule_times: schedulesJson,
+        }, { $autoCancel: false });
       }
 
       setSchedules(safeSchedules);
       return { success: true };
     } catch (err) {
       console.error('Error saving schedules:', err);
-      const errMsg = err.message || 'No se pudo guardar el horario.';
+      const fieldErrors = Object.values(err?.data?.data || {})
+        .map((fieldError) => fieldError?.message)
+        .filter(Boolean);
+      const errMsg = fieldErrors.join(' ')
+        || err?.data?.message
+        || err?.message
+        || 'No se pudo guardar el horario.';
       setError(errMsg);
       return { success: false, error: errMsg };
     }
@@ -107,13 +124,14 @@ export const useIrrigationSchedule = () => {
   const addSchedule = async (startTime, endTime, date) => {
     const normalizedSchedules = Array.isArray(schedules) ? schedules : [];
     const newSchedule = {
-      id: crypto.randomUUID(),
+      id: createScheduleId(),
       date,
       startTime,
       endTime,
       time: startTime,
       days: [],
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Bogota',
+      utcOffsetMinutes: -new Date(`${date}T${startTime}:00`).getTimezoneOffset(),
     };
     const newSchedules = [...normalizedSchedules, newSchedule];
     return await saveSchedules(newSchedules);
@@ -122,9 +140,10 @@ export const useIrrigationSchedule = () => {
   const updateSchedule = async (id, startTime, endTime, date) => {
     const normalizedSchedules = Array.isArray(schedules) ? schedules : [];
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Bogota';
+    const utcOffsetMinutes = -new Date(`${date}T${startTime}:00`).getTimezoneOffset();
     const newSchedules = normalizedSchedules.map((schedule) =>
       schedule.id === id
-        ? { ...schedule, date, startTime, endTime, time: startTime, days: [], timeZone }
+        ? { ...schedule, date, startTime, endTime, time: startTime, days: [], timeZone, utcOffsetMinutes }
         : schedule
     );
     return await saveSchedules(newSchedules);
