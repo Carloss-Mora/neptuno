@@ -19,19 +19,17 @@ cronAdd('device-watchdog', '* * * * *', () => {
     if (String(device.get('last_alert_code') || '') !== 'device_offline') {
       device.set('last_alert_code', 'device_offline');
       try {
-        const user = $app.findRecordById('users', device.get('userId'));
-        $app.newMailClient().send(new MailerMessage({
-          from: {
-            address: $app.settings().meta.senderAddress,
-            name: $app.settings().meta.senderName || 'Neptuno',
-          },
-          to: [{ address: user.get('email') }],
-          subject: 'Dispositivo sin conexión en Neptuno',
-          text: `El dispositivo ${device.get('name')} dejó de enviar lecturas.`,
-          html: `<p>El dispositivo ${device.get('name')} dejó de enviar lecturas.</p>`,
-        }));
+        const queueNotification = require(`${__hooks}/notification-queue.js`);
+        queueNotification(
+          $app,
+          device.get('userId'),
+          crop.id,
+          'alert',
+          'Dispositivo sin conexión en Neptuno',
+          `El dispositivo ${device.get('name')} dejó de enviar lecturas.`,
+        );
       } catch (error) {
-        console.error(`Could not send offline alert for device ${device.id}:`, error);
+        console.error(`Could not queue offline alert for device ${device.id}:`, error);
       }
     }
 

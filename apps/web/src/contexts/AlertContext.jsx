@@ -77,11 +77,21 @@ export const AlertProvider = ({ children }) => {
       }
 
       const waterId = `alert-water-${selectedCrop.id}`;
-      if (Number(data.water_level) < 20) {
+      if (selectedCrop.alert_water_min != null && Number(data.water_level) < Number(selectedCrop.alert_water_min)) {
         if (!dismissedAlertsRef.current.has(waterId)) addAlert(waterId, 'warning', 'Nivel de agua bajo');
       } else {
         removeAlert(waterId);
         dismissedAlertsRef.current.delete(waterId);
+      }
+
+      const temperatureId = `alert-temperature-${selectedCrop.id}`;
+      if (selectedCrop.alert_temp_max != null && Number(data.temperature) > Number(selectedCrop.alert_temp_max)) {
+        if (!dismissedAlertsRef.current.has(temperatureId)) {
+          addAlert(temperatureId, 'warning', `Temperatura por encima del máximo configurado (${selectedCrop.alert_temp_max} °C)`);
+        }
+      } else {
+        removeAlert(temperatureId);
+        dismissedAlertsRef.current.delete(temperatureId);
       }
     };
 
@@ -104,7 +114,7 @@ export const AlertProvider = ({ children }) => {
       devices.forEach((device) => {
         const alertId = `device-offline-${device.id}`;
         const lastSeen = device.last_seen ? new Date(device.last_seen).getTime() : 0;
-        const offlineAt = lastSeen + Number(device.interval_seconds || 15) * 2000;
+        const offlineAt = lastSeen + Math.max(2 * Number(device.interval_seconds || 15), 60) * 1000;
         const offline = !lastSeen || Date.now() >= offlineAt;
         if (offline && !dismissedAlertsRef.current.has(alertId)) {
           addAlert(alertId, 'warning', `Dispositivo sin conexión: ${device.name}`);

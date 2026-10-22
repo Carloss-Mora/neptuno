@@ -121,33 +121,30 @@ routerAdd('POST', '/api/neptuno/ingest', (e) => {
   device.set('desired_state', desiredState);
   device.set('is_demo', isDemo);
   const humidityMinimum = crop.get('humidity_min');
-  const alertCode = waterLevel < 20
+  const waterMinimum = crop.get('alert_water_min');
+  const maximumTemperature = crop.get('alert_temp_max');
+  const alertCode = waterMinimum != null && waterLevel < Number(waterMinimum)
     ? 'water_low'
     : humidityMinimum != null && soilHumidity < Number(humidityMinimum)
       ? 'humidity_low'
+      : maximumTemperature != null && temperature > Number(maximumTemperature)
+        ? 'temperature_high'
       : '';
   const previousAlertCode = String(device.get('last_alert_code') || '');
   if (alertCode !== previousAlertCode) {
     device.set('last_alert_code', alertCode);
     if (alertCode) {
       try {
-        const user = $app.findRecordById('users', device.get('userId'));
         const message = alertCode === 'water_low'
-          ? 'El nivel de agua del dispositivo está por debajo del 20%.'
-          : `La humedad del cultivo está por debajo del mínimo configurado (${humidityMinimum}%).`;
-        $app.newMailClient().send(new MailerMessage({
-          from: {
-            address: $app.settings().meta.senderAddress,
-            name: $app.settings().meta.senderName || 'Neptuno',
-          },
-          to: [{ address: user.get('email') }],
-          subject: 'Alerta del cultivo en Neptuno',
-          text: message,
-          html: `<p>${message}</p>`,
-        }));
+          ? `El nivel de agua está por debajo del mínimo configurado (${waterMinimum}%).`
+          : alertCode === 'humidity_low'
+            ? `La humedad del cultivo está por debajo del mínimo configurado (${humidityMinimum}%).`
+            : `La temperatura del cultivo superó el máximo configurado (${maximumTemperature} °C).`;
+        const queueNotification = require(`${__hooks}/notification-queue.js`);
+        queueNotification($app, device.get('userId'), crop.id, 'alert', 'Alerta del cultivo en Neptuno', message);
         device.set('last_alert_sent_at', now.toISOString());
-      } catch (mailError) {
-        console.error(`Could not send an alert email for device ${device.id}:`, mailError);
+      } catch (queueError) {
+        console.error(`Could not queue an alert for device ${device.id}:`, queueError);
       }
     }
   }

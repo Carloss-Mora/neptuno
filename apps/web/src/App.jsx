@@ -17,6 +17,7 @@ import StatisticsPage from '@/pages/StatisticsPage';
 import IrrigationHistoryPage from '@/pages/IrrigationHistoryPage.jsx';
 import CropsPage from '@/pages/CropsPage';
 import DevicesPage from '@/pages/DevicesPage';
+import SettingsPage from '@/pages/SettingsPage';
 
 function App() {
   return (
@@ -78,6 +79,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <DevicesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <SettingsPage />
                 </ProtectedRoute>
               }
             />

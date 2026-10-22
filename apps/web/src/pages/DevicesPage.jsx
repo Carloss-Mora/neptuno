@@ -59,7 +59,7 @@ const DevicesPage = () => {
       setNow(currentTime);
       const transitions = devices
         .filter((device) => device.last_seen)
-        .map((device) => new Date(device.last_seen).getTime() + Number(device.interval_seconds) * 2000)
+        .map((device) => new Date(device.last_seen).getTime() + Math.max(2 * Number(device.interval_seconds), 60) * 1000)
         .filter((timestamp) => timestamp > currentTime);
       if (transitions.length > 0) {
         timer = window.setTimeout(scheduleOfflineRefresh, Math.max(1000, Math.min(...transitions) - currentTime));
@@ -202,7 +202,7 @@ const DevicesPage = () => {
                 : devices.length === 0 ? <Card className="border-dashed"><CardContent className="py-8 text-center text-slate-600">Todavía no hay dispositivos registrados.</CardContent></Card>
                   : devices.map((device) => {
                     const lastSeen = device.last_seen ? new Date(device.last_seen).getTime() : 0;
-                    const online = lastSeen > 0 && now - lastSeen <= Number(device.interval_seconds) * 2000;
+                    const online = lastSeen > 0 && now - lastSeen <= Math.max(2 * Number(device.interval_seconds), 60) * 1000;
                     return (
                       <Card key={device.id} className="border-teal-100 bg-white">
                         <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
