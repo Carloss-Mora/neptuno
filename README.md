@@ -67,7 +67,7 @@ $env:PB_ADMIN_PASSWORD = "CONTRASENA_LOCAL"
 node tools/e2e-smoke.mjs
 ```
 
-El smoke test crea dos usuarios descartables, comprueba ingesta, AUTO, anulación manual, reglas de acceso, y elimina los usuarios de prueba al terminar. Para incluir la espera del vigilante:
+El smoke test crea dos usuarios descartables, comprueba ingesta, AUTO, anulación manual, reglas de acceso y el ciclo ON → OFF → ON con el simulador; elimina los usuarios de prueba al terminar. Para incluir la espera del vigilante:
 
 ```powershell
 node tools/e2e-smoke.mjs --slow

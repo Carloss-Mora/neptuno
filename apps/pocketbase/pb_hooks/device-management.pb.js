@@ -47,3 +47,41 @@ routerAdd('POST', '/api/neptuno/devices/{id}/rotate-key', (e) => {
   $app.save(device);
   return e.json(200, { device: device.publicExport(), key });
 }, $apis.requireAuth());
+
+routerAdd('POST', '/api/neptuno/irrigation/manual', (e) => {
+  const body = e.requestInfo().body || {};
+  const cropId = String(body.cropId || '');
+  const status = String(body.status || '');
+  if (!cropId || (status !== 'ON' && status !== 'OFF')) {
+    throw new BadRequestError('El cultivo y un estado ON u OFF son obligatorios.');
+  }
+
+  let createdLog = null;
+  let manualOverrideUntil = '';
+  $app.runInTransaction((txApp) => {
+    const crop = txApp.findRecordById('crops', cropId);
+    if (String(crop.get('userId')) !== String(e.auth.id)) {
+      throw new ForbiddenError('El cultivo no pertenece al usuario autenticado.');
+    }
+
+    if (crop.get('control_mode') === 'AUTO') {
+      const minutes = Math.max(1, Number(crop.get('manual_override_minutes')) || 30);
+      manualOverrideUntil = new Date(Date.now() + minutes * 60000).toISOString();
+      crop.set('manual_override_until', manualOverrideUntil);
+      txApp.save(crop);
+    }
+
+    createdLog = new Record(txApp.findCollectionByNameOrId('irrigation_logs'), {
+      userId: e.auth.id,
+      cropId,
+      status,
+      source: 'MANUAL',
+    });
+    txApp.save(createdLog);
+  });
+
+  return e.json(201, {
+    log: createdLog.publicExport(),
+    manual_override_until: manualOverrideUntil,
+  });
+}, $apis.requireAuth());
