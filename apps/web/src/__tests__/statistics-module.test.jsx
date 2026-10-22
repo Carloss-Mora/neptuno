@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 import { AuthProvider } from '@/contexts/AuthContext';
+import { CropProvider } from '@/contexts/CropContext';
 import { AlertProvider } from '@/contexts/AlertContext';
 import StatisticsPage from '@/pages/StatisticsPage';
 
@@ -38,19 +39,22 @@ describe('Irrigation statistics', () => {
     ];
 
     mockPb.collection.mockImplementation((name) => ({
-      getList: vi.fn(async () => ({
-        items: name === 'user_settings' ? [{ cultivated_area_m2: 120 }] : [],
-      })),
-      getFullList: vi.fn(async () => (name === 'irrigation_logs' ? logs : [])),
+      getList: vi.fn(async () => ({ items: [] })),
+      getFullList: vi.fn(async () => (name === 'crops'
+        ? [{ id: 'crop-1', userId: 'user-1', name: 'Fresas', flow_lpm: 0.2 }]
+        : name === 'irrigation_logs' ? logs : [])),
+      subscribe: vi.fn(async () => vi.fn()),
     }));
 
     render(
       <AuthProvider>
-        <AlertProvider>
-          <MemoryRouter>
-            <StatisticsPage />
-          </MemoryRouter>
-        </AlertProvider>
+        <CropProvider>
+          <AlertProvider>
+            <MemoryRouter>
+              <StatisticsPage />
+            </MemoryRouter>
+          </AlertProvider>
+        </CropProvider>
       </AuthProvider>
     );
 
@@ -66,18 +70,21 @@ describe('Irrigation statistics', () => {
   });
 
   it('explains how to populate statistics when no irrigation logs exist', async () => {
-    mockPb.collection.mockImplementation(() => ({
+    mockPb.collection.mockImplementation((name) => ({
       getList: vi.fn(async () => ({ items: [] })),
-      getFullList: vi.fn(async () => []),
+      getFullList: vi.fn(async () => (name === 'crops' ? [{ id: 'crop-1', userId: 'user-1', name: 'Fresas', flow_lpm: 0.2 }] : [])),
+      subscribe: vi.fn(async () => vi.fn()),
     }));
 
     render(
       <AuthProvider>
-        <AlertProvider>
-          <MemoryRouter>
-            <StatisticsPage />
-          </MemoryRouter>
-        </AlertProvider>
+        <CropProvider>
+          <AlertProvider>
+            <MemoryRouter>
+              <StatisticsPage />
+            </MemoryRouter>
+          </AlertProvider>
+        </CropProvider>
       </AuthProvider>
     );
 

@@ -1,12 +1,13 @@
 import { test, expect } from '@playwright/test';
 
 test('test', async ({ page }) => {
+  test.skip(!process.env.TEST_EMAIL || !process.env.TEST_PASSWORD, 'Set TEST_EMAIL and TEST_PASSWORD to run this authenticated browser test.');
   await page.goto('http://192.168.1.12:3000/');
   await page.getByRole('link', { name: 'Iniciar sesión' }).click();
   await page.getByRole('textbox', { name: 'Correo Electrónico' }).click();
-  await page.getByRole('textbox', { name: 'Correo Electrónico' }).fill('carloz1mora2005@gmail.com');
+  await page.getByRole('textbox', { name: 'Correo Electrónico' }).fill(process.env.TEST_EMAIL ?? '');
   await page.getByRole('textbox', { name: 'Contraseña' }).click();
-  await page.getByRole('textbox', { name: 'Contraseña' }).fill('mora1074556440');
+  await page.getByRole('textbox', { name: 'Contraseña' }).fill(process.env.TEST_PASSWORD ?? '');
   await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
   await page.getByRole('link', { name: 'Inicio', exact: true }).click();
   await page.locator('div').filter({ hasText: 'Estado del sistemaRiego' }).nth(3).click();

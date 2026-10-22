@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { CropProvider, useCrop } from '@/contexts/CropContext';
 import { AlertProvider, useAlert } from '@/contexts/AlertContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import LoginPage from '@/pages/LoginPage';
@@ -65,6 +66,18 @@ const createSettingsCollection = () => ({
   update: vi.fn(async (id, payload) => ({ id, ...payload })),
 });
 
+const createCropsCollection = () => ({
+  getFullList: vi.fn(async () => [{
+    id: 'crop-1',
+    userId: 'user-1',
+    name: 'Fresas',
+    area_m2: 120,
+    humidity_min: 30,
+    humidity_max: 60,
+    control_mode: 'MANUAL',
+  }]),
+});
+
 const createSensorReadingsCollection = () => ({
   getList: vi.fn(async () => ({
     items: [{
@@ -92,10 +105,13 @@ describe('Neptuno app behavior', () => {
     mockPb.authStore.model = null;
     mockPb.collection.mockImplementation((name) => {
       if (name === 'users') return createUsersCollection();
+      if (name === 'crops') return createCropsCollection();
       if (name === 'user_settings') return createSettingsCollection();
       if (name === 'sensor_readings') return createSensorReadingsCollection();
       return {
         getList: vi.fn(async () => ({ items: [] })),
+        getFullList: vi.fn(async () => []),
+        subscribe: vi.fn(async () => vi.fn()),
         create: vi.fn(async (payload) => ({ id: 'record-1', ...payload })),
         update: vi.fn(async (id, payload) => ({ id, ...payload })),
       };
@@ -314,17 +330,19 @@ describe('Neptuno app behavior', () => {
 
     render(
       <AuthProvider>
-        <AlertProvider>
-          <AlertProbe />
-        </AlertProvider>
+        <CropProvider>
+          <AlertProvider>
+            <AlertProbe />
+          </AlertProvider>
+        </CropProvider>
       </AuthProvider>
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Humedad baja - Riego recomendado')).toBeInTheDocument();
-      expect(screen.getByText('Temperatura alta')).toBeInTheDocument();
+      expect(screen.getByText('Humedad bajo el mínimo configurado (30%)')).toBeInTheDocument();
       expect(screen.getByText('Nivel de agua bajo')).toBeInTheDocument();
     });
+    expect(screen.queryByText('Temperatura alta')).not.toBeInTheDocument();
   });
 
   it('notifies in the bell when irrigation starts and finishes', async () => {
@@ -332,35 +350,44 @@ describe('Neptuno app behavior', () => {
     mockPb.authStore.model = createAuthenticatedUser();
     let irrigationLogs = [{
       id: 'log-on',
+      cropId: 'crop-1',
       status: 'ON',
       created: '2026-10-20T10:00:00.000Z',
     }];
-    let pollAlerts;
+    let logSubscriber;
     const getIrrigationLogs = vi.fn(async () => ({ items: irrigationLogs }));
-    const setInterval = globalThis.setInterval.bind(globalThis);
-    vi.spyOn(globalThis, 'setInterval').mockImplementation((callback, delay) => {
-      if (delay === 5000) pollAlerts = callback;
-      return setInterval(callback, delay);
-    });
     mockPb.collection.mockImplementation((name) => {
+      if (name === 'crops') return createCropsCollection();
       if (name === 'sensor_readings') {
         return {
           getList: vi.fn(async () => ({
             items: [{ soil_humidity: 50, temperature: 20, water_level: 50 }],
           })),
+          subscribe: vi.fn(async () => vi.fn()),
         };
       }
       if (name === 'irrigation_logs') {
-        return { getList: getIrrigationLogs };
+        return {
+          getList: getIrrigationLogs,
+          subscribe: vi.fn(async (topic, callback) => {
+            logSubscriber = callback;
+            return vi.fn();
+          }),
+        };
       }
-      return createSettingsCollection();
+      return {
+        getFullList: vi.fn(async () => []),
+        subscribe: vi.fn(async () => vi.fn()),
+      };
     });
 
     const { unmount } = render(
       <AuthProvider>
-        <AlertProvider>
-          <NotificationBell />
-        </AlertProvider>
+        <CropProvider>
+          <AlertProvider>
+            <NotificationBell />
+          </AlertProvider>
+        </CropProvider>
       </AuthProvider>
     );
 
@@ -369,23 +396,19 @@ describe('Neptuno app behavior', () => {
     });
 
     irrigationLogs = [
-      { id: 'log-off', status: 'OFF', created: '2026-10-20T10:10:00.000Z' },
+      { id: 'log-off', cropId: 'crop-1', status: 'OFF', created: '2026-10-20T10:10:00.000Z' },
       { id: 'log-on', status: 'ON', created: '2026-10-20T10:00:00.000Z' },
     ];
-    await act(async () => {
-      await pollAlerts();
-    });
+    await act(async () => logSubscriber({ action: 'create', record: irrigationLogs[0] }));
 
     await userEvent.setup().click(screen.getByRole('button'));
     expect(await screen.findByText('El riego ha finalizado')).toBeInTheDocument();
 
     irrigationLogs = [
-      { id: 'log-on-2', status: 'ON', created: '2026-10-20T10:15:00.000Z' },
+      { id: 'log-on-2', cropId: 'crop-1', status: 'ON', created: '2026-10-20T10:15:00.000Z' },
       ...irrigationLogs,
     ];
-    await act(async () => {
-      await pollAlerts();
-    });
+    await act(async () => logSubscriber({ action: 'create', record: irrigationLogs[0] }));
     expect(await screen.findByText('Nuevo riego iniciado')).toBeInTheDocument();
     unmount();
   });
@@ -397,9 +420,11 @@ describe('Neptuno app behavior', () => {
 
     function ScheduleProbe() {
       const { schedules, addSchedule, getNextScheduledTime } = useIrrigationSchedule();
+      const { selectedCrop } = useCrop();
 
       return (
         <div>
+          <span data-testid="selected-crop">{selectedCrop?.id || 'none'}</span>
           <span data-testid="schedule-count">{schedules.length}</span>
           <span data-testid="next-time">{getNextScheduledTime()?.toISOString() ?? 'none'}</span>
           <button onClick={() => addSchedule('08:30', '09:30', '2099-01-01')}>add</button>
@@ -409,15 +434,15 @@ describe('Neptuno app behavior', () => {
 
     render(
       <AuthProvider>
-        <MemoryRouter>
-          <ScheduleProbe />
-        </MemoryRouter>
+        <CropProvider>
+          <MemoryRouter>
+            <ScheduleProbe />
+          </MemoryRouter>
+        </CropProvider>
       </AuthProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId('schedule-count')).toHaveTextContent('0');
-    });
+    await waitFor(() => expect(screen.getByTestId('selected-crop')).toHaveTextContent('crop-1'));
 
     await user.click(screen.getByRole('button', { name: /add/i }));
 
@@ -432,19 +457,22 @@ describe('Neptuno app behavior', () => {
     vi.stubGlobal('crypto', {});
     mockPb.authStore.isValid = true;
     mockPb.authStore.model = createAuthenticatedUser();
-    const getSettings = vi.fn(async () => ({ items: [] }));
-    const createSettings = vi.fn(async (payload) => ({ id: 'settings-new', ...payload }));
+    const createSchedule = vi.fn(async (payload) => ({ id: 'schedule-1', ...payload }));
+    const getSchedules = vi.fn(async () => []);
     mockPb.collection.mockImplementation((name) => {
-      if (name === 'user_settings') {
-        return { getList: getSettings, create: createSettings };
+      if (name === 'crops') return createCropsCollection();
+      if (name === 'irrigation_schedules') {
+        return { getFullList: getSchedules, create: createSchedule };
       }
-      return { getList: vi.fn(async () => ({ items: [] })) };
+      return { getList: vi.fn(async () => ({ items: [] })), getFullList: vi.fn(async () => []) };
     });
 
     function ScheduleProbe() {
       const { schedules, addSchedule } = useIrrigationSchedule();
+      const { selectedCrop } = useCrop();
       return (
         <div>
+          <span data-testid="selected-crop">{selectedCrop?.id || 'none'}</span>
           <span data-testid="schedule-count">{schedules.length}</span>
           <button onClick={() => addSchedule('08:30', '09:30', '2099-01-01')}>save</button>
         </div>
@@ -455,83 +483,82 @@ describe('Neptuno app behavior', () => {
       const user = userEvent.setup();
       render(
         <AuthProvider>
-          <ScheduleProbe />
+          <CropProvider>
+            <ScheduleProbe />
+          </CropProvider>
         </AuthProvider>
       );
 
+      await waitFor(() => expect(screen.getByTestId('selected-crop')).toHaveTextContent('crop-1'));
       await user.click(screen.getByRole('button', { name: /save/i }));
       await waitFor(() => {
         expect(screen.getByTestId('schedule-count')).toHaveTextContent('1');
       });
-      expect(createSettings).toHaveBeenCalledWith(
+      expect(createSchedule).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: 'user-1',
-          irrigation_schedule_times: expect.any(String),
+          cropId: 'crop-1',
+          date: '2099-01-01',
+          startTime: '08:30',
+          endTime: '09:30',
+          recurrence: 'ONCE',
         }),
         { $autoCancel: false }
       );
-      const savedSchedule = JSON.parse(createSettings.mock.calls[0][0].irrigation_schedule_times)[0];
-      expect(savedSchedule).toMatchObject({
-        date: '2099-01-01',
-        startTime: '08:30',
-        endTime: '09:30',
-        utcOffsetMinutes: expect.any(Number),
-      });
-      expect(savedSchedule.id).toMatch(/^schedule-/);
     } finally {
       vi.stubGlobal('crypto', originalCrypto);
     }
   });
 
-  it('updates an existing settings record if it appears before a schedule is saved', async () => {
+  it('updates a schedule in the selected crop collection', async () => {
     const user = userEvent.setup();
     mockPb.authStore.isValid = true;
     mockPb.authStore.model = createAuthenticatedUser();
-    const getSettings = vi.fn()
-      .mockResolvedValueOnce({ items: [] })
-      .mockResolvedValueOnce({
-        items: [{ id: 'settings-existing', irrigation_schedule_times: '[]' }],
-      });
-    const updateSettings = vi.fn(async (id, payload) => ({ id, ...payload }));
-    const createSettings = vi.fn();
+    const updateSchedule = vi.fn(async (id, payload) => ({ id, ...payload }));
 
     mockPb.collection.mockImplementation((name) => {
-      if (name === 'user_settings') {
+      if (name === 'crops') return createCropsCollection();
+      if (name === 'irrigation_schedules') {
         return {
-          getList: getSettings,
-          update: updateSettings,
-          create: createSettings,
+          getFullList: vi.fn(async () => []),
+          update: updateSchedule,
         };
       }
-      return { getList: vi.fn(async () => ({ items: [] })) };
+      return { getList: vi.fn(async () => ({ items: [] })), getFullList: vi.fn(async () => []) };
     });
 
     function ScheduleProbe() {
-      const { addSchedule } = useIrrigationSchedule();
-      return <button onClick={() => addSchedule('08:30', '09:30', '2099-01-01')}>save</button>;
+      const { updateSchedule: update } = useIrrigationSchedule();
+      const { selectedCrop } = useCrop();
+      return (
+        <div>
+          <span data-testid="selected-crop">{selectedCrop?.id || 'none'}</span>
+          <button onClick={() => update('schedule-1', '08:30', '09:30', '2099-01-01')}>update</button>
+        </div>
+      );
     }
 
     render(
       <AuthProvider>
-        <ScheduleProbe />
+        <CropProvider>
+          <ScheduleProbe />
+        </CropProvider>
       </AuthProvider>
     );
 
-    await waitFor(() => {
-      expect(getSettings).toHaveBeenCalledTimes(1);
-    });
-    await user.click(screen.getByRole('button', { name: /save/i }));
+    await waitFor(() => expect(screen.getByTestId('selected-crop')).toHaveTextContent('crop-1'));
+    await user.click(screen.getByRole('button', { name: /update/i }));
 
     await waitFor(() => {
-      expect(updateSettings).toHaveBeenCalledWith(
-        'settings-existing',
+      expect(updateSchedule).toHaveBeenCalledWith(
+        'schedule-1',
         expect.objectContaining({
-          userId: 'user-1',
-          irrigation_schedule_times: expect.any(String),
+          date: '2099-01-01',
+          startTime: '08:30',
+          endTime: '09:30',
         }),
         { $autoCancel: false }
       );
     });
-    expect(createSettings).not.toHaveBeenCalled();
   });
 });

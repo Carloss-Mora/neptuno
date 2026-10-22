@@ -53,7 +53,14 @@ const ScheduledIrrigationList = ({ schedules, loading, error, onEdit, onDelete, 
   };
 
   const formatSchedule = (schedule) => {
+    if (schedule.recurrence === 'DAILY') return 'Todos los días';
+    if (schedule.recurrence === 'WEEKLY') {
+      const names = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+      const days = Array.isArray(schedule.days) ? schedule.days : [];
+      return days.map((day) => names[Number(day)]).filter(Boolean).join(', ') || 'Sin días seleccionados';
+    }
     const date = schedule.date || schedule.startDate || 'Sin fecha';
+    if (date === 'Sin fecha') return 'Completa la duración del horario migrado';
     const parsedDate = new Date(`${date}T00:00:00`);
     const dateLabel = Number.isNaN(parsedDate.getTime())
       ? date
@@ -89,6 +96,11 @@ const ScheduledIrrigationList = ({ schedules, loading, error, onEdit, onDelete, 
                 {hasPassed && (
                   <p className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
                     Ya pasó
+                  </p>
+                )}
+                {!schedule.endTime && (
+                  <p className="mt-2 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                    Falta completar la hora de fin
                   </p>
                 )}
               </div>

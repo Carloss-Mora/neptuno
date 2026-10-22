@@ -12,7 +12,8 @@ describe('Schedule form module', () => {
 
     render(<IrrigationScheduleForm onSave={onSave} />);
 
-    expect(screen.queryByText(/días de la semana/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Repetición')).toHaveValue('ONCE');
+    expect(screen.queryByRole('group', { name: 'Días de riego' })).not.toBeInTheDocument();
     expect(screen.getByLabelText(/hora de inicio/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/hora de finalización/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/fecha/i)).toBeInTheDocument();
@@ -30,7 +31,9 @@ describe('Schedule form module', () => {
     expect(onSave).toHaveBeenCalledWith(
       expect.stringMatching(/^\d{2}:\d{2}$/),
       expect.stringMatching(/^\d{2}:\d{2}$/),
-      expect.any(String)
+      expect.any(String),
+      'ONCE',
+      []
     );
   });
 
@@ -51,7 +54,7 @@ describe('Schedule form module', () => {
     expect(screen.getByRole('button', { name: /periodo de inicio pm/i })).toHaveAttribute('aria-pressed', 'true');
     await user.click(screen.getByRole('button', { name: /guardar horario/i }));
 
-    expect(onSave).toHaveBeenCalledWith('18:00', '19:00', tomorrowValue);
+    expect(onSave).toHaveBeenCalledWith('18:00', '19:00', tomorrowValue, 'ONCE', []);
   });
 
   it('prevents updating an existing schedule after its original time passed', async () => {

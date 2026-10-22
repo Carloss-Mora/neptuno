@@ -2,6 +2,10 @@
 node_modules/
 .env
 apps/pocketbase/pb_data/
+apps/pocketbase/pocketbase
+apps/pocketbase/pocketbase.exe
+/dist/
+apps/web/node_modules/.vite/
 
 # Playwright
 /test-results/
