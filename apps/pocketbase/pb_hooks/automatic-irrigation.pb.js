@@ -26,13 +26,26 @@ cronAdd('automatic-irrigation', '* * * * *', () => {
     };
     const now = new Date();
     const crops = $app.findAllRecords('crops');
+    const devices = $app.findAllRecords('devices');
+    const invalidCropIds = new Set();
+    for (const device of devices) {
+      try {
+        const deviceCrop = $app.findRecordById('crops', device.get('cropId'));
+        if (String(device.get('userId')) !== String(deviceCrop.get('userId'))) {
+          invalidCropIds.add(deviceCrop.id);
+          console.error(`Device ${device.id} user/crop ownership mismatch; skipping irrigation for crop ${deviceCrop.id}.`);
+        }
+      } catch (error) {
+        console.error(`Could not validate ownership for device ${device.id}:`, error);
+      }
+    }
     const schedulesCollection = $app.findCollectionByNameOrId('irrigation_schedules');
     const logsCollection = $app.findCollectionByNameOrId('irrigation_logs');
 
     for (const crop of crops) {
       const cropId = crop.id;
       const userId = crop.get('userId');
-      if (!userId) continue;
+      if (!userId || invalidCropIds.has(cropId)) continue;
 
       let schedules = [];
       try {
