@@ -91,7 +91,7 @@ describe('Irrigation statistics', () => {
     await waitFor(() => {
       expect(screen.getAllByText(/Activa el riego desde el panel de control/i).length).toBeGreaterThan(0);
     });
-    expect(screen.getAllByText('0 min').length).toBeGreaterThan(0);
+    expect(await screen.findAllByText('0 min')).not.toHaveLength(0);
   });
 
   it('combines recent sensor readings with archived hourly averages', async () => {

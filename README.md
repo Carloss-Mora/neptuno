@@ -55,3 +55,22 @@ npm run test:run --prefix apps/web
 npm run lint --prefix apps/web
 npm run build --prefix apps/web
 ```
+
+### Prueba integral contra PocketBase
+
+Con PocketBase 0.36.1 iniciado y sus migraciones aplicadas, configura las variables de entorno sin escribir credenciales en el comando ni en el repositorio:
+
+```powershell
+$env:PB_URL = "http://127.0.0.1:8090"
+$env:PB_ADMIN_EMAIL = "superusuario-local@example.test"
+$env:PB_ADMIN_PASSWORD = "CONTRASENA_LOCAL"
+node tools/e2e-smoke.mjs
+```
+
+El smoke test crea dos usuarios descartables, comprueba ingesta, AUTO, anulación manual, reglas de acceso, y elimina los usuarios de prueba al terminar. Para incluir la espera del vigilante:
+
+```powershell
+node tools/e2e-smoke.mjs --slow
+```
+
+Ejecuta estos checks solo contra una instancia local de pruebas; no uses una base con datos de producción.
