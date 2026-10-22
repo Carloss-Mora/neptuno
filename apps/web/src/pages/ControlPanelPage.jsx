@@ -1,7 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCrop } from '@/contexts/CropContext';
 import Header from '@/components/Header';
 import IrrigationScheduleForm from '@/components/IrrigationScheduleForm';
 import ScheduledIrrigationList from '@/components/ScheduledIrrigationList';
@@ -16,6 +17,8 @@ import { getDisplayedIrrigationStatus, getScheduleState } from '@/utils/irrigati
 
 const ControlPanelPage = () => {
   const { currentUser } = useAuth();
+  const { selectedCrop } = useCrop();
+  const cropId = selectedCrop?.id || '';
   const { toast } = useToast();
   const [currentStatus, setCurrentStatus] = useState('OFF');
   const [lastLog, setLastLog] = useState(null);
@@ -38,10 +41,16 @@ const ControlPanelPage = () => {
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [scheduleClock, setScheduleClock] = useState(() => new Date());
 
-  const fetchCurrentStatus = async () => {
+  const fetchCurrentStatus = useCallback(async () => {
+    if (!currentUser || !cropId) {
+      setCurrentStatus('OFF');
+      setLastLog(null);
+      setLoading(false);
+      return;
+    }
     try {
       const logs = await pb.collection('irrigation_logs').getList(1, 1, {
-        filter: `userId = "${currentUser.id}"`,
+        filter: `cropId = "${cropId}"`,
         sort: '-created',
         $autoCancel: false,
       });
@@ -49,20 +58,43 @@ const ControlPanelPage = () => {
       if (logs.items.length > 0) {
         setCurrentStatus(logs.items[0].status);
         setLastLog(logs.items[0]);
+      } else {
+        setCurrentStatus('OFF');
+        setLastLog(null);
       }
       setLoading(false);
     } catch (err) {
       console.error('Error fetching status:', err);
       setLoading(false);
     }
-  };
+  }, [currentUser, cropId]);
 
   useEffect(() => {
+    let active = true;
+    let unsubscribe = null;
+    setLoading(true);
     fetchCurrentStatus();
-
-    const statusInterval = window.setInterval(fetchCurrentStatus, 15000);
-    return () => window.clearInterval(statusInterval);
-  }, [currentUser]);
+    if (!currentUser || !cropId) return () => { active = false; };
+    pb.collection('irrigation_logs').subscribe('*', (event) => {
+      if (!active || event.record?.cropId !== cropId) return;
+      setCurrentStatus(event.record.status);
+      setLastLog(event.record);
+      setLoading(false);
+    }).then((stop) => {
+      const stopSafely = () => {
+        const result = stop();
+        if (result?.catch) result.catch((error) => console.error('Could not unsubscribe from irrigation status:', error));
+      };
+      if (active) unsubscribe = stopSafely;
+      else stopSafely();
+    }).catch((subscribeError) => {
+      console.error('Could not subscribe to irrigation status:', subscribeError);
+    });
+    return () => {
+      active = false;
+      if (unsubscribe) unsubscribe();
+    };
+  }, [currentUser, cropId, fetchCurrentStatus]);
 
   useEffect(() => {
     const clockInterval = window.setInterval(() => setScheduleClock(new Date()), 1000);
@@ -80,8 +112,12 @@ const ControlPanelPage = () => {
     setLoading(true);
 
     try {
+      if (!currentUser || !selectedCrop) {
+        throw new Error('Selecciona un cultivo antes de cambiar el riego.');
+      }
       const newLog = await pb.collection('irrigation_logs').create({
         userId: currentUser.id,
+        cropId: selectedCrop.id,
         status: pendingStatus,
         source: 'MANUAL',
       }, { $autoCancel: false });
@@ -112,17 +148,17 @@ const ControlPanelPage = () => {
     setPendingStatus(null);
   };
 
-  const handleSaveSchedule = async (startTime, endTime, date) => {
+  const handleSaveSchedule = async (startTime, endTime, date, recurrence, days) => {
     if (editingSchedule && Object.keys(editingSchedule).length > 0) {
       if (getScheduleState(editingSchedule, scheduleClock) === 'past') {
         return { success: false, error: 'Este horario ya pasó y no se puede editar.' };
       }
-      const result = await updateSchedule(editingSchedule.id, startTime, endTime, date);
+      const result = await updateSchedule(editingSchedule.id, startTime, endTime, date, recurrence, days);
       if (result.success) setEditingSchedule(null);
       return result;
     }
 
-    return await addSchedule(startTime, endTime, date);
+    return await addSchedule(startTime, endTime, date, recurrence, days);
   };
 
   const handleEditSchedule = (schedule) => {

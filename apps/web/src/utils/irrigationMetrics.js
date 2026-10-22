@@ -1,6 +1,40 @@
-export const LITERS_PER_SQUARE_METER_PER_SESSION = 0.1;
-export const LITERS_PER_SQUARE_METER_LABEL = LITERS_PER_SQUARE_METER_PER_SESSION
-  .toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+export const LITERS_PER_MINUTE_LABEL = 'L/min';
+
+const weekDayNumber = (value) => {
+  if (Number.isInteger(value) && value >= 0 && value <= 6) return value;
+  const key = String(value).toLowerCase();
+  const days = {
+    sun: 0, sunday: 0, domingo: 0,
+    mon: 1, monday: 1, lunes: 1,
+    tue: 2, tuesday: 2, martes: 2,
+    wed: 3, wednesday: 3, miercoles: 3, miércoles: 3,
+    thu: 4, thursday: 4, jueves: 4,
+    fri: 5, friday: 5, viernes: 5,
+    sat: 6, saturday: 6, sabado: 6, sábado: 6,
+  };
+  return days[key] ?? null;
+};
+
+const parseDays = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== 'string' || !value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const scheduleOccursOn = (schedule, date) => {
+  const recurrence = schedule?.recurrence || 'ONCE';
+  if (recurrence === 'DAILY') return true;
+  if (recurrence === 'WEEKLY') {
+    return parseDays(schedule.days).some((day) => weekDayNumber(day) === date.getDay());
+  }
+  const dateValue = schedule?.date || schedule?.startDate;
+  return Boolean(dateValue && dateValue === formatLocalDateKey(date));
+};
 
 const parseSchedules = (value) => {
   if (Array.isArray(value)) return value;
@@ -23,9 +57,9 @@ export const getActiveSchedule = (value, referenceDate = new Date()) => {
     const dateValue = schedule?.date || schedule?.startDate;
     const startTime = schedule?.startTime || schedule?.time;
     const endTime = schedule?.endTime;
-    if (!dateValue || !startTime || !endTime) continue;
+    if (!startTime || !endTime || !scheduleOccursOn(schedule, referenceDate)) continue;
 
-    const [year, month, day] = String(dateValue).split('-').map(Number);
+    const [year, month, day] = formatLocalDateKey(referenceDate).split('-').map(Number);
     const [startHours, startMinutes] = String(startTime).split(':').map(Number);
     const [endHours, endMinutes] = String(endTime).split(':').map(Number);
     const startDate = new Date(year, month - 1, day, startHours, startMinutes);
@@ -49,21 +83,21 @@ export const getScheduleState = (schedule, referenceDate = new Date()) => {
   const startTime = schedule?.startTime || schedule?.time;
   const endTime = schedule?.endTime;
   const dateValue = schedule?.date || schedule?.startDate;
-  if (!startTime) return 'unknown';
-  const scheduleDate = dateValue || formatLocalDateKey(referenceDate);
+  const recurrence = schedule?.recurrence || 'ONCE';
+  if (!startTime || !endTime || (recurrence === 'ONCE' && !dateValue)) return 'unknown';
+  if (recurrence !== 'ONCE' && !scheduleOccursOn(schedule, referenceDate)) return 'upcoming';
+  const scheduleDate = recurrence === 'ONCE' ? dateValue : formatLocalDateKey(referenceDate);
 
   const [year, month, day] = String(scheduleDate).split('-').map(Number);
   const [startHours, startMinutes] = String(startTime).split(':').map(Number);
   const startDate = new Date(year, month - 1, day, startHours, startMinutes);
   const [endHours, endMinutes] = String(endTime || '').split(':').map(Number);
-  const endDate = endTime
-    ? new Date(year, month - 1, day, endHours, endMinutes)
-    : startDate;
+  const endDate = new Date(year, month - 1, day, endHours, endMinutes);
 
   if (
     Number.isNaN(startDate.getTime())
     || Number.isNaN(endDate.getTime())
-    || (endTime && startDate >= endDate)
+    || startDate >= endDate
   ) return 'unknown';
   if (referenceDate >= endDate) return 'past';
   if (referenceDate >= startDate) return 'active';
@@ -138,18 +172,15 @@ export const estimateDailyConsumption = (
   sessions,
   startDate,
   endDate,
-  cultivatedAreaM2,
-  litersPerSquareMeter = LITERS_PER_SQUARE_METER_PER_SESSION,
+  flowRateLitersPerMinute,
 ) => {
   const dailyLiters = new Map();
   const firstDay = new Date(startDate);
   firstDay.setHours(0, 0, 0, 0);
   const lastDay = new Date(endDate);
   lastDay.setHours(0, 0, 0, 0);
-  const area = Number(cultivatedAreaM2);
-  const litersPerSession = Number.isFinite(area) && area > 0
-    ? area * litersPerSquareMeter
-    : 0;
+  const flowRate = Number(flowRateLitersPerMinute);
+  if (!Number.isFinite(flowRate) || flowRate <= 0) return dailyLiters;
 
   for (const date = new Date(firstDay); date <= lastDay; date.setDate(date.getDate() + 1)) {
     dailyLiters.set(formatLocalDateKey(date), 0);
@@ -158,9 +189,18 @@ export const estimateDailyConsumption = (
   sessions.forEach((session) => {
     const activationDate = new Date(session.activationDate);
     if (Number.isNaN(activationDate.getTime())) return;
-    const key = formatLocalDateKey(activationDate);
-    if (dailyLiters.has(key)) {
-      dailyLiters.set(key, dailyLiters.get(key) + litersPerSession);
+    const closingDate = session.closingDate
+      ? new Date(session.closingDate)
+      : new Date(activationDate.getTime() + Math.max(0, Number(session.durationMs) || 0));
+    if (Number.isNaN(closingDate.getTime()) || closingDate <= activationDate) return;
+    for (const [key] of dailyLiters) {
+      const [year, month, day] = key.split('-').map(Number);
+      const dayStart = new Date(year, month - 1, day).getTime();
+      const dayEnd = new Date(year, month - 1, day + 1).getTime();
+      const overlapMs = Math.max(0, Math.min(closingDate.getTime(), dayEnd) - Math.max(activationDate.getTime(), dayStart));
+      if (overlapMs > 0) {
+        dailyLiters.set(key, dailyLiters.get(key) + (overlapMs / 60000) * flowRate);
+      }
     }
   });
 

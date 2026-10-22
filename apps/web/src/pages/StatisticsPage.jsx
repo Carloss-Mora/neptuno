@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCrop } from '@/contexts/CropContext';
 import Header from '@/components/Header';
 import ConsumptionChart from '@/components/ConsumptionChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,7 +33,6 @@ import { es } from 'date-fns/locale';
 import {
   buildIrrigationSessions,
   estimateDailyConsumption,
-  LITERS_PER_SQUARE_METER_LABEL,
 } from '@/utils/irrigationMetrics';
 
 const DAY_COUNT = 14;
@@ -47,16 +47,23 @@ const formatDuration = (milliseconds) => {
 
 const StatisticsPage = () => {
   const { currentUser } = useAuth();
+  const { selectedCrop } = useCrop();
+  const cropId = selectedCrop?.id || '';
   const [consumptionData, setConsumptionData] = useState([]);
   const [irrigationLogs, setIrrigationLogs] = useState([]);
-  const [cultivatedArea, setCultivatedArea] = useState(null);
+  const flowRate = Number(selectedCrop?.flow_lpm) || null;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [consumptionError, setConsumptionError] = useState('');
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
-    if (!currentUser) return undefined;
+    if (!currentUser || !cropId) {
+      setIrrigationLogs([]);
+      setConsumptionData([]);
+      setLoading(false);
+      return undefined;
+    }
 
     let isMounted = true;
     const fetchStatistics = async () => {
@@ -68,7 +75,7 @@ const StatisticsPage = () => {
 
       try {
         const records = await pb.collection('irrigation_logs').getFullList({
-          filter: `userId = "${currentUser.id}"`,
+          filter: `cropId = "${cropId}"`,
           sort: 'created',
           $autoCancel: false,
         });
@@ -79,22 +86,8 @@ const StatisticsPage = () => {
       }
 
       try {
-        const settings = await pb.collection('user_settings').getList(1, 50, {
-          filter: `userId = "${currentUser.id}"`,
-          sort: '-updated',
-          $autoCancel: false,
-        });
-        const areaSettings = settings.items.find((record) => Number(record.cultivated_area_m2) > 0)
-          || settings.items[0];
-        if (isMounted) setCultivatedArea(Number(areaSettings?.cultivated_area_m2) || null);
-      } catch (settingsError) {
-        console.error('Error fetching cultivated area:', settingsError);
-        if (isMounted) setError('No se pudo cargar el área de cultivo para estimar el consumo.');
-      }
-
-      try {
         const records = await pb.collection('water_consumption').getFullList({
-          filter: `userId = "${currentUser.id}" && consumption_date >= "${consumptionStart}" && consumption_date <= "${today}" && period = "daily"`,
+          filter: `cropId = "${cropId}" && consumption_date >= "${consumptionStart}" && consumption_date <= "${today}" && period = "daily"`,
           sort: 'consumption_date',
           $autoCancel: false,
         });
@@ -117,7 +110,7 @@ const StatisticsPage = () => {
       isMounted = false;
       window.clearInterval(refreshInterval);
     };
-  }, [currentUser]);
+  }, [currentUser, cropId]);
 
   const sessions = useMemo(() => buildIrrigationSessions(irrigationLogs, now), [irrigationLogs, now]);
   const recentSessions = useMemo(() => {
@@ -125,8 +118,8 @@ const StatisticsPage = () => {
     return sessions.filter((session) => session.activationDate >= cutoff);
   }, [sessions, now]);
   const estimatedConsumptionByDay = useMemo(
-    () => estimateDailyConsumption(sessions, startOfMonth(subMonths(now, 1)), now, cultivatedArea),
-    [sessions, now, cultivatedArea],
+    () => estimateDailyConsumption(sessions, startOfMonth(subMonths(now, 1)), now, flowRate),
+    [sessions, now, flowRate],
   );
   const monthlyConsumption = useMemo(() => {
     const currentMonthStart = startOfMonth(now);
@@ -172,6 +165,7 @@ const StatisticsPage = () => {
   const totalRuntime = recentSessions.reduce((total, session) => total + session.durationMs, 0);
   const averageRuntime = recentSessions.length > 0 ? totalRuntime / recentSessions.length : 0;
   const estimatedConsumptionToday = estimatedConsumptionByDay.get(format(now, 'yyyy-MM-dd')) || 0;
+  const hasDemoData = irrigationLogs.some((log) => log.is_demo);
   const averageEstimatedDailyConsumption = Array.from(estimatedConsumptionByDay.entries())
     .filter(([day]) => new Date(`${day}T00:00:00`) >= subDays(now, 29))
     .reduce((sum, [, liters]) => sum + liters, 0) / 30;
@@ -212,6 +206,7 @@ const StatisticsPage = () => {
                   <BarChart3 className="h-4 w-4" /> Actividad del sistema
                 </span>
                 <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Estadísticas de riego</h1>
+                {hasDemoData && <span className="mt-2 inline-flex rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-800">Demo</span>}
                 <p className="mt-2 max-w-xl text-sm text-slate-600 sm:text-base">
                   Consulta las sesiones y el tiempo de riego registrados en tu sistema.
                 </p>
@@ -268,12 +263,12 @@ const StatisticsPage = () => {
                   <span className="rounded-2xl bg-sky-50 p-3 text-sky-700"><Droplets className="h-5 w-5" /></span>
                 </div>
                 <p className="text-3xl font-extrabold tracking-tight text-slate-900">
-                  {cultivatedArea ? `${estimatedConsumptionToday.toFixed(1)} L` : 'Configura el área'}
+                  {flowRate ? `${estimatedConsumptionToday.toFixed(1)} L` : 'Configura el caudal'}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
-                  {cultivatedArea
-                    ? `${cultivatedArea} m² × ${LITERS_PER_SQUARE_METER_LABEL} L/m² por sesión · promedio diario: ${averageEstimatedDailyConsumption.toFixed(1)} L`
-                    : 'Define los m² de cultivo en el panel principal para calcular litros.'}
+                  {flowRate
+                    ? `${flowRate} L/min × duración real · promedio diario: ${averageEstimatedDailyConsumption.toFixed(1)} L`
+                    : 'Configura el caudal medido en la administración del cultivo para estimar litros.'}
                 </p>
               </CardContent>
             </Card>
@@ -337,11 +332,11 @@ const StatisticsPage = () => {
             <CardHeader className="pb-2">
               <CardTitle className="text-lg font-bold text-slate-900">Consumo estimado por día</CardTitle>
               <p className="text-sm text-slate-500">
-              Calculado como {LITERS_PER_SQUARE_METER_LABEL} L/m² por sesión · últimos 14 días
+              Calculado con caudal (L/min) × duración real · estimado · últimos 14 días
               </p>
             </CardHeader>
             <CardContent className="pt-3">
-              {recentSessions.length > 0 && cultivatedArea ? (
+              {recentSessions.length > 0 && flowRate ? (
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={dailyActivity} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
                     <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="4 4" />
@@ -358,12 +353,12 @@ const StatisticsPage = () => {
               ) : (
                 <div className="flex h-[180px] flex-col items-center justify-center rounded-2xl border border-dashed border-sky-200 bg-sky-50/50 px-6 text-center">
                   <p className="font-semibold text-slate-800">
-                    {cultivatedArea ? 'Aún no hay consumo estimable' : 'Configura el área del cultivo'}
+                    {flowRate ? 'Aún no hay consumo estimable' : 'Configura el caudal del cultivo'}
                   </p>
                   <p className="mt-1 max-w-md text-sm text-slate-500">
-                    {cultivatedArea
-                      ? 'Cuando haya sesiones de riego registradas, calcularemos un aproximado con el valor de litros por metro cuadrado.'
-                      : 'En el panel principal introduce la superficie en m² para calcular litros.'}
+                    {flowRate
+                      ? 'Cuando haya sesiones registradas, el cálculo usará su duración real y el caudal configurado.'
+                      : 'En la administración del cultivo introduce el caudal medido en L/min.'}
                   </p>
                 </div>
               )}
@@ -390,22 +385,22 @@ const StatisticsPage = () => {
           <Card className="rounded-3xl border-white/80 shadow-lg shadow-slate-900/5">
             <CardHeader>
               <CardTitle className="text-lg font-bold text-slate-900">Comparación mensual estimada</CardTitle>
-              <p className="text-sm text-slate-500">Litros estimados por sesión usando {LITERS_PER_SQUARE_METER_LABEL} L/m² y el área configurada.</p>
+              <p className="text-sm text-slate-500">Consumo estimado: caudal configurado × minutos reales de riego.</p>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-3">
               <div className="rounded-2xl bg-teal-50 p-5">
                 <p className="text-sm font-medium text-teal-800">Mes actual</p>
-                <p className="mt-2 text-3xl font-extrabold text-teal-900">{cultivatedArea ? monthlyConsumption.current.toFixed(1) : '—'} <span className="text-sm">L</span></p>
+                <p className="mt-2 text-3xl font-extrabold text-teal-900">{flowRate ? monthlyConsumption.current.toFixed(1) : '—'} <span className="text-sm">L</span></p>
               </div>
               <div className="rounded-2xl bg-slate-50 p-5">
                 <p className="text-sm font-medium text-slate-600">Mes anterior</p>
-                <p className="mt-2 text-3xl font-extrabold text-slate-800">{cultivatedArea ? monthlyConsumption.previous.toFixed(1) : '—'} <span className="text-sm">L</span></p>
+                <p className="mt-2 text-3xl font-extrabold text-slate-800">{flowRate ? monthlyConsumption.previous.toFixed(1) : '—'} <span className="text-sm">L</span></p>
               </div>
               <div className={`rounded-2xl p-5 ${monthlyConsumption.change > 0 ? 'bg-amber-50' : 'bg-emerald-50'}`}>
                 <p className="text-sm font-medium text-slate-600">Variación mensual</p>
                 <p className="mt-2 flex items-center gap-2 text-3xl font-extrabold text-slate-900">
                   {monthlyConsumption.change > 0 ? <TrendingUp className="h-6 w-6 text-amber-600" /> : <TrendingDown className="h-6 w-6 text-emerald-600" />}
-                  {cultivatedArea && monthlyConsumption.previous > 0
+                  {flowRate && monthlyConsumption.previous > 0
                     ? `${monthlyConsumption.change > 0 ? '+' : ''}${monthlyConsumption.change.toFixed(1)}%`
                     : '—'}
                 </p>

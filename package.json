@@ -15,8 +15,5 @@
   },
   "workspaces": [
     "apps/*"
-  ],
-  "dependencies": {
-    "firebase": "^13.0.0"
-  }
+  ]
 }

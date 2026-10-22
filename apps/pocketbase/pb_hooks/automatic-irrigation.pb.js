@@ -3,36 +3,6 @@
 cronAdd('automatic-irrigation', '* * * * *', () => {
   try {
     const formatDatePart = (value) => String(value).padStart(2, '0');
-    const utcOffsetForSchedule = (schedule) => {
-      const storedOffset = Number(schedule.utcOffsetMinutes);
-      if (Number.isFinite(storedOffset) && storedOffset >= -720 && storedOffset <= 840) {
-        return storedOffset;
-      }
-
-      const offsetsByTimeZone = {
-        'UTC': 0,
-        'Etc/UTC': 0,
-        'America/Bogota': -300,
-        'America/Lima': -300,
-        'America/Quito': -300,
-        'America/Panama': -300,
-        'America/Mexico_City': -360,
-        'America/Chicago': -360,
-        'America/Denver': -420,
-        'America/Los_Angeles': -480,
-        'America/New_York': -300,
-        'America/Toronto': -300,
-        'Europe/London': 0,
-        'Europe/Madrid': 60,
-        'Europe/Paris': 60,
-        'Europe/Berlin': 60,
-        'Asia/Kolkata': 330,
-        'Asia/Tokyo': 540,
-        'Australia/Sydney': 600,
-        'Pacific/Auckland': 720,
-      };
-      return offsetsByTimeZone[schedule.timeZone] ?? -300;
-    };
     const timeToMinutes = (value) => {
       const [hours, minutes] = String(value || '').split(':').map(Number);
       if (!Number.isInteger(hours) || !Number.isInteger(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
@@ -40,38 +10,78 @@ cronAdd('automatic-irrigation', '* * * * *', () => {
       }
       return hours * 60 + minutes;
     };
+    const weekdayNumber = (value) => {
+      if (Number.isInteger(value) && value >= 0 && value <= 6) return value;
+      const day = String(value).toLowerCase();
+      const days = {
+        sun: 0, sunday: 0, domingo: 0,
+        mon: 1, monday: 1, lunes: 1,
+        tue: 2, tuesday: 2, martes: 2,
+        wed: 3, wednesday: 3, miercoles: 3, miércoles: 3,
+        thu: 4, thursday: 4, jueves: 4,
+        fri: 5, friday: 5, viernes: 5,
+        sat: 6, saturday: 6, sabado: 6, sábado: 6,
+      };
+      return days[day] ?? null;
+    };
     const now = new Date();
-    const settings = $app.findAllRecords('user_settings');
+    const crops = $app.findAllRecords('crops');
+    const schedulesCollection = $app.findCollectionByNameOrId('irrigation_schedules');
     const logsCollection = $app.findCollectionByNameOrId('irrigation_logs');
 
-    for (const setting of settings) {
+    for (const crop of crops) {
+      const cropId = crop.id;
+      const userId = crop.get('userId');
+      if (!userId) continue;
+
       let schedules = [];
       try {
-        const parsed = JSON.parse(String(setting.get('irrigation_schedule_times') || '[]'));
-        schedules = Array.isArray(parsed) ? parsed : [];
-      } catch {
-        schedules = [];
+        schedules = $app.findRecordsByFilter(
+          schedulesCollection,
+          'cropId = {:cropId} && userId = {:userId}',
+          'startTime',
+          0,
+          0,
+          { cropId, userId },
+        );
+      } catch (error) {
+        console.error(`Could not load schedules for crop ${cropId}:`, error);
+        continue;
       }
 
       let activeScheduleStartTimestamp = null;
-      const active = schedules.some((schedule) => {
-        const scheduleDate = schedule.date || schedule.startDate;
-        const startTime = schedule.startTime || schedule.time;
-        const endTime = schedule.endTime;
-        const startMinutes = timeToMinutes(startTime);
-        const endMinutes = timeToMinutes(endTime);
-        const utcOffsetMinutes = utcOffsetForSchedule(schedule);
-        const scheduleLocalNow = new Date(now.getTime() + utcOffsetMinutes * 60000);
-        const currentDate = `${scheduleLocalNow.getUTCFullYear()}-${formatDatePart(scheduleLocalNow.getUTCMonth() + 1)}-${formatDatePart(scheduleLocalNow.getUTCDate())}`;
-        const currentTime = scheduleLocalNow.getUTCHours() * 60 + scheduleLocalNow.getUTCMinutes();
-        const isActive = scheduleDate === currentDate
-          && startMinutes !== null
-          && endMinutes !== null
-          && startMinutes < endMinutes
+      const active = crop.get('control_mode') === 'SCHEDULE' && schedules.some((schedule) => {
+        const startMinutes = timeToMinutes(schedule.get('startTime'));
+        const endMinutes = timeToMinutes(schedule.get('endTime'));
+        if (startMinutes === null || endMinutes === null || startMinutes >= endMinutes) return false;
+
+        const utcOffsetMinutes = Number(schedule.get('utcOffsetMinutes') || 0);
+        const localNow = new Date(now.getTime() + utcOffsetMinutes * 60000);
+        const currentDate = `${localNow.getUTCFullYear()}-${formatDatePart(localNow.getUTCMonth() + 1)}-${formatDatePart(localNow.getUTCDate())}`;
+        const currentTime = localNow.getUTCHours() * 60 + localNow.getUTCMinutes();
+        const recurrence = schedule.get('recurrence') || 'ONCE';
+        let occursToday = schedule.get('date') === currentDate;
+
+        if (recurrence === 'DAILY') {
+          occursToday = true;
+        } else if (recurrence === 'WEEKLY') {
+          let days = schedule.get('days');
+          if (typeof days === 'string') {
+            try {
+              days = JSON.parse(days);
+            } catch {
+              days = [];
+            }
+          }
+          const currentWeekday = localNow.getUTCDay();
+          occursToday = Array.isArray(days) && days.some((day) => weekdayNumber(day) === currentWeekday);
+        }
+
+        const isActive = occursToday
           && startMinutes <= currentTime
           && currentTime < endMinutes;
         if (isActive) {
-          const [year, month, day] = scheduleDate.split('-').map(Number);
+          const [year, month, day] = currentDate.split('-').map(Number);
           const startTimestamp = Date.UTC(
             year,
             month - 1,
@@ -86,28 +96,24 @@ cronAdd('automatic-irrigation', '* * * * *', () => {
         return isActive;
       });
 
-      const userId = setting.get('userId');
-      if (!userId) continue;
-
       let latestLog = null;
       try {
         const latestLogs = $app.findRecordsByFilter(
           logsCollection,
-          'userId = {:userId}',
+          'cropId = {:cropId}',
           '-created',
           1,
           0,
-          { userId },
+          { cropId },
         );
         latestLog = latestLogs.length > 0 ? latestLogs[0] : null;
-      } catch {
-        latestLog = null;
+      } catch (error) {
+        console.error(`Could not load irrigation status for crop ${cropId}:`, error);
+        continue;
       }
 
-      const desiredStatus = active ? 'ON' : 'OFF';
       const latestStatus = latestLog?.get('status');
       const latestSource = latestLog?.get('source');
-
       if (active) {
         const latestLogDate = latestLog ? new Date(latestLog.get('created')) : null;
         const manualStopDuringSchedule = latestStatus === 'OFF'
@@ -117,14 +123,15 @@ cronAdd('automatic-irrigation', '* * * * *', () => {
           && !Number.isNaN(latestLogDate.getTime())
           && latestLogDate.getTime() >= activeScheduleStartTimestamp;
         if (latestStatus === 'ON' || manualStopDuringSchedule) continue;
-      } else if (latestStatus !== 'ON' || latestSource !== 'AUTOMATIC') {
+      } else if (latestStatus !== 'ON' || latestSource !== 'SCHEDULE') {
         continue;
       }
 
       $app.save(new Record(logsCollection, {
         userId,
-        status: desiredStatus,
-        source: 'AUTOMATIC',
+        cropId,
+        status: active ? 'ON' : 'OFF',
+        source: 'SCHEDULE',
       }));
     }
   } catch (error) {

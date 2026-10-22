@@ -1,8 +1,10 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCrop } from '@/contexts/CropContext';
+import { useIrrigationSchedule } from '@/hooks/useIrrigationSchedule';
 import { useAlert } from '@/contexts/AlertContext';
 import Header from '@/components/Header';
 import SensorCard from '@/components/SensorCard';
@@ -20,37 +22,15 @@ import {
   getActiveSchedule,
   getDisplayedIrrigationStatus,
   getScheduleState,
-  LITERS_PER_SQUARE_METER_LABEL,
 } from '@/utils/irrigationMetrics';
-
-const getCultivatedAreaStorageKey = (userId) => `neptuno:cultivated-area:${userId}`;
-
-const getStoredCultivatedArea = (userId) => {
-  try {
-    return localStorage.getItem(getCultivatedAreaStorageKey(userId)) || '';
-  } catch (storageError) {
-    console.error('Error reading locally cached cultivated area:', storageError);
-    return '';
-  }
-};
-
-const setStoredCultivatedArea = (userId, area) => {
-  try {
-    localStorage.setItem(getCultivatedAreaStorageKey(userId), String(area));
-  } catch (storageError) {
-    console.error('Error caching cultivated area locally:', storageError);
-  }
-};
-
-const selectSettingsRecord = (records) => (
-  records.find((record) => Number(record.cultivated_area_m2) > 0) || records[0] || null
-);
 
 const DashboardPage = () => {
   const { currentUser } = useAuth();
+  const { selectedCrop, updateCrop } = useCrop();
+  const cropId = selectedCrop?.id || '';
+  const { schedules } = useIrrigationSchedule();
   const { alerts } = useAlert();
   const [sensorData, setSensorData] = useState(null);
-  const [scheduleData, setScheduleData] = useState(null);
   const [latestLog, setLatestLog] = useState(null);
   const [irrigationLogs, setIrrigationLogs] = useState([]);
   const [cultivatedArea, setCultivatedArea] = useState('');
@@ -58,64 +38,49 @@ const DashboardPage = () => {
   const [isEditingArea, setIsEditingArea] = useState(false);
   const [areaSaving, setAreaSaving] = useState(false);
   const [areaMessage, setAreaMessage] = useState('');
-  const areaDirtyRef = useRef(false);
-  const areaSyncVersionRef = useRef(0);
-  const areaSavingRef = useRef(false);
-  const confirmedAreaRef = useRef('');
   const [now, setNow] = useState(() => new Date());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const fetchData = async () => {
+  useEffect(() => {
+    const area = selectedCrop?.area_m2 == null ? '' : String(selectedCrop.area_m2);
+    setCultivatedArea(area);
+    setAreaDraft(area);
+    setIsEditingArea(!area);
+    setAreaMessage('');
+  }, [selectedCrop?.id, selectedCrop?.area_m2]);
+
+  const fetchData = useCallback(async () => {
+    if (!currentUser || !cropId) {
+      setSensorData(null);
+      setLatestLog(null);
+      setIrrigationLogs([]);
+      setLoading(false);
+      return;
+    }
     try {
       setError('');
       const fetchedAt = new Date();
-      const areaSyncVersion = areaSyncVersionRef.current;
 
-      const [readingsResult, settingsResult, logsResult] = await Promise.allSettled([
+      const [readingsResult, logsResult] = await Promise.allSettled([
         pb.collection('sensor_readings').getList(1, 1, {
-          filter: `userId = "${currentUser.id}"`,
+          filter: `cropId = "${cropId}"`,
           sort: '-created',
           $autoCancel: false,
         }),
-        pb.collection('user_settings').getList(1, 50, {
-          filter: `userId = "${currentUser.id}"`,
-          sort: '-updated',
-          $autoCancel: false,
-        }),
         pb.collection('irrigation_logs').getFullList({
-          filter: `userId = "${currentUser.id}"`,
+          filter: `cropId = "${cropId}"`,
           sort: '-created',
           $autoCancel: false,
         }),
       ]);
 
       setSensorData(readingsResult.status === 'fulfilled' ? readingsResult.value.items[0] || null : null);
-      if (
-        settingsResult.status === 'fulfilled'
-        && areaSyncVersion === areaSyncVersionRef.current
-        && !areaSavingRef.current
-      ) {
-        const settings = selectSettingsRecord(settingsResult.value.items);
-        setScheduleData(settings);
-        const remoteArea = settings?.cultivated_area_m2
-          ? String(settings.cultivated_area_m2)
-          : '';
-        const savedArea = confirmedAreaRef.current
-          || remoteArea
-          || getStoredCultivatedArea(currentUser.id);
-        if (!confirmedAreaRef.current && remoteArea) {
-          confirmedAreaRef.current = remoteArea;
-        }
-        setCultivatedArea(savedArea);
-        if (!areaDirtyRef.current) setIsEditingArea(!savedArea);
-        if (!areaDirtyRef.current) setAreaDraft(savedArea);
-      }
       const logs = logsResult.status === 'fulfilled' ? logsResult.value : [];
       setIrrigationLogs(logs);
       setLatestLog(logs[0] || null);
       setNow(fetchedAt);
-      const failedLoads = [readingsResult, settingsResult, logsResult]
+      const failedLoads = [readingsResult, logsResult]
         .filter((result) => result.status === 'rejected');
       if (failedLoads.length > 0) {
         throw failedLoads[0].reason;
@@ -126,46 +91,64 @@ const DashboardPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentUser, cropId]);
 
   useEffect(() => {
-    if (!currentUser) return undefined;
-
+    let active = true;
+    const subscriptions = [];
     fetchData();
 
-    // Auto-refresh every 5 seconds
-    const interval = setInterval(() => {
-      fetchData();
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [currentUser]);
-
-  const getScheduleTimes = () => {
-    if (!scheduleData?.irrigation_schedule_times) return [];
-
-    try {
-      const parsed = JSON.parse(scheduleData.irrigation_schedule_times);
-      if (Array.isArray(parsed)) {
-        return parsed
-          .filter((schedule) => schedule && typeof schedule === 'object')
-          .sort((first, second) => {
-            const getStartDate = (schedule) => {
-              const date = schedule.date || schedule.startDate;
-              const time = schedule.startTime || schedule.time || '00:00';
-              return date ? new Date(`${date}T${time}`).getTime() : Number.POSITIVE_INFINITY;
-            };
-            return getStartDate(first) - getStartDate(second);
-          });
-      }
-    } catch {
-      // Keep compatibility with schedules saved in the original comma-separated format.
+    if (!currentUser || !cropId) {
+      return () => { active = false; };
     }
 
-    return String(scheduleData.irrigation_schedule_times)
-      .split(',')
-      .map((time) => ({ startTime: time.trim() }))
-      .filter((schedule) => schedule.startTime);
+    const subscribe = async (collectionName, onRecord) => {
+      try {
+        const unsubscribe = await pb.collection(collectionName).subscribe('*', (event) => {
+          if (active && event.record?.cropId === cropId) onRecord(event.record);
+        });
+        const stop = () => {
+          const result = unsubscribe();
+          if (result?.catch) result.catch((error) => console.error(`Could not unsubscribe from ${collectionName}:`, error));
+        };
+        if (active) subscriptions.push(stop);
+        else stop();
+      } catch (subscribeError) {
+        console.error(`Could not subscribe to ${collectionName}:`, subscribeError);
+        if (active) setError('No se pudieron activar las actualizaciones en tiempo real.');
+      }
+    };
+
+    subscribe('sensor_readings', (record) => {
+      setSensorData((current) => !current || new Date(record.created) >= new Date(current.created) ? record : current);
+      setNow(new Date());
+    });
+    subscribe('irrigation_logs', (record) => {
+      setIrrigationLogs((current) => {
+        const records = [record, ...current.filter((item) => item.id !== record.id)];
+        return records.sort((first, second) => new Date(second.created) - new Date(first.created));
+      });
+      setLatestLog((current) => !current || new Date(record.created) >= new Date(current.created) ? record : current);
+      setNow(new Date());
+    });
+
+    return () => {
+      active = false;
+      subscriptions.forEach((stop) => stop());
+    };
+  }, [currentUser, cropId, fetchData]);
+
+  const getScheduleTimes = () => {
+    return [...schedules]
+      .filter((schedule) => schedule && typeof schedule === 'object')
+      .sort((first, second) => {
+        const getStartDate = (schedule) => {
+          const date = schedule.date || schedule.startDate;
+          const time = schedule.startTime || schedule.time || '00:00';
+          return date ? new Date(`${date}T${time}`).getTime() : Number.POSITIVE_INFINITY;
+        };
+        return getStartDate(first) - getStartDate(second);
+      });
   };
 
   const formatScheduleTime = (timeValue) => {
@@ -186,7 +169,7 @@ const DashboardPage = () => {
       : date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
-  const activeSchedule = getActiveSchedule(scheduleData?.irrigation_schedule_times, now);
+  const activeSchedule = getActiveSchedule(schedules, now);
   const upcomingSchedule = getScheduleTimes()
     .filter((schedule) => getScheduleState(schedule, now) === 'upcoming')
     .sort((first, second) => {
@@ -200,7 +183,8 @@ const DashboardPage = () => {
   const displayedStatus = getDisplayedIrrigationStatus(latestLog?.status, latestLog, activeSchedule);
   const sessions = buildIrrigationSessions(irrigationLogs, now);
   const today = startOfDay(now);
-  const estimatedConsumptionToday = estimateDailyConsumption(sessions, today, now, cultivatedArea)
+  const flowRate = Number(selectedCrop?.flow_lpm) || null;
+  const estimatedConsumptionToday = estimateDailyConsumption(sessions, today, now, flowRate)
     .get(format(now, 'yyyy-MM-dd')) || 0;
 
   const saveCultivatedArea = async (event) => {
@@ -211,43 +195,17 @@ const DashboardPage = () => {
       return;
     }
 
-    areaDirtyRef.current = true;
-    areaSavingRef.current = true;
-    areaSyncVersionRef.current += 1;
     setAreaSaving(true);
     setAreaMessage('');
     try {
-      const settingsCollection = pb.collection('user_settings');
-      const settingsResult = await settingsCollection.getList(1, 50, {
-        filter: `userId = "${currentUser.id}"`,
-        sort: '-updated',
-        $autoCancel: false,
-      });
-      const existingSettings = selectSettingsRecord(settingsResult.items);
-      let savedSettings;
-      if (existingSettings?.id) {
-        savedSettings = await settingsCollection.update(existingSettings.id, {
-          userId: currentUser.id,
-          cultivated_area_m2: area,
-        }, { $autoCancel: false });
-      } else {
-        savedSettings = await settingsCollection.create({
-          userId: currentUser.id,
-          irrigation_schedule_times: '[]',
-          cultivated_area_m2: area,
-        }, { $autoCancel: false });
-      }
-      const verifiedArea = Number(savedSettings?.cultivated_area_m2);
+      if (!selectedCrop) throw new Error('Crea o selecciona un cultivo antes de configurar el área.');
+      const savedCrop = await updateCrop(selectedCrop.id, { ...selectedCrop, area_m2: area });
+      const verifiedArea = Number(savedCrop?.area_m2);
       if (verifiedArea !== area) {
-        throw new Error('PocketBase no confirmó el área guardada. Reinicia el servidor para aplicar sus migraciones y vuelve a intentarlo.');
+        throw new Error('No se confirmó el área guardada. Inténtalo de nuevo.');
       }
-      setScheduleData(savedSettings);
       setCultivatedArea(String(area));
       setAreaDraft(String(area));
-      setStoredCultivatedArea(currentUser.id, area);
-      confirmedAreaRef.current = String(area);
-      areaSyncVersionRef.current += 1;
-      areaDirtyRef.current = false;
       setIsEditingArea(false);
       setAreaMessage('Área guardada.');
     } catch (saveError) {
@@ -262,13 +220,11 @@ const DashboardPage = () => {
         || 'No se pudo guardar el área. Intenta de nuevo.',
       );
     } finally {
-      areaSavingRef.current = false;
       setAreaSaving(false);
     }
   };
 
   const cancelAreaEdit = () => {
-    areaDirtyRef.current = false;
     setAreaDraft(cultivatedArea);
     setIsEditingArea(!cultivatedArea);
     setAreaMessage('');
@@ -313,6 +269,9 @@ const DashboardPage = () => {
               <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-teal-200 bg-white/80 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-teal-700 shadow-sm">
                 <Activity className="h-3.5 w-3.5" /> Monitoreo en vivo
               </span>
+              {(sensorData?.is_demo || irrigationLogs.some((log) => log.is_demo)) && (
+                <span className="mb-3 ml-2 inline-flex rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-amber-800">Demo</span>
+              )}
               <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">Panel Principal</h1>
               <p className="mt-2 text-base text-slate-600 sm:text-lg">El estado de tu cultivo, claro y al momento.</p>
             </div>
@@ -331,6 +290,12 @@ const DashboardPage = () => {
             </div>
           </div>
 
+          {!selectedCrop && (
+            <div className="mb-6 rounded-2xl border border-teal-200 bg-white p-6 text-slate-700">
+              <p className="font-semibold">Aún no hay un cultivo seleccionado.</p>
+              <Link to="/crops" className="mt-2 inline-block font-semibold text-teal-700 hover:underline">Crear o seleccionar cultivo</Link>
+            </div>
+          )}
           {error && (
             <div role="alert" className="mb-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
               <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
@@ -410,12 +375,12 @@ const DashboardPage = () => {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-slate-500">Consumo estimado hoy</p>
                   <p className="mt-2 text-2xl font-extrabold text-slate-900">
-                    {Number(cultivatedArea) > 0 ? `${estimatedConsumptionToday.toFixed(1)} L` : 'Configura el área'}
+                    {flowRate ? `${estimatedConsumptionToday.toFixed(1)} L` : 'Configura el caudal'}
                   </p>
                   <p className="mt-1 text-sm text-slate-500">
-                    {Number(cultivatedArea) > 0
-                      ? `${cultivatedArea} m² × ${LITERS_PER_SQUARE_METER_LABEL} L/m² por sesión`
-                      : 'El cálculo necesita la superficie de cultivo.'}
+                    {flowRate
+                      ? `${flowRate} L/min × duración real`
+                      : 'El cálculo requiere el caudal medido del cultivo.'}
                   </p>
                   {isEditingArea ? (
                     <form onSubmit={saveCultivatedArea} className="mt-4 space-y-2">
@@ -431,7 +396,6 @@ const DashboardPage = () => {
                           inputMode="decimal"
                           value={areaDraft}
                           onChange={(event) => {
-                            areaDirtyRef.current = true;
                             setAreaDraft(event.target.value);
                           }}
                           className="h-10 min-w-0"
@@ -461,7 +425,6 @@ const DashboardPage = () => {
                         variant="outline"
                         onClick={() => {
                           setAreaMessage('');
-                          areaDirtyRef.current = true;
                           setIsEditingArea(true);
                         }}
                         className="h-9 border-teal-200 px-3 text-teal-700 hover:bg-teal-50"

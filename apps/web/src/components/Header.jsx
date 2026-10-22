@@ -5,12 +5,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, LayoutDashboard, Sliders, BarChart3, LogOut, History } from 'lucide-react';
+import { Menu, LayoutDashboard, Sliders, BarChart3, LogOut, History, Sprout } from 'lucide-react';
 import NotificationBell from '@/components/NotificationBell';
 import pb from '@/lib/pocketbaseClient';
+import { useCrop } from '@/contexts/CropContext';
 
 const Header = () => {
   const { currentUser, logout } = useAuth();
+  const { crops, selectedCropId, selectCrop, loading: cropsLoading } = useCrop();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -26,6 +28,7 @@ const Header = () => {
     { to: '/control', label: 'Panel de Control', icon: Sliders },
     { to: '/statistics', label: 'Estadísticas', icon: BarChart3 },
     { to: '/historial', label: 'Historial de Riego', icon: History },
+    { to: '/crops', label: 'Cultivos', icon: Sprout },
   ];
 
   const isActive = (path) => location.pathname === path;
@@ -70,6 +73,18 @@ const Header = () => {
               );
             })}
           </nav>
+          <label className="hidden xl:flex xl:items-center xl:gap-2">
+            <span className="sr-only">Cultivo seleccionado</span>
+            <select
+              aria-label="Cultivo seleccionado"
+              value={selectedCropId}
+              onChange={(event) => selectCrop(event.target.value)}
+              disabled={cropsLoading || crops.length === 0}
+              className="max-w-44 rounded-lg border border-teal-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 disabled:text-slate-400"
+            >
+              {crops.length === 0 ? <option value="">Sin cultivos</option> : crops.map((crop) => <option key={crop.id} value={crop.id}>{crop.name}</option>)}
+            </select>
+          </label>
 
           {/* User Menu & Alerts */}
           <div className="flex items-center space-x-4">
@@ -139,6 +154,18 @@ const Header = () => {
             </div>
           </div>
           <nav aria-label="Menú móvil" className="space-y-1 py-4">
+            <label className="mb-3 block space-y-1 px-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Cultivo activo</span>
+              <select
+                aria-label="Cultivo seleccionado"
+                value={selectedCropId}
+                onChange={(event) => selectCrop(event.target.value)}
+                disabled={cropsLoading || crops.length === 0}
+                className="h-10 w-full rounded-lg border border-teal-200 bg-white px-3 text-sm text-slate-700 disabled:text-slate-400"
+              >
+                {crops.length === 0 ? <option value="">Sin cultivos</option> : crops.map((crop) => <option key={crop.id} value={crop.id}>{crop.name}</option>)}
+              </select>
+            </label>
             {navLinks.map((link) => {
               const Icon = link.icon;
               return (

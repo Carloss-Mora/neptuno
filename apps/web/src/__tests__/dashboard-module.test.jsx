@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 import { AuthProvider } from '@/contexts/AuthContext';
+import { CropProvider } from '@/contexts/CropContext';
 import { AlertProvider } from '@/contexts/AlertContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import DashboardPage from '@/pages/DashboardPage';
@@ -25,6 +26,15 @@ vi.mock('@/lib/pocketbaseClient', () => ({
   default: mockPb,
   pocketbaseClient: mockPb,
 }));
+
+const defaultCrop = {
+  id: 'crop-1',
+  userId: 'user-1',
+  name: 'Fresas',
+  area_m2: 120,
+  flow_lpm: 0.2,
+  control_mode: 'MANUAL',
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -50,29 +60,21 @@ beforeEach(() => {
             },
           ],
         })),
+        subscribe: vi.fn(async () => vi.fn()),
       };
     }
 
-    if (name === 'user_settings') {
+    if (name === 'crops') {
       return {
-        getList: vi.fn(async () => ({
-          items: [
-            {
-              id: 'settings-1',
-              userId: 'user-1',
-              irrigation_schedule_times: '08:00,12:00,18:00',
-              cultivated_area_m2: 120,
-            },
-          ],
-        })),
-        update: vi.fn(async (id, payload) => ({ id, ...payload })),
-        create: vi.fn(async (payload) => ({ id: 'settings-1', ...payload })),
+        getFullList: vi.fn(async () => [{ ...defaultCrop }]),
+        update: vi.fn(async (id, payload) => ({ ...defaultCrop, id, ...payload })),
       };
     }
 
     return {
       getList: vi.fn(async () => ({ items: [] })),
       getFullList: vi.fn(async () => []),
+      subscribe: vi.fn(async () => vi.fn()),
       create: vi.fn(async (payload) => ({ id: 'record-1', ...payload })),
       update: vi.fn(async (id, payload) => ({ id, ...payload })),
     };
@@ -105,13 +107,15 @@ describe('Dashboard and route module', () => {
   it('loads sensor data and irrigation schedule for the active user', async () => {
     render(
       <AuthProvider>
-        <AlertProvider>
-          <MemoryRouter initialEntries={['/dashboard']}>
-            <Routes>
-              <Route path="/dashboard" element={<DashboardPage />} />
-            </Routes>
-          </MemoryRouter>
-        </AlertProvider>
+        <CropProvider>
+          <AlertProvider>
+            <MemoryRouter initialEntries={['/dashboard']}>
+              <Routes>
+                <Route path="/dashboard" element={<DashboardPage />} />
+              </Routes>
+            </MemoryRouter>
+          </AlertProvider>
+        </CropProvider>
       </AuthProvider>
     );
 
@@ -134,21 +138,19 @@ describe('Dashboard and route module', () => {
     };
 
     mockPb.collection.mockImplementation((name) => {
+      if (name === 'crops') return { getFullList: vi.fn(async () => [{ ...defaultCrop }]) };
       if (name === 'sensor_readings') {
-        return { getList: vi.fn(async () => ({ items: [] })) };
+        return { getList: vi.fn(async () => ({ items: [] })), subscribe: vi.fn(async () => vi.fn()) };
       }
-      if (name === 'user_settings') {
+      if (name === 'irrigation_schedules') {
         return {
-          getList: vi.fn(async () => ({
-            items: [{
-              id: 'settings-active',
-              irrigation_schedule_times: JSON.stringify([{
-                date: scheduleDate,
-                startTime: '00:00',
-                endTime: '23:59',
-              }]),
-            }],
-          })),
+          getFullList: vi.fn(async () => [{
+              id: 'schedule-active',
+              date: scheduleDate,
+              startTime: '00:00',
+              endTime: '23:59',
+              recurrence: 'ONCE',
+            }]),
         };
       }
       return {
@@ -158,13 +160,15 @@ describe('Dashboard and route module', () => {
 
     render(
       <AuthProvider>
-        <AlertProvider>
-          <MemoryRouter initialEntries={['/dashboard']}>
-            <Routes>
-              <Route path="/dashboard" element={<DashboardPage />} />
-            </Routes>
-          </MemoryRouter>
-        </AlertProvider>
+        <CropProvider>
+          <AlertProvider>
+            <MemoryRouter initialEntries={['/dashboard']}>
+              <Routes>
+                <Route path="/dashboard" element={<DashboardPage />} />
+              </Routes>
+            </MemoryRouter>
+          </AlertProvider>
+        </CropProvider>
       </AuthProvider>
     );
 
@@ -180,21 +184,19 @@ describe('Dashboard and route module', () => {
     const scheduleDate = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
 
     mockPb.collection.mockImplementation((name) => {
+      if (name === 'crops') return { getFullList: vi.fn(async () => [{ ...defaultCrop }]) };
       if (name === 'sensor_readings') {
-        return { getList: vi.fn(async () => ({ items: [] })) };
+        return { getList: vi.fn(async () => ({ items: [] })), subscribe: vi.fn(async () => vi.fn()) };
       }
-      if (name === 'user_settings') {
+      if (name === 'irrigation_schedules') {
         return {
-          getList: vi.fn(async () => ({
-            items: [{
-              id: 'settings-past',
-              irrigation_schedule_times: JSON.stringify([{
-                date: scheduleDate,
-                startTime: '08:00',
-                endTime: '09:00',
-              }]),
-            }],
-          })),
+          getFullList: vi.fn(async () => [{
+            id: 'schedule-past',
+            date: scheduleDate,
+            startTime: '08:00',
+            endTime: '09:00',
+            recurrence: 'ONCE',
+          }]),
         };
       }
       return {
@@ -209,19 +211,23 @@ describe('Dashboard and route module', () => {
 
     render(
       <AuthProvider>
-        <AlertProvider>
-          <MemoryRouter initialEntries={['/dashboard']}>
-            <Routes>
-              <Route path="/dashboard" element={<DashboardPage />} />
-            </Routes>
-          </MemoryRouter>
-        </AlertProvider>
+        <CropProvider>
+          <AlertProvider>
+            <MemoryRouter initialEntries={['/dashboard']}>
+              <Routes>
+                <Route path="/dashboard" element={<DashboardPage />} />
+              </Routes>
+            </MemoryRouter>
+          </AlertProvider>
+        </CropProvider>
       </AuthProvider>
     );
 
     expect(await screen.findByText('Riego inactivo')).toBeInTheDocument();
     expect(screen.getByText('Sin riegos pendientes')).toBeInTheDocument();
-    expect(screen.getByText('Los horarios guardados ya pasaron.')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Los horarios guardados ya pasaron.')).toBeInTheDocument();
+    });
     expect(screen.queryByText('Próximo riego')).not.toBeInTheDocument();
   });
 
@@ -229,20 +235,25 @@ describe('Dashboard and route module', () => {
     const user = userEvent.setup();
     render(
       <AuthProvider>
-        <AlertProvider>
-          <MemoryRouter initialEntries={['/dashboard']}>
-            <Routes>
-              <Route path="/dashboard" element={<DashboardPage />} />
-            </Routes>
-          </MemoryRouter>
-        </AlertProvider>
+        <CropProvider>
+          <AlertProvider>
+            <MemoryRouter initialEntries={['/dashboard']}>
+              <Routes>
+                <Route path="/dashboard" element={<DashboardPage />} />
+              </Routes>
+            </MemoryRouter>
+          </AlertProvider>
+        </CropProvider>
       </AuthProvider>
     );
 
     await screen.findByRole('heading', { name: 'Panel Principal' });
+    await waitFor(() => {
+      expect(document.querySelector('select[aria-label="Cultivo seleccionado"]')?.value).toBe('crop-1');
+    });
     const menuButton = await screen.findByRole('button', { name: 'Abrir menú' });
     await user.click(menuButton);
-    expect(menuButton).toHaveAttribute('aria-expanded', 'true');
+    expect(await screen.findByRole('button', { name: 'Cerrar menú' })).toHaveAttribute('aria-expanded', 'true');
 
     const menu = await screen.findByRole('navigation', { name: 'Menú móvil' });
     expect(within(menu).getByRole('link', { name: 'Inicio' })).toBeInTheDocument();
@@ -251,41 +262,39 @@ describe('Dashboard and route module', () => {
     expect(within(menu).getByRole('link', { name: 'Historial de Riego' })).toBeInTheDocument();
   });
 
-  it('saves the cultivated area against the authenticated user settings', async () => {
+  it('saves cultivated area in the selected crop record', async () => {
     const user = userEvent.setup();
-    const storedSettings = [{
-      id: 'settings-area',
+    const storedCrop = {
+      ...defaultCrop,
       userId: 'user-1',
-      irrigation_schedule_times: '[]',
-      cultivated_area_m2: 100,
-    }];
-    const updateSettings = vi.fn(async (id, payload) => {
-      const setting = storedSettings.find((record) => record.id === id);
-      Object.assign(setting, payload);
-      return { ...setting };
+      area_m2: 100,
+    };
+    const updateCrop = vi.fn(async (id, payload) => {
+      Object.assign(storedCrop, payload);
+      return { ...storedCrop, id };
     });
     mockPb.collection.mockImplementation((name) => {
+      if (name === 'crops') return {
+        getFullList: vi.fn(async () => [{ ...storedCrop }]),
+        update: updateCrop,
+      };
       if (name === 'sensor_readings') {
-        return { getList: vi.fn(async () => ({ items: [] })) };
+        return { getList: vi.fn(async () => ({ items: [] })), subscribe: vi.fn(async () => vi.fn()) };
       }
-      if (name === 'user_settings') {
-        return {
-          getList: vi.fn(async () => ({ items: storedSettings })),
-          update: updateSettings,
-        };
-      }
-      return { getFullList: vi.fn(async () => []) };
+      return { getList: vi.fn(async () => ({ items: [] })), getFullList: vi.fn(async () => []), subscribe: vi.fn(async () => vi.fn()) };
     });
 
     const dashboard = () => (
       <AuthProvider>
-        <AlertProvider>
-          <MemoryRouter initialEntries={['/dashboard']}>
-            <Routes>
-              <Route path="/dashboard" element={<DashboardPage />} />
-            </Routes>
-          </MemoryRouter>
-        </AlertProvider>
+        <CropProvider>
+          <AlertProvider>
+            <MemoryRouter initialEntries={['/dashboard']}>
+              <Routes>
+                <Route path="/dashboard" element={<DashboardPage />} />
+              </Routes>
+            </MemoryRouter>
+          </AlertProvider>
+        </CropProvider>
       </AuthProvider>
     );
     const { unmount } = render(dashboard());
@@ -297,17 +306,17 @@ describe('Dashboard and route module', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
 
     await waitFor(() => {
-      expect(updateSettings).toHaveBeenCalledWith(
-        'settings-area',
-        { userId: 'user-1', cultivated_area_m2: 250 },
+      expect(updateCrop).toHaveBeenCalledWith(
+        'crop-1',
+        expect.objectContaining({ area_m2: 250 }),
         { $autoCancel: false },
       );
     });
     expect(screen.getByRole('status')).toHaveTextContent('Área guardada.');
     expect(screen.getByText('Área registrada: 250 m²')).toBeInTheDocument();
-    expect(screen.getByText('250 m² × 0,1 L/m² por sesión')).toBeInTheDocument();
+    expect(screen.getByText('0.2 L/min × duración real')).toBeInTheDocument();
     await waitFor(() => {
-      expect(storedSettings[0].cultivated_area_m2).toBe(250);
+      expect(storedCrop.area_m2).toBe(250);
       expect(screen.getByText('Área registrada: 250 m²')).toBeInTheDocument();
     }, { timeout: 6000 });
 

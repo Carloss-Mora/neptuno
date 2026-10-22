@@ -1,0 +1,47 @@
+# Neptuno
+
+Neptuno monitorea cultivos y controla el riego con React/Vite y PocketBase.
+
+## Desarrollo local
+
+1. Instala Node.js 18 o superior y las dependencias con `npm install`.
+2. Copia `.env.example` a `.env` y completa la configuración que uses localmente.
+3. Inicia la aplicación con `npm run dev`. La interfaz web queda en `http://localhost:3000` y PocketBase en `http://127.0.0.1:8090`.
+4. Crea una cuenta, registra un cultivo y configura el caudal medido en L/min para mostrar consumo estimado.
+5. En **Cultivos → Administrar dispositivos**, registra un dispositivo y guarda la clave que se muestra una sola vez.
+
+Las colecciones y campos nuevos se crean mediante migraciones en `apps/pocketbase/pb_migrations`. No edites migraciones ya aplicadas.
+
+## Simular un sensor
+
+Usa el valor de la clave mostrado al crear el dispositivo. Para evitar dejarla en el historial del terminal, puedes pasarla en `DEVICE_KEY`:
+
+```powershell
+$env:DEVICE_KEY = "PEGA_AQUI_LA_CLAVE"
+node tools/simulate-device.js --url http://127.0.0.1:8090 --interval 15
+```
+
+El simulador envía humedad, temperatura y nivel de agua cada intervalo. La humedad baja mientras el riego está apagado y sube cuando el servidor responde `ON`. Las lecturas simuladas se marcan como **Demo** en la aplicación.
+
+Fallos disponibles:
+
+```powershell
+node tools/simulate-device.js --url http://127.0.0.1:8090 --interval 15 --failure low-water
+node tools/simulate-device.js --url http://127.0.0.1:8090 --interval 15 --failure disconnect
+```
+
+Detén el simulador con `Ctrl+C`. El modo `disconnect` deja de enviar lecturas para probar el estado sin conexión; `low-water` transmite un nivel inferior al 20%.
+
+## Control automático
+
+El modo `AUTO` requiere umbrales mínimos/máximos de humedad y límites configurados de duración y descanso. Los valores agronómicos no vienen precargados y deben validarse con AGROSAVIA (2022) antes de usarse. El nivel de agua inferior al 20% bloquea el riego.
+
+El consumo se presenta como **estimado**: caudal configurado en L/min multiplicado por los minutos reales registrados. No se infiere consumo de agua cuando falta un caudal medido.
+
+## Comprobaciones
+
+```powershell
+npm run test:run --prefix apps/web
+npm run lint --prefix apps/web
+npm run build --prefix apps/web
+```

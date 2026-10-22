@@ -1,7 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCrop } from '@/contexts/CropContext';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,8 @@ import { es } from 'date-fns/locale';
 
 const IrrigationHistoryPage = () => {
   const { currentUser } = useAuth();
+  const { selectedCrop } = useCrop();
+  const cropId = selectedCrop?.id || '';
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -26,14 +29,18 @@ const IrrigationHistoryPage = () => {
   const [page, setPage] = useState(1);
   const itemsPerPage = 10;
 
-  const fetchLogs = async () => {
-    if (!currentUser) return;
+  const fetchLogs = useCallback(async () => {
+    if (!currentUser || !cropId) {
+      setLogs([]);
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
       setError('');
       
-      const filterStr = `userId = "${currentUser.id}"`;
+      const filterStr = `cropId = "${cropId}"`;
       const cutoff = filter === '7days'
         ? subDays(new Date(), 7)
         : filter === '30days'
@@ -70,6 +77,7 @@ const IrrigationHistoryPage = () => {
             durationMs: closingDate - activationDate,
             durationStr: formatDistanceStrict(activationDate, closingDate, { locale: es }),
             source: openSession.source,
+            is_demo: openSession.is_demo,
           });
           openSession = null;
         }
@@ -85,6 +93,7 @@ const IrrigationHistoryPage = () => {
           durationMs: new Date() - activationDate,
           durationStr: `${formatDistanceStrict(activationDate, new Date(), { locale: es })} (en curso)`,
           source: openSession.source,
+          is_demo: openSession.is_demo,
         });
       }
 
@@ -110,11 +119,11 @@ const IrrigationHistoryPage = () => {
       setError('No se pudo cargar el historial de riego. Intenta actualizar la página.');
       setLoading(false);
     }
-  };
+  }, [currentUser, cropId, filter, dateFrom, dateTo, minDuration, maxDuration]);
 
   useEffect(() => {
     fetchLogs();
-  }, [currentUser, filter, dateFrom, dateTo, minDuration, maxDuration]);
+  }, [fetchLogs]);
 
   const clearFilters = () => {
     setFilter('all');
@@ -150,6 +159,7 @@ const IrrigationHistoryPage = () => {
           <div className="mb-8 rounded-3xl border border-teal-100 bg-white p-6 shadow-sm sm:p-8">
             <span className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-teal-700"><History className="h-4 w-4" /> Actividad del sistema</span>
             <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Historial de riego</h1>
+            {logs.some((log) => log.is_demo) && <span className="mt-2 inline-flex rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-800">Demo</span>}
             <p className="mt-2 max-w-xl text-slate-600">Revisa cada sesión, cuánto duró y cuándo estuvo activo el riego.</p>
           </div>
 

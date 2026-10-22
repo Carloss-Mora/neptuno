@@ -1,18 +1,21 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCrop } from '@/contexts/CropContext';
 import pb from '@/lib/pocketbaseClient';
 
 export const AlertContext = createContext(null);
 
 export const AlertProvider = ({ children }) => {
   const { currentUser, isAuthenticated } = useAuth();
+  const { selectedCrop } = useCrop();
   const [alerts, setAlerts] = useState([]);
   const dismissedAlertsRef = useRef(new Set());
   const seenIrrigationLogIdsRef = useRef(new Set());
   const previousIrrigationStatusRef = useRef(null);
   const irrigationLogsInitializedRef = useRef(false);
   const notificationUserIdRef = useRef(null);
+  const notificationCropIdRef = useRef(null);
 
   const addAlert = useCallback((id, type, message, dismissible = true) => {
     setAlerts((prev) => {
@@ -38,102 +41,165 @@ export const AlertProvider = ({ children }) => {
       previousIrrigationStatusRef.current = null;
       irrigationLogsInitializedRef.current = false;
       notificationUserIdRef.current = null;
+      notificationCropIdRef.current = null;
       return;
     }
 
-    const checkSensors = async () => {
-      if (notificationUserIdRef.current !== currentUser.id) {
-        seenIrrigationLogIdsRef.current.clear();
-        previousIrrigationStatusRef.current = null;
-        irrigationLogsInitializedRef.current = false;
-        notificationUserIdRef.current = currentUser.id;
+    if (!selectedCrop) {
+      setAlerts([]);
+      notificationCropIdRef.current = null;
+      return;
+    }
+    if (notificationUserIdRef.current !== currentUser.id || notificationCropIdRef.current !== selectedCrop.id) {
+      setAlerts([]);
+      dismissedAlertsRef.current.clear();
+      seenIrrigationLogIdsRef.current.clear();
+      previousIrrigationStatusRef.current = null;
+      irrigationLogsInitializedRef.current = false;
+      notificationUserIdRef.current = currentUser.id;
+      notificationCropIdRef.current = selectedCrop.id;
+    }
+
+    let active = true;
+    let offlineTimer = null;
+    let devices = [];
+    const unsubscribers = [];
+
+    const applySensorAlert = (data) => {
+      const humidityId = `alert-soil-${selectedCrop.id}`;
+      if (selectedCrop.humidity_min != null && Number(data.soil_humidity) < Number(selectedCrop.humidity_min)) {
+        if (!dismissedAlertsRef.current.has(humidityId)) {
+          addAlert(humidityId, 'warning', `Humedad bajo el mínimo configurado (${selectedCrop.humidity_min}%)`);
+        }
+      } else {
+        removeAlert(humidityId);
+        dismissedAlertsRef.current.delete(humidityId);
       }
 
-      try {
-        const readings = await pb.collection('sensor_readings').getList(1, 1, {
-          filter: `userId = "${currentUser.id}"`,
-          sort: '-created',
-          $autoCancel: false,
-        });
-
-        if (readings.items.length > 0) {
-          const data = readings.items[0];
-
-          // Check Soil Humidity
-          if (data.soil_humidity < 30) {
-            if (!dismissedAlertsRef.current.has('alert-soil')) {
-              addAlert('alert-soil', 'warning', 'Humedad baja - Riego recomendado');
-            }
-          } else {
-            removeAlert('alert-soil');
-            dismissedAlertsRef.current.delete('alert-soil');
-          }
-
-          // Check Temperature
-          if (data.temperature > 35) {
-            if (!dismissedAlertsRef.current.has('alert-temp')) {
-              addAlert('alert-temp', 'critical', 'Temperatura alta');
-            }
-          } else {
-            removeAlert('alert-temp');
-            dismissedAlertsRef.current.delete('alert-temp');
-          }
-
-          // Check Water Level
-          if (data.water_level < 20) {
-            if (!dismissedAlertsRef.current.has('alert-water')) {
-              addAlert('alert-water', 'warning', 'Nivel de agua bajo');
-            }
-          } else {
-            removeAlert('alert-water');
-            dismissedAlertsRef.current.delete('alert-water');
-          }
-        }
-      } catch (error) {
-        console.error('Error checking sensors for alerts:', error);
-      }
-
-      try {
-        const logs = await pb.collection('irrigation_logs').getList(1, 10, {
-          filter: `userId = "${currentUser.id}"`,
-          sort: '-created',
-          $autoCancel: false,
-        });
-        const orderedLogs = [...logs.items].reverse();
-
-        if (!irrigationLogsInitializedRef.current) {
-          logs.items.forEach((log) => seenIrrigationLogIdsRef.current.add(log.id));
-          previousIrrigationStatusRef.current = logs.items[0]?.status || null;
-          irrigationLogsInitializedRef.current = true;
-          return;
-        }
-
-        orderedLogs.forEach((log) => {
-          if (seenIrrigationLogIdsRef.current.has(log.id)) return;
-          seenIrrigationLogIdsRef.current.add(log.id);
-
-          if (log.status === 'ON' && previousIrrigationStatusRef.current !== 'ON') {
-            addAlert(`irrigation-start-${log.id}`, 'info', 'Nuevo riego iniciado');
-          } else if (log.status === 'OFF' && previousIrrigationStatusRef.current === 'ON') {
-            addAlert(`irrigation-finish-${log.id}`, 'info', 'El riego ha finalizado');
-          }
-          previousIrrigationStatusRef.current = log.status;
-        });
-
-        const currentLogIds = new Set(logs.items.map((log) => log.id));
-        seenIrrigationLogIdsRef.current.forEach((id) => {
-          if (!currentLogIds.has(id)) seenIrrigationLogIdsRef.current.delete(id);
-        });
-      } catch (error) {
-        console.error('Error checking irrigation logs for notifications:', error);
+      const waterId = `alert-water-${selectedCrop.id}`;
+      if (Number(data.water_level) < 20) {
+        if (!dismissedAlertsRef.current.has(waterId)) addAlert(waterId, 'warning', 'Nivel de agua bajo');
+      } else {
+        removeAlert(waterId);
+        dismissedAlertsRef.current.delete(waterId);
       }
     };
 
-    checkSensors();
-    const interval = setInterval(checkSensors, 5000);
+    const handleLog = (log) => {
+      if (!log?.id || seenIrrigationLogIdsRef.current.has(log.id)) return;
+      seenIrrigationLogIdsRef.current.add(log.id);
+      if (irrigationLogsInitializedRef.current) {
+        if (log.status === 'ON' && previousIrrigationStatusRef.current !== 'ON') {
+          addAlert(`irrigation-start-${log.id}`, 'info', 'Nuevo riego iniciado');
+        } else if (log.status === 'OFF' && previousIrrigationStatusRef.current === 'ON') {
+          addAlert(`irrigation-finish-${log.id}`, 'info', 'El riego ha finalizado');
+        }
+      }
+      previousIrrigationStatusRef.current = log.status;
+    };
 
-    return () => clearInterval(interval);
-  }, [isAuthenticated, currentUser, addAlert, removeAlert]);
+    const refreshOfflineAlerts = () => {
+      if (!active) return;
+      let nextTransitionMs = Number.POSITIVE_INFINITY;
+      devices.forEach((device) => {
+        const alertId = `device-offline-${device.id}`;
+        const lastSeen = device.last_seen ? new Date(device.last_seen).getTime() : 0;
+        const offlineAt = lastSeen + Number(device.interval_seconds || 15) * 2000;
+        const offline = !lastSeen || Date.now() >= offlineAt;
+        if (offline && !dismissedAlertsRef.current.has(alertId)) {
+          addAlert(alertId, 'warning', `Dispositivo sin conexión: ${device.name}`);
+        } else if (!offline) {
+          removeAlert(alertId);
+          dismissedAlertsRef.current.delete(alertId);
+          nextTransitionMs = Math.min(nextTransitionMs, offlineAt);
+        }
+      });
+      if (offlineTimer) window.clearTimeout(offlineTimer);
+      if (Number.isFinite(nextTransitionMs)) {
+        offlineTimer = window.setTimeout(refreshOfflineAlerts, Math.max(1000, nextTransitionMs - Date.now()));
+      }
+    };
+
+    const loadInitialState = async () => {
+      const results = await Promise.allSettled([
+        pb.collection('sensor_readings').getList(1, 1, {
+          filter: `cropId = "${selectedCrop.id}"`,
+          sort: '-created',
+          $autoCancel: false,
+        }),
+        pb.collection('irrigation_logs').getList(1, 10, {
+          filter: `cropId = "${selectedCrop.id}"`,
+          sort: '-created',
+          $autoCancel: false,
+        }),
+        pb.collection('devices').getFullList({
+          filter: `cropId = "${selectedCrop.id}"`,
+          $autoCancel: false,
+        }),
+      ]);
+      if (!active) return;
+      if (results[0].status === 'fulfilled' && results[0].value.items[0]) {
+        applySensorAlert(results[0].value.items[0]);
+      } else if (results[0].status === 'rejected') {
+        console.error('Error loading sensor alerts:', results[0].reason);
+      }
+      if (results[1].status === 'fulfilled') {
+        const logs = results[1].value.items;
+        logs.forEach((log) => seenIrrigationLogIdsRef.current.add(log.id));
+        previousIrrigationStatusRef.current = logs[0]?.status || null;
+        irrigationLogsInitializedRef.current = true;
+      } else {
+        console.error('Error loading irrigation alerts:', results[1].reason);
+        irrigationLogsInitializedRef.current = true;
+      }
+      if (results[2].status === 'fulfilled') {
+        devices = results[2].value;
+        refreshOfflineAlerts();
+      } else {
+        console.error('Error loading device statuses for alerts:', results[2].reason);
+      }
+    };
+
+    loadInitialState().catch((error) => {
+      console.error('Could not initialize realtime alerts:', error);
+    });
+
+    const subscribe = async (collectionName, handleEvent) => {
+      try {
+        const unsubscribe = await pb.collection(collectionName).subscribe('*', (event) => {
+          if (!active || !event.record || event.record.cropId !== selectedCrop.id) return;
+          handleEvent(event);
+        });
+        const stop = () => {
+          const result = unsubscribe();
+          if (result?.catch) result.catch((error) => console.error(`Could not unsubscribe from ${collectionName} alerts:`, error));
+        };
+        if (active) unsubscribers.push(stop);
+        else stop();
+      } catch (subscribeError) {
+        console.error(`Could not subscribe to ${collectionName} alerts:`, subscribeError);
+      }
+    };
+
+    subscribe('sensor_readings', (event) => {
+      if (event.action !== 'delete') applySensorAlert(event.record);
+    });
+    subscribe('irrigation_logs', (event) => {
+      if (event.action !== 'delete') handleLog(event.record);
+    });
+    subscribe('devices', (event) => {
+      devices = event.action === 'delete'
+        ? devices.filter((device) => device.id !== event.record.id)
+        : [...devices.filter((device) => device.id !== event.record.id), event.record];
+      refreshOfflineAlerts();
+    });
+
+    return () => {
+      active = false;
+      if (offlineTimer) window.clearTimeout(offlineTimer);
+      unsubscribers.forEach((stop) => stop());
+    };
+  }, [isAuthenticated, currentUser, selectedCrop, addAlert, removeAlert]);
 
   return (
     <AlertContext.Provider value={{ alerts, addAlert, removeAlert, dismissAlert }}>

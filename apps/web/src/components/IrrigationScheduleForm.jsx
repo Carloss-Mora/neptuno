@@ -45,6 +45,8 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
   const [startPeriod, setStartPeriod] = useState('AM');
   const [endPeriod, setEndPeriod] = useState('AM');
   const [scheduleDate, setScheduleDate] = useState(getDefaultDate());
+  const [recurrence, setRecurrence] = useState('ONCE');
+  const [days, setDays] = useState([]);
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isPastSchedule = Boolean(initialData && getScheduleState(initialData) === 'past');
@@ -53,6 +55,8 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
     if (initialData) {
       const dateValue = initialData.date || initialData.startDate || initialData.endDate || getDefaultDate();
       setScheduleDate(dateValue);
+      setRecurrence(initialData.recurrence || 'ONCE');
+      setDays(Array.isArray(initialData.days) ? initialData.days.map(Number) : []);
 
       const startTime = initialData.startTime || initialData.time || '08:00';
       const endTime = initialData.endTime || '09:00';
@@ -74,6 +78,8 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
       setStartPeriod('AM');
       setEndPeriod('AM');
       setScheduleDate(getDefaultDate());
+      setRecurrence('ONCE');
+      setDays([]);
     }
   }, [initialData]);
 
@@ -86,12 +92,17 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
       return;
     }
 
-    if (!scheduleDate) {
+    if (recurrence === 'ONCE' && !scheduleDate) {
       setFormError('Selecciona una fecha para el horario.');
       return;
     }
 
-    if (!initialData && scheduleDate < getDefaultDate()) {
+    if (recurrence === 'WEEKLY' && days.length === 0) {
+      setFormError('Selecciona al menos un día de la semana.');
+      return;
+    }
+
+    if (recurrence === 'ONCE' && !initialData && scheduleDate < getDefaultDate()) {
       setFormError('La fecha del horario no puede ser anterior a hoy.');
       return;
     }
@@ -114,8 +125,9 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
     const normalizedStartHour = to24Hour(startHour, startPeriod);
     const normalizedEndHour = to24Hour(endHour, endPeriod);
 
-    const startDateTime = new Date(`${scheduleDate}T${String(normalizedStartHour).padStart(2, '0')}:${String(startM).padStart(2, '0')}`);
-    const endDateTime = new Date(`${scheduleDate}T${String(normalizedEndHour).padStart(2, '0')}:${String(endM).padStart(2, '0')}`);
+    const scheduleDateForValidation = scheduleDate || getDefaultDate();
+    const startDateTime = new Date(`${scheduleDateForValidation}T${String(normalizedStartHour).padStart(2, '0')}:${String(startM).padStart(2, '0')}`);
+    const endDateTime = new Date(`${scheduleDateForValidation}T${String(normalizedEndHour).padStart(2, '0')}:${String(endM).padStart(2, '0')}`);
     const now = new Date();
 
     if (startDateTime >= endDateTime) {
@@ -123,17 +135,16 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
       return;
     }
 
-    if (!initialData && scheduleDate === getDefaultDate() && startDateTime <= now) {
+    if (!initialData && recurrence === 'ONCE' && scheduleDate === getDefaultDate() && startDateTime <= now) {
       setFormError('La hora de inicio debe ser posterior a la hora actual.');
       return;
     }
-
     setIsSubmitting(true);
     const formattedStartTime = `${String(normalizedStartHour).padStart(2, '0')}:${String(startM).padStart(2, '0')}`;
     const formattedEndTime = `${String(normalizedEndHour).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
 
     try {
-      const result = await onSave(formattedStartTime, formattedEndTime, scheduleDate);
+      const result = await onSave(formattedStartTime, formattedEndTime, scheduleDate, recurrence, days);
 
       if (result && result.success) {
         toast({
@@ -149,6 +160,8 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
           setStartPeriod('AM');
           setEndPeriod('AM');
           setScheduleDate(getDefaultDate());
+          setRecurrence('ONCE');
+          setDays([]);
         }
       } else {
         toast({
@@ -294,10 +307,28 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="schedule-date" className="flex items-center gap-2 font-semibold text-slate-800">
+            <Label htmlFor="schedule-recurrence" className="flex items-center gap-2 font-semibold text-slate-800">
               <CalendarDays className="h-4 w-4 text-teal-600" />
-              Fecha del riego
+              Repetición
             </Label>
+            <select
+              id="schedule-recurrence"
+              value={recurrence}
+              onChange={(event) => setRecurrence(event.target.value)}
+              className="h-12 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm"
+            >
+              <option value="ONCE">Una fecha</option>
+              <option value="DAILY">Todos los días</option>
+              <option value="WEEKLY">Días de la semana</option>
+            </select>
+          </div>
+
+          {recurrence === 'ONCE' ? (
+            <div className="space-y-2">
+              <Label htmlFor="schedule-date" className="flex items-center gap-2 font-semibold text-slate-800">
+                <CalendarDays className="h-4 w-4 text-teal-600" />
+                Fecha del riego
+              </Label>
             <Input
               id="schedule-date"
               type="date"
@@ -307,7 +338,26 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
               className="h-12 border-slate-200 bg-white text-slate-900 shadow-sm focus-visible:ring-teal-500"
               aria-label="Fecha"
             />
-          </div>
+            </div>
+          ) : recurrence === 'WEEKLY' && (
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-semibold text-slate-800">Días de riego</legend>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((label, day) => (
+                  <label key={day} className="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-teal-100 bg-teal-50/50 px-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={days.includes(day)}
+                      onChange={() => setDays((current) => current.includes(day)
+                        ? current.filter((selectedDay) => selectedDay !== day)
+                        : [...current, day])}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
 
           {formError && (
             <p role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">

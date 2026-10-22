@@ -1,0 +1,268 @@
+import React, { useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet';
+import Header from '@/components/Header';
+import { useCrop } from '@/contexts/CropContext';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { AlertCircle, Pencil, Plus, Sprout, Trash2, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+const emptyCrop = {
+  name: '',
+  variety: '',
+  area_m2: '',
+  flow_lpm: '',
+  phenological_stage: '',
+  humidity_min: '',
+  humidity_max: '',
+  max_irrigation_minutes: '',
+  min_rest_minutes: '',
+  control_mode: 'MANUAL',
+};
+
+const stageLabels = {
+  vegetativo: 'Vegetativo',
+  floración: 'Floración',
+  fructificación: 'Fructificación',
+};
+
+const CropsPage = () => {
+  const { crops, loading, error: loadError, createCrop, updateCrop, deleteCrop, selectCrop, selectedCropId } = useCrop();
+  const [form, setForm] = useState(emptyCrop);
+  const [editingId, setEditingId] = useState('');
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!editingId) return;
+    const crop = crops.find((item) => item.id === editingId);
+    if (crop) {
+      setForm({
+        name: crop.name || '',
+        variety: crop.variety || '',
+        area_m2: crop.area_m2 == null ? '' : String(crop.area_m2),
+        flow_lpm: crop.flow_lpm == null ? '' : String(crop.flow_lpm),
+        phenological_stage: crop.phenological_stage || '',
+        humidity_min: crop.humidity_min == null ? '' : String(crop.humidity_min),
+        humidity_max: crop.humidity_max == null ? '' : String(crop.humidity_max),
+        max_irrigation_minutes: crop.max_irrigation_minutes == null ? '' : String(crop.max_irrigation_minutes),
+        min_rest_minutes: crop.min_rest_minutes == null ? '' : String(crop.min_rest_minutes),
+        control_mode: crop.control_mode || 'MANUAL',
+      });
+    }
+  }, [crops, editingId]);
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: value }));
+    setError('');
+    setNotice('');
+  };
+
+  const resetForm = () => {
+    setEditingId('');
+    setForm(emptyCrop);
+    setError('');
+    setNotice('');
+  };
+
+  const startEdit = (crop) => {
+    selectCrop(crop.id);
+    setEditingId(crop.id);
+    setForm({
+      name: crop.name || '',
+      variety: crop.variety || '',
+      area_m2: crop.area_m2 == null ? '' : String(crop.area_m2),
+      flow_lpm: crop.flow_lpm == null ? '' : String(crop.flow_lpm),
+      phenological_stage: crop.phenological_stage || '',
+      humidity_min: crop.humidity_min == null ? '' : String(crop.humidity_min),
+      humidity_max: crop.humidity_max == null ? '' : String(crop.humidity_max),
+      max_irrigation_minutes: crop.max_irrigation_minutes == null ? '' : String(crop.max_irrigation_minutes),
+      min_rest_minutes: crop.min_rest_minutes == null ? '' : String(crop.min_rest_minutes),
+      control_mode: crop.control_mode || 'MANUAL',
+    });
+    setError('');
+    setNotice('');
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setError('');
+    setNotice('');
+    try {
+      if (editingId) {
+        await updateCrop(editingId, form);
+        setNotice('Cultivo actualizado.');
+      } else {
+        const crop = await createCrop(form);
+        setNotice('Cultivo creado y seleccionado.');
+        setEditingId(crop.id);
+      }
+    } catch (saveError) {
+      console.error('Could not save crop:', saveError);
+      setError(saveError.message || 'No se pudo guardar el cultivo.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (crop) => {
+    const accepted = window.confirm(
+      `¿Eliminar “${crop.name}”? También se eliminarán las lecturas, horarios y el historial de riego asociados a este cultivo.`,
+    );
+    if (!accepted) return;
+    setSaving(true);
+    setError('');
+    setNotice('');
+    try {
+      await deleteCrop(crop.id);
+      if (editingId === crop.id) resetForm();
+      setNotice('Cultivo y datos asociados eliminados.');
+    } catch (deleteError) {
+      console.error('Could not delete crop:', deleteError);
+      setError(deleteError.message || 'No se pudo eliminar el cultivo.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <Helmet>
+        <title>Cultivos - Neptuno</title>
+        <meta name="description" content="Administra tus cultivos y configura su modo de riego." />
+      </Helmet>
+      <Header />
+      <main className="min-h-screen bg-[#f4fbfa] py-10 sm:py-14">
+        <div className="container mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
+          <header>
+            <p className="mb-2 inline-flex items-center gap-2 text-sm font-semibold text-teal-700">
+              <Sprout className="h-4 w-4" /> Administración del cultivo
+            </p>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Mis cultivos</h1>
+            <p className="mt-2 max-w-2xl text-slate-600">
+              Cada cultivo mantiene sus propias lecturas, área, horarios y configuración de riego.
+            </p>
+            <Link to="/devices" className="mt-4 inline-flex min-h-11 items-center rounded-lg border border-teal-200 bg-white px-4 text-sm font-semibold text-teal-800 hover:bg-teal-50">
+              Administrar dispositivos del cultivo
+            </Link>
+          </header>
+
+          {(error || loadError) && (
+            <div role="alert" className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+              <p>{error || loadError}</p>
+            </div>
+          )}
+          {notice && <p role="status" className="rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-800">{notice}</p>}
+
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.85fr)]">
+            <Card className="border-teal-100 bg-white shadow-sm">
+              <CardHeader>
+                <CardTitle>{editingId ? 'Editar cultivo' : 'Agregar cultivo'}</CardTitle>
+                <CardDescription>Los umbrales quedan sin configurar hasta que los valides para tu cultivo.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="crop-name">Nombre</Label>
+                      <Input id="crop-name" name="name" value={form.name} onChange={handleChange} placeholder="Fresas del lote norte" required maxLength={100} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="crop-variety">Variedad</Label>
+                      <Input id="crop-variety" name="variety" value={form.variety} onChange={handleChange} placeholder="Opcional" maxLength={100} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="crop-area">Área (m²)</Label>
+                      <Input id="crop-area" name="area_m2" type="number" min="0.01" step="any" value={form.area_m2} onChange={handleChange} placeholder="Opcional" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="crop-flow">Caudal medido (L/min)</Label>
+                      <Input id="crop-flow" name="flow_lpm" type="number" min="0.01" step="any" value={form.flow_lpm} onChange={handleChange} placeholder="Requerido para consumo estimado" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="crop-stage">Etapa fenológica</Label>
+                      <select id="crop-stage" name="phenological_stage" value={form.phenological_stage} onChange={handleChange} className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm">
+                        <option value="">Sin especificar</option>
+                        {Object.entries(stageLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="crop-humidity-min">Humedad mínima (%)</Label>
+                      <Input id="crop-humidity-min" name="humidity_min" type="number" min="0" max="100" step="any" value={form.humidity_min} onChange={handleChange} placeholder="Sin configurar" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="crop-humidity-max">Humedad máxima (%)</Label>
+                      <Input id="crop-humidity-max" name="humidity_max" type="number" min="0" max="100" step="any" value={form.humidity_max} onChange={handleChange} placeholder="Sin configurar" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="crop-max-irrigation">Máximo de riego continuo (min)</Label>
+                      <Input id="crop-max-irrigation" name="max_irrigation_minutes" type="number" min="1" max="1440" step="1" value={form.max_irrigation_minutes} onChange={handleChange} placeholder="Configurable" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="crop-min-rest">Descanso mínimo entre riegos (min)</Label>
+                      <Input id="crop-min-rest" name="min_rest_minutes" type="number" min="0" max="10080" step="1" value={form.min_rest_minutes} onChange={handleChange} placeholder="Configurable" />
+                    </div>
+                  </div>
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    Los umbrales de humedad iniciales no están precargados: valida los valores con AGROSAVIA (2022) antes de usar el modo AUTO. Los límites de tiempo son parámetros de seguridad que debes configurar para tu instalación.
+                  </p>
+                  <p className="text-xs leading-relaxed text-amber-800">
+                    Valores iniciales pendientes de validar con AGROSAVIA (2022). AUTO no actuará hasta que ambos umbrales estén configurados.
+                  </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="crop-control-mode">Modo de control</Label>
+                    <select id="crop-control-mode" name="control_mode" value={form.control_mode} onChange={handleChange} className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm">
+                      <option value="MANUAL">MANUAL</option>
+                      <option value="SCHEDULE">SCHEDULE</option>
+                      <option value="AUTO">AUTO</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="submit" disabled={saving} className="bg-teal-700 text-white hover:bg-teal-800">
+                      {editingId ? 'Guardar cambios' : <><Plus className="mr-2 h-4 w-4" /> Crear cultivo</>}
+                    </Button>
+                    {editingId && <Button type="button" variant="outline" onClick={resetForm} disabled={saving}><X className="mr-2 h-4 w-4" /> Cancelar edición</Button>}
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+
+            <section aria-label="Cultivos registrados" className="space-y-3">
+              {loading ? <p className="p-4 text-sm text-slate-500">Cargando cultivos…</p> : crops.length === 0 ? (
+                <Card className="border-dashed border-teal-200 bg-white">
+                  <CardContent className="py-10 text-center text-sm text-slate-600">
+                    Aún no tienes cultivos. Crea uno para empezar a registrar lecturas y horarios.
+                  </CardContent>
+                </Card>
+              ) : crops.map((crop) => (
+                <Card key={crop.id} className={`bg-white ${selectedCropId === crop.id ? 'border-teal-400 ring-1 ring-teal-200' : 'border-slate-200'}`}>
+                  <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+                    <button type="button" onClick={() => selectCrop(crop.id)} className="min-w-0 flex-1 text-left">
+                      <span className="block truncate font-semibold text-slate-900">{crop.name}</span>
+                      <span className="mt-1 block text-xs text-slate-500">
+                        {[crop.variety, crop.area_m2 ? `${crop.area_m2} m²` : '', stageLabels[crop.phenological_stage] || 'Etapa sin especificar'].filter(Boolean).join(' · ')}
+                      </span>
+                      <span className="mt-1 block text-xs font-medium text-teal-700">Modo {crop.control_mode || 'MANUAL'}</span>
+                    </button>
+                    <div className="flex gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={() => startEdit(crop)} aria-label={`Editar ${crop.name}`}><Pencil className="h-4 w-4" /></Button>
+                      <Button type="button" variant="outline" size="sm" onClick={() => handleDelete(crop)} disabled={saving} aria-label={`Eliminar ${crop.name}`} className="text-red-700"><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </section>
+          </div>
+        </div>
+      </main>
+    </>
+  );
+};
+
+export default CropsPage;
