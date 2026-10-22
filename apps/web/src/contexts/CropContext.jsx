@@ -61,11 +61,17 @@ const normalizeCrop = (data) => {
   const minRestMinutes = data.min_rest_minutes === '' || data.min_rest_minutes == null
     ? null
     : Number(data.min_rest_minutes);
+  const manualOverrideMinutes = data.manual_override_minutes === '' || data.manual_override_minutes == null
+    ? 30
+    : Number(data.manual_override_minutes);
   if (maxIrrigationMinutes !== null && (!Number.isInteger(maxIrrigationMinutes) || maxIrrigationMinutes < 1 || maxIrrigationMinutes > 1440)) {
     throw new Error('El tiempo máximo de riego debe ser de 1 a 1440 minutos.');
   }
   if (minRestMinutes !== null && (!Number.isInteger(minRestMinutes) || minRestMinutes < 0 || minRestMinutes > 10080)) {
     throw new Error('El tiempo mínimo de descanso debe ser de 0 a 10080 minutos.');
+  }
+  if (!Number.isInteger(manualOverrideMinutes) || manualOverrideMinutes < 1 || manualOverrideMinutes > 1440) {
+    throw new Error('La anulación manual debe durar de 1 a 1440 minutos.');
   }
   return {
     name: String(data.name || '').trim(),
@@ -77,6 +83,7 @@ const normalizeCrop = (data) => {
     humidity_max: data.humidity_max === '' || data.humidity_max == null ? null : Number(data.humidity_max),
     max_irrigation_minutes: maxIrrigationMinutes,
     min_rest_minutes: minRestMinutes,
+    manual_override_minutes: manualOverrideMinutes,
     control_mode: data.control_mode || 'MANUAL',
   };
 };

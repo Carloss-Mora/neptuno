@@ -32,6 +32,8 @@ node tools/simulate-device.js --url http://127.0.0.1:8090 --interval 15 --failur
 
 Detén el simulador con `Ctrl+C`. El modo `disconnect` deja de enviar lecturas para probar el estado sin conexión; `low-water` transmite un nivel inferior al 20%.
 
+El vigilante del servidor registra el riego como apagado si un dispositivo deja de reportar mientras estaba activo. El firmware también debe cerrar la válvula localmente si pierde comunicación con el servidor: un comando de apagado no puede llegar a un equipo que está desconectado.
+
 ## Control automático
 
 El modo `AUTO` requiere umbrales mínimos/máximos de humedad y límites configurados de duración y descanso. Los valores agronómicos no vienen precargados y deben validarse con AGROSAVIA (2022) antes de usarse. El nivel de agua inferior al 20% bloquea el riego.

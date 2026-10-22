@@ -29,14 +29,14 @@ module.exports = {
     }
 
     if (waterLevel < 20) return { state: 'OFF', reason: 'low_water' };
+    if (current === 'ON' && Number.isFinite(activeSinceMs) && nowMs - activeSinceMs >= maxContinuousMs) {
+      return { state: 'OFF', reason: 'maximum_runtime' };
+    }
     if (Number.isFinite(manualOverrideUntilMs) && nowMs < manualOverrideUntilMs) {
       return { state: current, reason: 'manual_override' };
     }
 
     if (current === 'ON') {
-      if (Number.isFinite(activeSinceMs) && nowMs - activeSinceMs >= maxContinuousMs) {
-        return { state: 'OFF', reason: 'maximum_runtime' };
-      }
       if (humidity >= humidityMax) return { state: 'OFF', reason: 'humidity_recovered' };
       return { state: 'ON', reason: 'hysteresis_hold' };
     }

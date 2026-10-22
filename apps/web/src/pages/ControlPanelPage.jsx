@@ -25,6 +25,7 @@ const ControlPanelPage = () => {
   const [loading, setLoading] = useState(true);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingStatus, setPendingStatus] = useState(null);
+  const [manualOverrideUntil, setManualOverrideUntil] = useState(null);
   
   // Schedule Hook
   const { 
@@ -40,6 +41,10 @@ const ControlPanelPage = () => {
 
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [scheduleClock, setScheduleClock] = useState(() => new Date());
+
+  useEffect(() => {
+    setManualOverrideUntil(selectedCrop?.manual_override_until || null);
+  }, [selectedCrop?.id, selectedCrop?.manual_override_until]);
 
   const fetchCurrentStatus = useCallback(async () => {
     if (!currentUser || !cropId) {
@@ -124,6 +129,10 @@ const ControlPanelPage = () => {
 
       setCurrentStatus(pendingStatus);
       setLastLog(newLog);
+      if (selectedCrop.control_mode === 'AUTO') {
+        const minutes = Number(selectedCrop.manual_override_minutes) || 30;
+        setManualOverrideUntil(new Date(Date.now() + minutes * 60000).toISOString());
+      }
 
       toast({
         title: 'Éxito',
@@ -182,6 +191,18 @@ const ControlPanelPage = () => {
     }
   };
 
+  const handleResumeAutomatic = async () => {
+    if (!selectedCrop) return;
+    try {
+      await pb.collection('crops').update(selectedCrop.id, { manual_override_until: '' }, { $autoCancel: false });
+      setManualOverrideUntil(null);
+      toast({ title: 'Control automático reanudado', description: 'El cultivo volverá a responder a sus umbrales.' });
+    } catch (error) {
+      console.error('Could not resume automatic irrigation:', error);
+      toast({ title: 'Error', description: 'No se pudo reanudar el control automático.', variant: 'destructive' });
+    }
+  };
+
   const scheduleStatus = getScheduleStatus(scheduleClock);
   const activeSchedule = scheduleStatus.activeSchedule;
   const nextTime = scheduleStatus.nextSchedule?.startDate || getNextScheduledTime();
@@ -206,6 +227,9 @@ const ControlPanelPage = () => {
   const remainingMinutes = Math.floor(remainingMs / 60000);
   const remainingHours = Math.floor(remainingMinutes / 60);
   const remainingMinutesPart = remainingMinutes % 60;
+  const manualOverrideActive = selectedCrop?.control_mode === 'AUTO'
+    && manualOverrideUntil
+    && new Date(manualOverrideUntil).getTime() > scheduleClock.getTime();
 
   return (
     <>
@@ -280,6 +304,16 @@ const ControlPanelPage = () => {
                   <p className={`text-center text-sm font-medium ${displayedStatus === 'ON' ? 'text-emerald-700' : 'text-slate-500'}`}>
                     {statusDescription}
                   </p>
+                  {manualOverrideActive && (
+                    <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-center">
+                      <p className="text-sm font-semibold text-amber-900">
+                        Control manual activo hasta {new Date(manualOverrideUntil).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                      <Button type="button" variant="outline" className="min-h-10 border-amber-300" onClick={handleResumeAutomatic}>
+                        Volver a automático
+                      </Button>
+                    </div>
+                  )}
 
                   {/* Last Activity */}
                   {lastLog && (

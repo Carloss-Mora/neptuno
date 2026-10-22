@@ -19,6 +19,7 @@ const emptyCrop = {
   humidity_max: '',
   max_irrigation_minutes: '',
   min_rest_minutes: '',
+  manual_override_minutes: '30',
   control_mode: 'MANUAL',
 };
 
@@ -50,6 +51,7 @@ const CropsPage = () => {
         humidity_max: crop.humidity_max == null ? '' : String(crop.humidity_max),
         max_irrigation_minutes: crop.max_irrigation_minutes == null ? '' : String(crop.max_irrigation_minutes),
         min_rest_minutes: crop.min_rest_minutes == null ? '' : String(crop.min_rest_minutes),
+        manual_override_minutes: crop.manual_override_minutes == null ? '30' : String(crop.manual_override_minutes),
         control_mode: crop.control_mode || 'MANUAL',
       });
     }
@@ -82,6 +84,7 @@ const CropsPage = () => {
       humidity_max: crop.humidity_max == null ? '' : String(crop.humidity_max),
       max_irrigation_minutes: crop.max_irrigation_minutes == null ? '' : String(crop.max_irrigation_minutes),
       min_rest_minutes: crop.min_rest_minutes == null ? '' : String(crop.min_rest_minutes),
+      manual_override_minutes: crop.manual_override_minutes == null ? '30' : String(crop.manual_override_minutes),
       control_mode: crop.control_mode || 'MANUAL',
     });
     setError('');
@@ -207,6 +210,10 @@ const CropsPage = () => {
                     <div className="space-y-2">
                       <Label htmlFor="crop-min-rest">Descanso mínimo entre riegos (min)</Label>
                       <Input id="crop-min-rest" name="min_rest_minutes" type="number" min="0" max="10080" step="1" value={form.min_rest_minutes} onChange={handleChange} placeholder="Configurable" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="crop-manual-override">Duración del control manual (min)</Label>
+                      <Input id="crop-manual-override" name="manual_override_minutes" type="number" min="1" max="1440" step="1" value={form.manual_override_minutes} onChange={handleChange} required />
                     </div>
                   </div>
                   <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
