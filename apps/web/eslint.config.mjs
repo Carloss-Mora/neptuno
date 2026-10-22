@@ -49,6 +49,6 @@ export default [
 			'import/no-cycle': 'off', // AI rarely makes this error, and the rule is very slow to run
 		},
 	},
-	{ files: ['**/__tests__/**/*.{js,jsx}', '**/*.test.{js,jsx}'], languageOptions: { globals: globals.vitest } },
+	{ files: ['**/__tests__/**/*.{js,jsx}', '**/*.test.{js,jsx}'], languageOptions: { globals: { ...globals.node, ...globals.vitest } } },
 	{ files: ['tools/**/*.js', 'tailwind.config.js'], languageOptions: { globals: globals.node } },
 ];

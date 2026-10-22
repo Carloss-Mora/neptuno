@@ -3,7 +3,11 @@
 routerAdd('POST', '/api/neptuno/ingest', (e) => {
   const request = e.requestInfo();
   const body = request.body || {};
-  const deviceKey = String(request.headers['X-Device-Key'] || request.headers['x-device-key'] || '');
+  const deviceKey = String(
+    request.headers['x_device_key']
+    || e.request.header.get('X-Device-Key')
+    || '',
+  );
   if (!deviceKey || deviceKey.length > 256) {
     throw new UnauthorizedError('Clave de dispositivo no válida.');
   }
@@ -37,8 +41,14 @@ routerAdd('POST', '/api/neptuno/ingest', (e) => {
   const now = new Date();
   const lastIngest = device.get('last_ingest_at') ? new Date(device.get('last_ingest_at')) : null;
   const intervalSeconds = Math.max(1, Number(device.get('interval_seconds')) || 15);
-  if (lastIngest && !Number.isNaN(lastIngest.getTime()) && now.getTime() - lastIngest.getTime() < intervalSeconds * 1000) {
+  if (lastIngest && !Number.isNaN(lastIngest.getTime()) && now.getTime() - lastIngest.getTime() < intervalSeconds * 500) {
     throw new TooManyRequestsError(`Espera ${intervalSeconds} segundos entre lecturas.`);
+  }
+
+  const crop = $app.findRecordById('crops', device.get('cropId'));
+  if (String(device.get('userId')) !== String(crop.get('userId'))) {
+    console.error(`Device ${device.id} user/crop ownership mismatch.`);
+    throw new ForbiddenError('El dispositivo no pertenece al usuario del cultivo.');
   }
 
   const readings = $app.findCollectionByNameOrId('sensor_readings');
@@ -52,33 +62,33 @@ routerAdd('POST', '/api/neptuno/ingest', (e) => {
     is_demo: isDemo,
   }));
 
-  const crop = $app.findRecordById('crops', device.get('cropId'));
   let desiredState = String(device.get('desired_state') || 'OFF');
-  const logs = $app.findRecordsByFilter(
+  const latestLogs = $app.findRecordsByFilter(
     'irrigation_logs',
     'cropId = {:cropId}',
     '-created',
-    100,
+    1,
     0,
     { cropId: device.get('cropId') },
   );
-  const latestLog = logs[0] || null;
+  const latestLog = latestLogs[0] || null;
   if (latestLog && (latestLog.get('status') === 'ON' || latestLog.get('status') === 'OFF')) {
     desiredState = latestLog.get('status');
   }
 
-  const previousLastSeen = device.get('last_seen') ? new Date(device.get('last_seen')).getTime() : 0;
-  const latestLogTimestamp = latestLog ? new Date(latestLog.get('created')).getTime() : 0;
-  const recentManualOverride = latestLog?.get('source') === 'MANUAL'
-    && latestLogTimestamp > previousLastSeen;
-
-  if (crop.get('control_mode') === 'AUTO' && !recentManualOverride) {
-    const policy = globalThis.NeptunoIrrigationPolicy;
-    if (!policy || typeof policy.decide !== 'function') {
-      throw new Error('Automatic irrigation policy is not loaded.');
-    }
-
-    const latestStoppedLog = logs.find((log) => log.get('status') === 'OFF');
+  if (crop.get('control_mode') === 'AUTO') {
+    const policy = require(`${__hooks}/irrigation-policy.js`);
+    const stoppedLogs = $app.findRecordsByFilter(
+      'irrigation_logs',
+      'cropId = {:cropId} && status = "OFF"',
+      '-created',
+      1,
+      0,
+      { cropId: device.get('cropId') },
+    );
+    const overrideUntil = crop.get('manual_override_until')
+      ? new Date(crop.get('manual_override_until')).getTime()
+      : 0;
     const decision = policy.decide({
       humidity: soilHumidity,
       humidityMin: crop.get('humidity_min') == null ? NaN : Number(crop.get('humidity_min')),
@@ -87,9 +97,10 @@ routerAdd('POST', '/api/neptuno/ingest', (e) => {
       currentState: desiredState,
       nowMs: now.getTime(),
       activeSinceMs: desiredState === 'ON' && latestLog ? new Date(latestLog.get('created')).getTime() : NaN,
-      lastStoppedAtMs: latestStoppedLog ? new Date(latestStoppedLog.get('created')).getTime() : NaN,
+      lastStoppedAtMs: stoppedLogs[0] ? new Date(stoppedLogs[0].get('created')).getTime() : NaN,
       maxContinuousMs: Number(crop.get('max_irrigation_minutes')) * 60000,
       minRestMs: Number(crop.get('min_rest_minutes')) * 60000,
+      manualOverrideUntilMs: overrideUntil,
     });
 
     if (decision.state !== desiredState) {

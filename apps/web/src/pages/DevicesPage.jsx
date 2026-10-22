@@ -11,19 +11,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import pb from '@/lib/pocketbaseClient';
 
-const bytesToHex = (bytes) => Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
-
-const createDeviceKey = async () => {
-  if (!globalThis.crypto?.getRandomValues || !globalThis.crypto?.subtle) {
-    throw new Error('Este navegador no puede crear claves seguras. Usa HTTPS o un navegador actualizado.');
-  }
-  const bytes = new Uint8Array(32);
-  globalThis.crypto.getRandomValues(bytes);
-  const key = bytesToHex(bytes);
-  const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(key));
-  return { key, keyHash: bytesToHex(new Uint8Array(digest)) };
-};
-
 const DevicesPage = () => {
   const { currentUser } = useAuth();
   const { selectedCrop } = useCrop();
@@ -125,15 +112,15 @@ const DevicesPage = () => {
     setError('');
     setNewKey('');
     try {
-      const { key, keyHash } = await createDeviceKey();
-      const record = await pb.collection('devices').create({
-        userId: currentUser.id,
+      const response = await pb.send('/api/neptuno/devices', {
+        method: 'POST',
+        body: {
         cropId: selectedCrop.id,
         name: name.trim(),
-        key_hash: keyHash,
         interval_seconds: interval,
-        desired_state: 'OFF',
-      }, { $autoCancel: false });
+        },
+      });
+      const { device: record, key } = response;
       setDevices((existing) => [...existing, record].sort((first, second) => first.name.localeCompare(second.name)));
       setNewKey(key);
       setName('');
