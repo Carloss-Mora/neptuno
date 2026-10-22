@@ -62,5 +62,9 @@ describe('server irrigation control policy', () => {
       state: 'ON',
       reason: 'manual_override',
     });
+    expect(decide({ ...policyInput, currentState: 'OFF', manualOverrideUntilMs: 99999 })).toEqual({
+      state: 'ON',
+      reason: 'humidity_low',
+    });
   });
 });
