@@ -51,6 +51,7 @@ const StatisticsPage = () => {
   const cropId = selectedCrop?.id || '';
   const [consumptionData, setConsumptionData] = useState([]);
   const [irrigationLogs, setIrrigationLogs] = useState([]);
+  const [sensorHistory, setSensorHistory] = useState([]);
   const flowRate = Number(selectedCrop?.flow_lpm) || null;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -61,6 +62,7 @@ const StatisticsPage = () => {
     if (!currentUser || !cropId) {
       setIrrigationLogs([]);
       setConsumptionData([]);
+      setSensorHistory([]);
       setLoading(false);
       return undefined;
     }
@@ -98,6 +100,36 @@ const StatisticsPage = () => {
           setConsumptionData([]);
           setConsumptionError('No hay datos de consumo de agua disponibles todavía.');
         }
+      }
+
+      try {
+        const [rawReadings, hourlyReadings] = await Promise.all([
+          pb.collection('sensor_readings').getFullList({
+            filter: `cropId = "${cropId}" && created >= "${subDays(new Date(), 30).toISOString()}"`,
+            sort: '-created',
+            $autoCancel: false,
+          }),
+          pb.collection('sensor_readings_hourly').getFullList({
+            filter: `cropId = "${cropId}"`,
+            sort: '-hour_start',
+            $autoCancel: false,
+          }),
+        ]);
+        if (isMounted) setSensorHistory([
+          ...hourlyReadings.map((reading) => ({
+            humidity: Number(reading.humidity_avg),
+            sampleCount: Number(reading.sample_count) || 1,
+            is_demo: reading.is_demo,
+          })),
+          ...rawReadings.map((reading) => ({
+            humidity: Number(reading.soil_humidity),
+            sampleCount: 1,
+            is_demo: reading.is_demo,
+          })),
+        ].filter((reading) => Number.isFinite(reading.humidity)));
+      } catch (fetchError) {
+        console.error('Error fetching sensor history:', fetchError);
+        if (isMounted) setSensorHistory([]);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -170,6 +202,11 @@ const StatisticsPage = () => {
     .filter(([day]) => new Date(`${day}T00:00:00`) >= subDays(now, 29))
     .reduce((sum, [, liters]) => sum + liters, 0) / 30;
   const activeSessionCount = recentSessions.filter((session) => session.active).length;
+  const sensorSampleCount = sensorHistory.reduce((sum, reading) => sum + reading.sampleCount, 0);
+  const averageSoilHumidity = sensorSampleCount > 0
+    ? sensorHistory.reduce((sum, reading) => sum + reading.humidity * reading.sampleCount, 0) / sensorSampleCount
+    : null;
+  const hasDemoSensorData = sensorHistory.some((reading) => reading.is_demo);
 
   if (loading) {
     return (
@@ -225,7 +262,7 @@ const StatisticsPage = () => {
             </div>
           )}
 
-          <section className="mb-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="mb-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
             <Card className="rounded-3xl border-white/80 shadow-lg shadow-slate-900/5">
               <CardContent className="p-5">
                 <div className="mb-5 flex items-center justify-between">
@@ -269,6 +306,21 @@ const StatisticsPage = () => {
                   {flowRate
                     ? `${flowRate} L/min × duración real · promedio diario: ${averageEstimatedDailyConsumption.toFixed(1)} L`
                     : 'Configura el caudal medido en la administración del cultivo para estimar litros.'}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="rounded-3xl border-white/80 shadow-lg shadow-slate-900/5">
+              <CardContent className="p-5">
+                <div className="mb-5 flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-500">Humedad media registrada</span>
+                  <span className="rounded-2xl bg-violet-50 p-3 text-violet-700"><Gauge className="h-5 w-5" /></span>
+                </div>
+                <p className="text-3xl font-extrabold tracking-tight text-slate-900">
+                  {averageSoilHumidity == null ? 'Sin lecturas' : `${averageSoilHumidity.toFixed(1)}%`}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {sensorSampleCount} muestras · lecturas recientes y promedios horarios
+                  {hasDemoSensorData ? ' · Demo' : ''}
                 </p>
               </CardContent>
             </Card>

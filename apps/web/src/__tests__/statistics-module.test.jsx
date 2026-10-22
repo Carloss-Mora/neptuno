@@ -93,4 +93,32 @@ describe('Irrigation statistics', () => {
     });
     expect(screen.getAllByText('0 min').length).toBeGreaterThan(0);
   });
+
+  it('combines recent sensor readings with archived hourly averages', async () => {
+    mockPb.collection.mockImplementation((name) => ({
+      getList: vi.fn(async () => ({ items: [] })),
+      getFullList: vi.fn(async () => {
+        if (name === 'crops') return [{ id: 'crop-1', userId: 'user-1', name: 'Fresas', flow_lpm: 0.2 }];
+        if (name === 'sensor_readings') return [{ soil_humidity: 40, is_demo: false }];
+        if (name === 'sensor_readings_hourly') return [{ humidity_avg: 60, sample_count: 3, is_demo: true }];
+        return [];
+      }),
+      subscribe: vi.fn(async () => vi.fn()),
+    }));
+
+    render(
+      <AuthProvider>
+        <CropProvider>
+          <AlertProvider>
+            <MemoryRouter>
+              <StatisticsPage />
+            </MemoryRouter>
+          </AlertProvider>
+        </CropProvider>
+      </AuthProvider>
+    );
+
+    expect(await screen.findByText('55.0%')).toBeInTheDocument();
+    expect(screen.getByText(/4 muestras · lecturas recientes y promedios horarios · Demo/)).toBeInTheDocument();
+  });
 });

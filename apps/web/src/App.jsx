@@ -18,6 +18,7 @@ import IrrigationHistoryPage from '@/pages/IrrigationHistoryPage.jsx';
 import CropsPage from '@/pages/CropsPage';
 import DevicesPage from '@/pages/DevicesPage';
 import SettingsPage from '@/pages/SettingsPage';
+import SummaryPage from '@/pages/SummaryPage';
 
 function App() {
   return (
@@ -87,6 +88,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <SettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/summary"
+              element={
+                <ProtectedRoute>
+                  <SummaryPage />
                 </ProtectedRoute>
               }
             />

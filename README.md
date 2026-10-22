@@ -46,6 +46,7 @@ El consumo se presenta como **estimado**: caudal configurado en L/min multiplica
 - El consumo de agua no es una medición directa: es **estimado** como caudal configurado (L/min) multiplicado por la duración real de cada sesión.
 - Los umbrales de humedad, agua y temperatura son configurables por cultivo. No se precargan valores agronómicos supuestos.
 - Las alertas de correo se encolan y se procesan en segundo plano. Se puede activar cada tipo desde **Ajustes**; para cada tipo y cultivo se limita el envío a un correo cada 30 minutos.
+- Las lecturas crudas se conservan durante 30 días; después se agrupan por hora y se guardan como promedios históricos para las estadísticas.
 
 ## Comprobaciones
 
