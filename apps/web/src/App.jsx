@@ -9,6 +9,7 @@ import ProtectedRoute from '@/components/ProtectedRoute.jsx';
 import HomePage from '@/pages/HomePage';
 import LoginPage from '@/pages/LoginPage';
 import SignupPage from '@/pages/SignupPage';
+import VerifyEmailPage from '@/pages/VerifyEmailPage';
 import DashboardPage from '@/pages/DashboardPage';
 import ControlPanelPage from '@/pages/ControlPanelPage';
 import StatisticsPage from '@/pages/StatisticsPage';
@@ -25,6 +26,7 @@ function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
 
             {/* Protected Routes */}
             <Route

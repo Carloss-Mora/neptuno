@@ -4,12 +4,14 @@ import { Helmet } from 'react-helmet';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Droplets, Mail, Lock, User, AlertCircle } from 'lucide-react';
+import GoogleAuthButton from '@/components/GoogleAuthButton';
+import { Droplets, Mail, Lock, User, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 const SignupPage = () => {
-  const { signup } = useAuth();
+  const { signup, resendVerification, verifyEmailCode } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
@@ -18,6 +20,10 @@ const SignupPage = () => {
     passwordConfirm: '',
   });
   const [error, setError] = useState('');
+  const [verificationEmail, setVerificationEmail] = useState('');
+  const [otpId, setOtpId] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationMessage, setVerificationMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
@@ -62,16 +68,52 @@ const SignupPage = () => {
     setLoading(true);
 
     try {
-      await signup(
+      const result = await signup(
         formData.email,
         formData.password,
         formData.passwordConfirm,
         formData.name,
-        ''
       );
-      navigate('/dashboard');
+      if (result.requiresVerification) {
+        setVerificationEmail(result.email);
+        setOtpId(result.otpId || '');
+        setVerificationMessage(result.emailSent
+          ? 'Te enviamos un código de seis dígitos. Introdúcelo aquí para verificar tu correo y acceder.'
+          : `La cuenta se creó, pero no se pudo enviar el código. ${result.verificationErrorMessage || 'Revisa la configuración del correo e inténtalo de nuevo.'}`);
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err.message || 'Error al crear la cuenta. Por favor, inténtalo de nuevo.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setLoading(true);
+    setVerificationMessage('');
+    try {
+      const result = await resendVerification(verificationEmail);
+      setOtpId(result.otpId || '');
+      setVerificationCode('');
+      setVerificationMessage('Si la cuenta necesita verificación, enviamos un nuevo código. Revisa tu correo y spam.');
+    } catch (resendError) {
+      setVerificationMessage(resendError.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyCode = async (event) => {
+    event.preventDefault();
+    setLoading(true);
+    setVerificationMessage('');
+    try {
+      await verifyEmailCode(otpId, verificationCode);
+      navigate('/dashboard');
+    } catch (verificationError) {
+      setVerificationMessage(verificationError.message);
     } finally {
       setLoading(false);
     }
@@ -100,6 +142,56 @@ const SignupPage = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {verificationEmail ? (
+              <form onSubmit={handleVerifyCode} className="space-y-5 text-center">
+                <CheckCircle2 className="mx-auto h-12 w-12 text-teal-700" />
+                <div>
+                  <h2 className="font-semibold text-slate-900">Verifica tu correo</h2>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Enviamos un código a <strong>{verificationEmail}</strong>. Introdúcelo para activar tu cuenta.
+                  </p>
+                </div>
+                <p role="status" className="text-sm text-slate-700">{verificationMessage}</p>
+                <div className="space-y-2">
+                  <Label htmlFor="verification-code">Código de seis dígitos</Label>
+                  <InputOTP
+                    id="verification-code"
+                    maxLength={6}
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={verificationCode}
+                    onChange={(value) => setVerificationCode(value.replace(/\D/g, '').slice(0, 6))}
+                    aria-label="Código de verificación de seis dígitos"
+                    aria-describedby="verification-code-help"
+                    className="justify-center"
+                  >
+                    <InputOTPGroup className="gap-2">
+                      {Array.from({ length: 6 }, (_, index) => (
+                        <InputOTPSlot
+                          key={index}
+                          index={index}
+                          className="h-12 w-11 rounded-lg border border-slate-300 text-lg font-semibold first:border last:border focus-within:border-teal-600"
+                        />
+                      ))}
+                    </InputOTPGroup>
+                  </InputOTP>
+                  <p id="verification-code-help" className="text-xs text-slate-500">
+                    Puedes escribir o pegar los seis dígitos que recibiste por correo.
+                  </p>
+                </div>
+                <Button type="submit" className="w-full bg-teal-700 hover:bg-teal-800" disabled={loading || !otpId || verificationCode.length !== 6}>
+                  {loading ? 'Verificando…' : 'Verificar correo'}
+                </Button>
+                <Button type="button" variant="outline" onClick={handleResendVerification} disabled={loading}>
+                  {loading ? 'Enviando…' : 'Enviar otro código'}
+                </Button>
+                <p className="text-sm text-gray-600">
+                  <Link to="/login" className="font-semibold text-teal-700 hover:underline">
+                    Volver a iniciar sesión
+                  </Link>
+                </p>
+              </form>
+            ) : (
             <form noValidate onSubmit={handleSubmit} className="space-y-5">
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start space-x-2">
@@ -128,16 +220,18 @@ const SignupPage = () => {
                 <Label htmlFor="password" className="text-gray-700 font-medium">Contraseña</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <Input id="password" name="password" type="password" placeholder="••••••••" value={formData.password} onChange={handleChange} className="pl-10 h-11 border-gray-300 focus:border-teal-500 focus:ring-teal-500 text-gray-900" required />
+                  <Input id="password" name="password" type="password" autoComplete="new-password" minLength={8} aria-describedby="password-requirements" placeholder="••••••••" value={formData.password} onChange={handleChange} className="pl-10 h-11 border-gray-300 focus:border-teal-500 focus:ring-teal-500 text-gray-900" required />
                 </div>
-                <p className="text-xs text-gray-500">Mínimo 8 caracteres</p>
+                <p id="password-requirements" className="text-xs text-gray-500">
+                  Mínimo 8 caracteres. No necesitas incluir mayúsculas, números ni símbolos; sí puedes usarlos para crear una clave más segura. Distingue mayúsculas y minúsculas.
+                </p>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="passwordConfirm" className="text-gray-700 font-medium">Confirmar Contraseña</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <Input id="passwordConfirm" name="passwordConfirm" type="password" placeholder="••••••••" value={formData.passwordConfirm} onChange={handleChange} className="pl-10 h-11 border-gray-300 focus:border-teal-500 focus:ring-teal-500 text-gray-900" required />
+                  <Input id="passwordConfirm" name="passwordConfirm" type="password" autoComplete="new-password" minLength={8} placeholder="••••••••" value={formData.passwordConfirm} onChange={handleChange} className="pl-10 h-11 border-gray-300 focus:border-teal-500 focus:ring-teal-500 text-gray-900" required />
                 </div>
               </div>
 
@@ -149,6 +243,8 @@ const SignupPage = () => {
                 {loading ? 'Creando cuenta...' : 'Crear cuenta'}
               </Button>
 
+              <GoogleAuthButton onAuthenticated={() => navigate('/dashboard')} />
+
               <div className="text-center pt-2">
                 <p className="text-sm text-gray-600">
                   ¿Ya tienes una cuenta?{' '}
@@ -158,6 +254,7 @@ const SignupPage = () => {
                 </p>
               </div>
             </form>
+            )}
           </CardContent>
         </Card>
       </div>

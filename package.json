@@ -9,9 +9,14 @@
     "lint": "concurrently --raw \"npm run lint --prefix apps/web\""
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.5",
     "concurrently": "^9.1.2"
   },
   "workspaces": [
     "apps/*"
-  ]
+  ],
+  "dependencies": {
+    "firebase": "^13.0.0"
+  }
 }

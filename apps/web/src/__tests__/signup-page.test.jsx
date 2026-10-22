@@ -27,8 +27,17 @@ const createUsersCollection = () => ({
     mockPb.authStore.model = user;
     return { record: user };
   }),
+  authWithOTP: vi.fn(async () => {
+    const user = { id: 'u-1', email: 'test@example.com', verified: true };
+    mockPb.authStore.isValid = true;
+    mockPb.authStore.model = user;
+    return { record: user };
+  }),
   create: vi.fn(async (payload) => ({ id: 'u-1', ...payload })),
   getFullList: vi.fn(async () => []),
+  requestOTP: vi.fn(async () => ({ otpId: 'otp-1' })),
+  listAuthMethods: vi.fn(async () => ({ oauth2: { providers: [] } })),
+  confirmVerification: vi.fn(async () => ({})),
 });
 
 beforeEach(() => {
@@ -84,6 +93,7 @@ describe('Signup page module', () => {
     await user.click(screen.getByRole('button', { name: /crear cuenta/i }));
 
     expect(screen.getByText('La contraseña debe tener al menos 8 caracteres')).toBeInTheDocument();
+    expect(screen.getByText(/no necesitas incluir mayúsculas, números ni símbolos/i)).toBeInTheDocument();
 
     await user.clear(screen.getByLabelText(/^contraseña$/i));
     await user.type(screen.getByLabelText(/^contraseña$/i), '12345678');
@@ -94,10 +104,10 @@ describe('Signup page module', () => {
     expect(screen.getByText('Las contraseñas no coinciden')).toBeInTheDocument();
   });
 
-  it('creates the account and redirects when valid', async () => {
+  it('creates the account and asks the user to verify their email', async () => {
     const user = userEvent.setup();
 
-    render(
+    const { container } = render(
       <AuthProvider>
         <MemoryRouter initialEntries={['/signup']}>
           <Routes>
@@ -114,8 +124,13 @@ describe('Signup page module', () => {
     await user.type(screen.getByLabelText(/confirmar contraseña/i), '12345678');
     await user.click(screen.getByRole('button', { name: /crear cuenta/i }));
 
-    await waitFor(() => {
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    });
+    expect(await screen.findByRole('heading', { name: /verifica tu correo/i })).toBeInTheDocument();
+    expect(screen.getByText(/test@example.com/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/código de seis dígitos/i)).toBeInTheDocument();
+    expect(container.querySelectorAll('.h-12.w-11')).toHaveLength(6);
+
+    await user.type(screen.getByLabelText(/código de seis dígitos/i), '123456');
+    await user.click(screen.getByRole('button', { name: /verificar correo/i }));
+    expect(await screen.findByText('Dashboard')).toBeInTheDocument();
   });
 });

@@ -9,6 +9,10 @@ export const AlertProvider = ({ children }) => {
   const { currentUser, isAuthenticated } = useAuth();
   const [alerts, setAlerts] = useState([]);
   const dismissedAlertsRef = useRef(new Set());
+  const seenIrrigationLogIdsRef = useRef(new Set());
+  const previousIrrigationStatusRef = useRef(null);
+  const irrigationLogsInitializedRef = useRef(false);
+  const notificationUserIdRef = useRef(null);
 
   const addAlert = useCallback((id, type, message, dismissible = true) => {
     setAlerts((prev) => {
@@ -30,10 +34,21 @@ export const AlertProvider = ({ children }) => {
     if (!isAuthenticated || !currentUser) {
       setAlerts([]);
       dismissedAlertsRef.current.clear();
+      seenIrrigationLogIdsRef.current.clear();
+      previousIrrigationStatusRef.current = null;
+      irrigationLogsInitializedRef.current = false;
+      notificationUserIdRef.current = null;
       return;
     }
 
     const checkSensors = async () => {
+      if (notificationUserIdRef.current !== currentUser.id) {
+        seenIrrigationLogIdsRef.current.clear();
+        previousIrrigationStatusRef.current = null;
+        irrigationLogsInitializedRef.current = false;
+        notificationUserIdRef.current = currentUser.id;
+      }
+
       try {
         const readings = await pb.collection('sensor_readings').getList(1, 1, {
           filter: `userId = "${currentUser.id}"`,
@@ -76,6 +91,41 @@ export const AlertProvider = ({ children }) => {
         }
       } catch (error) {
         console.error('Error checking sensors for alerts:', error);
+      }
+
+      try {
+        const logs = await pb.collection('irrigation_logs').getList(1, 10, {
+          filter: `userId = "${currentUser.id}"`,
+          sort: '-created',
+          $autoCancel: false,
+        });
+        const orderedLogs = [...logs.items].reverse();
+
+        if (!irrigationLogsInitializedRef.current) {
+          logs.items.forEach((log) => seenIrrigationLogIdsRef.current.add(log.id));
+          previousIrrigationStatusRef.current = logs.items[0]?.status || null;
+          irrigationLogsInitializedRef.current = true;
+          return;
+        }
+
+        orderedLogs.forEach((log) => {
+          if (seenIrrigationLogIdsRef.current.has(log.id)) return;
+          seenIrrigationLogIdsRef.current.add(log.id);
+
+          if (log.status === 'ON' && previousIrrigationStatusRef.current !== 'ON') {
+            addAlert(`irrigation-start-${log.id}`, 'info', 'Nuevo riego iniciado');
+          } else if (log.status === 'OFF' && previousIrrigationStatusRef.current === 'ON') {
+            addAlert(`irrigation-finish-${log.id}`, 'info', 'El riego ha finalizado');
+          }
+          previousIrrigationStatusRef.current = log.status;
+        });
+
+        const currentLogIds = new Set(logs.items.map((log) => log.id));
+        seenIrrigationLogIdsRef.current.forEach((id) => {
+          if (!currentLogIds.has(id)) seenIrrigationLogIdsRef.current.delete(id);
+        });
+      } catch (error) {
+        console.error('Error checking irrigation logs for notifications:', error);
       }
     };
 

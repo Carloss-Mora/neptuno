@@ -12,18 +12,18 @@ const SensorCard = ({ icon: Icon, label, value, unit, progress, color = 'teal' }
   };
 
   return (
-    <Card className="rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 border-gray-100">
+    <Card className="rounded-3xl border-white/80 bg-white shadow-lg shadow-slate-900/5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl">
       <CardContent className="p-6">
         <div className="flex items-start justify-between mb-4">
-          <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${colorClasses[color]} flex items-center justify-center shadow-md`}>
+          <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${colorClasses[color]} shadow-md`}>
             <Icon className="w-6 h-6 text-white" />
           </div>
           <div className="text-right">
-            <p className="text-3xl font-bold text-gray-900">{value}</p>
-            <p className="text-sm text-gray-500">{unit}</p>
+            <p className="text-3xl font-extrabold tracking-tight text-slate-900">{value}</p>
+            <p className="text-sm font-medium text-slate-500">{unit}</p>
           </div>
         </div>
-        <p className="text-sm font-medium text-gray-600 mb-3">{label}</p>
+        <p className="mb-3 text-sm font-semibold text-slate-600">{label}</p>
         {progress !== undefined && (
           <Progress value={progress} className="h-2" />
         )}

@@ -4,8 +4,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Clock, Edit2, Trash2, Calendar, AlertCircle } from 'lucide-react';
+import { getScheduleState } from '@/utils/irrigationMetrics';
 
-const ScheduledIrrigationList = ({ schedules, loading, error, onEdit, onDelete }) => {
+const ScheduledIrrigationList = ({ schedules, loading, error, onEdit, onDelete, referenceDate = new Date() }) => {
   if (loading) {
     return (
       <div className="space-y-4">
@@ -29,11 +30,13 @@ const ScheduledIrrigationList = ({ schedules, loading, error, onEdit, onDelete }
 
   if (!schedules || schedules.length === 0) {
     return (
-      <Card className="border-dashed border-2 border-gray-200 bg-gray-50/50">
+      <Card className="border-dashed border-2 border-teal-200 bg-gradient-to-br from-teal-50/80 via-white to-cyan-50/70">
         <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-          <Calendar className="w-12 h-12 text-gray-300 mb-4" />
-          <p className="text-gray-500 font-medium">No hay horarios programados</p>
-          <p className="text-sm text-gray-400 mt-1">Añade un horario para automatizar el riego</p>
+          <span className="mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-white text-teal-600 shadow-md shadow-teal-900/5 ring-1 ring-teal-100">
+            <Calendar className="h-8 w-8" />
+          </span>
+          <p className="font-semibold text-slate-800">Aún no hay riegos programados</p>
+          <p className="mt-1 max-w-xs text-sm text-slate-500">Crea un horario para automatizar el riego y verlo aparecer aquí.</p>
         </CardContent>
       </Card>
     );
@@ -51,28 +54,43 @@ const ScheduledIrrigationList = ({ schedules, loading, error, onEdit, onDelete }
 
   const formatSchedule = (schedule) => {
     const date = schedule.date || schedule.startDate || 'Sin fecha';
-    const startTime = schedule.startTime || schedule.time || '00:00';
-    const endTime = schedule.endTime || '00:00';
-    return `${date} · ${formatTimeLabel(startTime)} - ${formatTimeLabel(endTime)}`;
+    const parsedDate = new Date(`${date}T00:00:00`);
+    const dateLabel = Number.isNaN(parsedDate.getTime())
+      ? date
+      : parsedDate.toLocaleDateString('es-ES', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        });
+    return dateLabel;
   };
 
   return (
     <div className="space-y-4">
-      {schedules.map((schedule) => (
-        <Card key={schedule.id} className="overflow-hidden border-gray-200 hover:border-teal-300 transition-colors shadow-sm">
+      {schedules.map((schedule) => {
+        const hasPassed = getScheduleState(schedule, referenceDate) === 'past';
+        return (
+        <Card key={schedule.id} className={`group overflow-hidden border-slate-200/80 bg-white transition-all duration-200 ${hasPassed ? 'opacity-80' : 'hover:-translate-y-0.5 hover:border-teal-300 hover:shadow-lg hover:shadow-teal-950/5'}`}>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 gap-4">
             <div className="flex items-center space-x-4">
-              <div className="bg-teal-50 p-3 rounded-full text-teal-600">
-                <Clock className="w-6 h-6" />
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 text-white shadow-md shadow-teal-600/20 transition-transform group-hover:scale-105">
+                <Clock className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{formatTimeLabel(schedule.startTime || schedule.time)}</p>
-                <p className="text-sm font-medium text-gray-600 mt-0.5">
+                <p className="text-2xl font-bold tracking-tight text-slate-900">{formatTimeLabel(schedule.startTime || schedule.time)}</p>
+                <p className="mt-0.5 text-sm font-medium text-slate-600">
                   {schedule.endTime ? `Hasta ${formatTimeLabel(schedule.endTime)}` : 'Horario de riego'}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="mt-1 flex items-center gap-1.5 text-xs font-medium capitalize text-teal-700">
+                  <Calendar className="h-3.5 w-3.5" />
                   {formatSchedule(schedule)}
                 </p>
+                {hasPassed && (
+                  <p className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                    Ya pasó
+                  </p>
+                )}
               </div>
             </div>
 
@@ -80,11 +98,13 @@ const ScheduledIrrigationList = ({ schedules, loading, error, onEdit, onDelete }
               <Button
                 variant="outline"
                 size="sm"
+                disabled={hasPassed}
                 onClick={() => onEdit(schedule)}
-                className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                className="border-teal-200 text-teal-700 hover:bg-teal-50 hover:text-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
+                title={hasPassed ? 'No se pueden editar horarios que ya pasaron' : undefined}
               >
-                <Edit2 className="w-4 h-4 mr-1.5" />
-                Editar
+                <Edit2 className="mr-1.5 h-4 w-4" />
+                {hasPassed ? 'No editable' : 'Editar'}
               </Button>
               <Button
                 variant="outline"
@@ -102,7 +122,8 @@ const ScheduledIrrigationList = ({ schedules, loading, error, onEdit, onDelete }
             </div>
           </div>
         </Card>
-      ))}
+        );
+      })}
     </div>
   );
 };

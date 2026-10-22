@@ -10,8 +10,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Power, Clock, CalendarClock } from 'lucide-react';
+import { Power, Clock, CalendarClock, Droplets, CalendarDays, Sparkles } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
+import { getDisplayedIrrigationStatus, getScheduleState } from '@/utils/irrigationMetrics';
 
 const ControlPanelPage = () => {
   const { currentUser } = useAuth();
@@ -113,12 +114,20 @@ const ControlPanelPage = () => {
 
   const handleSaveSchedule = async (startTime, endTime, date) => {
     if (editingSchedule && Object.keys(editingSchedule).length > 0) {
+      if (getScheduleState(editingSchedule, scheduleClock) === 'past') {
+        return { success: false, error: 'Este horario ya pasó y no se puede editar.' };
+      }
       const result = await updateSchedule(editingSchedule.id, startTime, endTime, date);
       if (result.success) setEditingSchedule(null);
       return result;
     }
 
     return await addSchedule(startTime, endTime, date);
+  };
+
+  const handleEditSchedule = (schedule) => {
+    if (getScheduleState(schedule, scheduleClock) === 'past') return;
+    setEditingSchedule(schedule);
   };
 
   const handleDeleteSchedule = async (id) => {
@@ -140,15 +149,18 @@ const ControlPanelPage = () => {
   const scheduleStatus = getScheduleStatus(scheduleClock);
   const activeSchedule = scheduleStatus.activeSchedule;
   const nextTime = scheduleStatus.nextSchedule?.startDate || getNextScheduledTime();
-  const manualStop = lastLog?.status === 'OFF' && lastLog?.source === 'MANUAL';
-  const automaticScheduleEnded = lastLog?.source === 'AUTOMATIC' && !activeSchedule;
-  const displayedStatus = manualStop || automaticScheduleEnded
-    ? 'OFF'
-    : activeSchedule
-      ? 'ON'
-      : currentStatus;
-  const statusDescription = activeSchedule
+  const displayedStatus = getDisplayedIrrigationStatus(currentStatus, lastLog, activeSchedule);
+  const manualStopDuringSchedule = activeSchedule
+    && lastLog?.status === 'OFF'
+    && lastLog?.source === 'MANUAL'
+    && new Date(lastLog.created) >= activeSchedule.startDate;
+  const automaticScheduleEnded = lastLog?.status === 'OFF'
+    && lastLog?.source === 'AUTOMATIC'
+    && !activeSchedule;
+  const statusDescription = activeSchedule && displayedStatus === 'ON'
     ? 'Riego activado por horario'
+    : manualStopDuringSchedule
+      ? 'Riego pausado manualmente durante el horario'
     : automaticScheduleEnded
       ? 'Riego finalizado según el horario'
       : displayedStatus === 'ON'
@@ -168,39 +180,47 @@ const ControlPanelPage = () => {
 
       <Header />
 
-      <div className="min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-emerald-50 py-12">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
+      <div className="relative min-h-screen overflow-hidden bg-[#f4fbfa] py-10 sm:py-14">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-gradient-to-br from-teal-100/80 via-cyan-50/70 to-transparent" />
+        <div className="container relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           {/* Page Header */}
           <div className="mb-10">
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Panel de Control</h1>
-            <p className="text-lg text-gray-600">Gestiona y programa tu sistema de riego</p>
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-teal-200 bg-white/80 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-teal-700 shadow-sm">
+              <Sparkles className="h-3.5 w-3.5" />
+              Riego inteligente
+            </div>
+            <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">Panel de Control</h1>
+            <p className="mt-2 text-base text-slate-600 sm:text-lg">Controla el riego y organiza tus próximos horarios desde un solo lugar.</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* Left Column: Manual Control */}
             <div className="lg:col-span-5 space-y-8">
-              <Card className="rounded-xl shadow-xl border-gray-100">
-                <CardHeader className="text-center pb-6 border-b border-gray-50">
-                  <CardTitle className="text-2xl mb-1">Control Manual</CardTitle>
-                  <CardDescription>
+              <Card className="overflow-hidden rounded-3xl border-white/80 bg-white shadow-xl shadow-slate-900/5">
+                <CardHeader className="border-b border-slate-100 bg-gradient-to-br from-white to-teal-50/70 pb-6 text-center">
+                  <span className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-100 text-teal-700">
+                    <Power className="h-5 w-5" />
+                  </span>
+                  <CardTitle className="mb-1 text-2xl tracking-tight text-slate-900">Control Manual</CardTitle>
+                  <CardDescription className="text-slate-500">
                     Activa o desactiva el riego instantáneamente
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-8 pt-8">
+                <CardContent className="space-y-7 p-6 sm:p-8">
                   {/* Status Display */}
                   <div className="text-center">
-                    <div className={`inline-flex items-center space-x-3 px-6 py-3 rounded-2xl ${
+                    <div className={`inline-flex items-center gap-3 rounded-full border px-5 py-3 ${
                       displayedStatus === 'ON'
-                        ? 'bg-green-100 border-2 border-green-300' 
-                        : 'bg-gray-100 border-2 border-gray-300'
+                        ? 'border-emerald-200 bg-emerald-50'
+                        : 'border-slate-200 bg-slate-50'
                     }`}>
-                      <div className={`w-3 h-3 rounded-full ${
-                        displayedStatus === 'ON' ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                      <div className={`h-3 w-3 rounded-full ${
+                        displayedStatus === 'ON' ? 'animate-pulse bg-emerald-500 ring-4 ring-emerald-100' : 'bg-slate-400 ring-4 ring-slate-200'
                       }`}></div>
-                      <span className={`text-xl font-bold ${
-                        displayedStatus === 'ON' ? 'text-green-700' : 'text-gray-700'
+                      <span className={`text-sm font-bold tracking-wide ${
+                        displayedStatus === 'ON' ? 'text-emerald-800' : 'text-slate-700'
                       }`}>
-                        Sistema {displayedStatus === 'ON' ? 'ACTIVADO' : 'DESACTIVADO'}
+                        {displayedStatus === 'ON' ? 'RIEGO ACTIVADO' : 'RIEGO DESACTIVADO'}
                       </span>
                     </div>
                   </div>
@@ -211,27 +231,27 @@ const ControlPanelPage = () => {
                       onClick={handleToggleClick}
                       disabled={loading}
                       size="lg"
-                      className={`w-full max-w-[240px] h-16 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 ${
+                      className={`h-14 w-full max-w-[280px] rounded-2xl text-base font-bold shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl ${
                         displayedStatus === 'ON'
-                          ? 'bg-red-600 hover:bg-red-700 text-white'
-                          : 'bg-green-600 hover:bg-green-700 text-white'
+                          ? 'bg-gradient-to-r from-rose-500 to-red-600 text-white hover:from-rose-600 hover:to-red-700'
+                          : 'bg-gradient-to-r from-teal-500 to-emerald-600 text-white hover:from-teal-600 hover:to-emerald-700'
                       }`}
                     >
                       <Power className="w-6 h-6 mr-3" />
                       {loading ? 'Procesando...' : displayedStatus === 'ON' ? 'Desactivar Riego' : 'Activar Riego'}
                     </Button>
                   </div>
-                  <p className={`text-center text-sm font-medium ${displayedStatus === 'ON' ? 'text-green-700' : 'text-gray-500'}`}>
+                  <p className={`text-center text-sm font-medium ${displayedStatus === 'ON' ? 'text-emerald-700' : 'text-slate-500'}`}>
                     {statusDescription}
                   </p>
 
                   {/* Last Activity */}
                   {lastLog && (
-                    <div className="bg-teal-50/50 rounded-xl p-4 border border-teal-100">
+                    <div className="rounded-2xl border border-teal-100 bg-gradient-to-br from-teal-50 to-cyan-50/70 p-4">
                       <div className="flex items-start space-x-3">
                         <Clock className="w-5 h-5 text-teal-600 flex-shrink-0 mt-0.5" />
                         <div>
-                          <p className="font-semibold text-gray-900 text-sm mb-0.5">Última Actividad</p>
+                          <p className="mb-0.5 text-sm font-semibold text-slate-900">Última Actividad</p>
                           <p className="text-gray-700 text-sm">
                             Sistema <span className="font-semibold">{lastLog.status === 'ON' ? 'activado' : 'desactivado'}</span>
                           </p>
@@ -246,37 +266,52 @@ const ControlPanelPage = () => {
               </Card>
 
               {/* Next Scheduled Info Card */}
-              <Card className="rounded-xl shadow-md border-teal-200 bg-gradient-to-br from-teal-600 to-cyan-700 text-white">
-                <CardContent className="p-6">
+              <Card className="overflow-hidden rounded-3xl border-teal-100 bg-white shadow-lg shadow-slate-900/5">
+                <CardContent className="relative bg-gradient-to-br from-teal-50/70 via-white to-cyan-50/50 p-6 sm:p-7">
                   <div className="flex items-center space-x-4">
-                    <div className="bg-white/20 p-3 rounded-full">
-                      <CalendarClock className="w-8 h-8 text-white" />
+                    <div className="rounded-2xl bg-teal-100 p-3 text-teal-700">
+                      <CalendarClock className="h-8 w-8" />
                     </div>
                     <div>
-                      <p className="text-teal-100 font-medium mb-1">
-                        {activeSchedule ? 'Riego activo' : 'Próximo Riego Programado'}
+                      <p className="mb-1 font-medium text-teal-700">
+                        {activeSchedule && displayedStatus === 'ON'
+                          ? 'Riego activo'
+                          : activeSchedule
+                            ? 'Horario en pausa'
+                            : nextTime
+                              ? 'Próximo riego programado'
+                              : 'Sin riegos pendientes'}
                       </p>
-                      {activeSchedule ? (
+                      {activeSchedule && displayedStatus === 'ON' ? (
                         <>
-                          <p className="text-2xl font-bold">En uso</p>
-                          <p className="text-sm text-teal-50 mt-0.5">
+                          <p className="text-2xl font-bold text-slate-900">En uso</p>
+                          <p className="mt-0.5 text-sm text-slate-600">
                             Cierra a las {activeSchedule.endDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                           </p>
-                          <p className="text-sm font-semibold text-white mt-1">
+                          <p className="mt-1 text-sm font-semibold text-slate-800">
                             Tiempo restante: {remainingHours} h {String(remainingMinutesPart).padStart(2, '0')} min
+                          </p>
+                        </>
+                      ) : activeSchedule ? (
+                        <>
+                          <p className="text-2xl font-bold text-slate-900">Riego pausado</p>
+                          <p className="mt-0.5 text-sm text-slate-600">
+                            El horario termina a las {activeSchedule.endDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                           </p>
                         </>
                       ) : nextTime ? (
                         <>
-                          <p className="text-2xl font-bold">
+                          <p className="text-2xl font-bold text-slate-900">
                             {nextTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                           </p>
-                          <p className="text-sm text-teal-50 mt-0.5">
+                          <p className="mt-0.5 text-sm text-slate-600">
                             {nextTime.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
                           </p>
                         </>
                       ) : (
-                        <p className="text-lg font-semibold text-white">No hay riegos programados</p>
+                        <p className="text-lg font-semibold text-slate-700">
+                          {schedules.length > 0 ? 'Los horarios guardados ya pasaron.' : 'No hay riegos programados.'}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -286,21 +321,30 @@ const ControlPanelPage = () => {
 
             {/* Right Column: Scheduling */}
             <div className="lg:col-span-7 space-y-6">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-2xl font-bold text-gray-900">Programación Automática</h2>
+              <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-white/80 bg-white/75 p-5 shadow-sm backdrop-blur sm:p-6">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-100 text-cyan-700">
+                    <CalendarDays className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Programación Automática</h2>
+                    <p className="mt-0.5 text-sm text-slate-500">Define cuándo regar tus cultivos.</p>
+                  </div>
+                </div>
                 {!editingSchedule && (
                   <Button 
                     variant="outline" 
                     onClick={() => setEditingSchedule({})} 
-                    className="text-teal-700 border-teal-200 hover:bg-teal-50"
+                    className="rounded-xl border-teal-200 bg-white font-semibold text-teal-700 shadow-sm hover:bg-teal-50 hover:text-teal-800"
                   >
-                    + Nuevo Horario
+                    <CalendarDays className="mr-2 h-4 w-4" />
+                    Nuevo horario
                   </Button>
                 )}
               </div>
 
               {editingSchedule && (
-                <div className="mb-8 animate-in fade-in slide-in-from-top-4 duration-300">
+                <div className="animate-in fade-in slide-in-from-top-4 duration-300">
                   <IrrigationScheduleForm 
                     initialData={Object.keys(editingSchedule).length > 0 ? editingSchedule : null}
                     onSave={handleSaveSchedule}
@@ -309,14 +353,23 @@ const ControlPanelPage = () => {
                 </div>
               )}
 
-              <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Horarios Guardados</h3>
+              <div className="rounded-3xl border border-white/80 bg-white p-5 shadow-xl shadow-slate-900/5 sm:p-6">
+                <div className="mb-5 flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">Horarios guardados</h3>
+                    <p className="mt-1 text-sm text-slate-500">Consulta o ajusta tus riegos programados.</p>
+                  </div>
+                  <span className="rounded-full bg-teal-50 px-3 py-1 text-sm font-semibold text-teal-700">
+                    {schedules.length} {schedules.length === 1 ? 'horario' : 'horarios'}
+                  </span>
+                </div>
                 <ScheduledIrrigationList 
                   schedules={schedules} 
                   loading={schedulesLoading}
                   error={schedulesError}
-                  onEdit={setEditingSchedule}
+                  onEdit={handleEditSchedule}
                   onDelete={handleDeleteSchedule}
+                  referenceDate={scheduleClock}
                 />
               </div>
             </div>
