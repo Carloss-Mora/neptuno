@@ -32,7 +32,13 @@ describe('Irrigation statistics', () => {
     const now = Math.floor(Date.now() / 60000) * 60000;
     const sessionStart = new Date(now - 90 * 60000);
     const sessionEnd = new Date(now - 30 * 60000);
-    const expectedTodayLiters = sessionStart.toDateString() === new Date(now).toDateString() ? '12.0' : '0.0';
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const minutesToday = Math.max(
+      0,
+      Math.min(sessionEnd.getTime(), now) - Math.max(sessionStart.getTime(), todayStart.getTime()),
+    ) / 60000;
+    const expectedTodayLiters = (minutesToday * 0.2).toFixed(1);
     const logs = [
       { id: 'on-1', userId: 'user-1', status: 'ON', source: 'MANUAL', created: sessionStart.toISOString() },
       { id: 'off-1', userId: 'user-1', status: 'OFF', source: 'MANUAL', created: sessionEnd.toISOString() },

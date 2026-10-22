@@ -1,5 +1,7 @@
+import { spawn } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
 const baseUrl = (process.env.PB_URL || '').replace(/\/+$/, '');
 const adminEmail = process.env.PB_ADMIN_EMAIL;
@@ -160,14 +162,41 @@ try {
   if (waterBlocked.data.irrigation !== 'OFF') throw new Error('Low water level did not force OFF.');
   report('AUTO starts below minimum, holds through hysteresis, and stops for low water');
 
-  await request('/api/collections/irrigation_logs/records', {
+  const foreignManualControl = await request('/api/neptuno/irrigation/manual', {
+    method: 'POST',
+    token: users[0].token,
+    body: { cropId: cropB.id, status: 'OFF' },
+  });
+  expectStatus(foreignManualControl, [400, 403, 404], 'Reject manual control of another user crop');
+  const directManualLog = await request('/api/collections/irrigation_logs/records', {
     method: 'POST',
     token: users[0].token,
     body: { userId: users[0].id, cropId: cropA.id, status: 'OFF', source: 'MANUAL' },
-  }).then((response) => expectStatus(response, [200, 201], 'Create manual OFF log'));
-  const cropAfterManual = await request(`/api/collections/crops/records/${cropA.id}`, { token: users[0].token });
-  const overrideUntil = new Date(cropAfterManual.data.manual_override_until).getTime();
-  if (!Number.isFinite(overrideUntil) || overrideUntil <= Date.now()) throw new Error('Manual override expiry was not persisted.');
+  });
+  expectStatus(directManualLog, [400, 403, 404], 'Reject direct manual log creation');
+  report('manual control is owner-only and logs cannot bypass the server route');
+
+  const manualLogResponse = await request('/api/neptuno/irrigation/manual', {
+    method: 'POST',
+    token: users[0].token,
+    body: { cropId: cropA.id, status: 'OFF' },
+  });
+  expectStatus(manualLogResponse, [201], 'Create manual OFF log');
+  let cropAfterManual;
+  let overrideUntil = new Date(manualLogResponse.data.manual_override_until).getTime();
+  const overrideDeadline = Date.now() + 5000;
+  while (Date.now() < overrideDeadline) {
+    cropAfterManual = await request(`/api/collections/crops/records/${cropA.id}`, { token: users[0].token });
+    const persistedOverrideUntil = new Date(cropAfterManual.data.manual_override_until).getTime();
+    if (Number.isFinite(persistedOverrideUntil) && persistedOverrideUntil > Date.now()) {
+      overrideUntil = persistedOverrideUntil;
+      break;
+    }
+    await sleep(100);
+  }
+  if (!Number.isFinite(overrideUntil) || overrideUntil <= Date.now()) {
+    throw new Error(`Manual override expiry was not persisted (value: ${String(cropAfterManual.data?.manual_override_until || manualLogResponse.data?.manual_override_until || 'empty')}; crop mode: ${cropAfterManual.data?.control_mode}; log source: ${manualLogResponse.data?.log?.source}).`);
+  }
   for (let count = 0; count < 3; count += 1) {
     await sleep(1200);
     const manualHold = await request('/api/neptuno/ingest', {
@@ -275,6 +304,69 @@ try {
     }
     if (!stopped) throw new Error('Watchdog did not close the irrigation during the wait window.');
     report('watchdog closes irrigation after a silent device');
+  }
+
+  const simulatorCropResponse = await request('/api/collections/crops/records', {
+    method: 'POST',
+    token: users[0].token,
+    body: {
+      ...cropBody(users[0].id, 'Smoke simulator crop'),
+      humidity_min: 30,
+      humidity_max: 33,
+    },
+  });
+  expectStatus(simulatorCropResponse, [200, 201], 'Create AUTO simulator crop');
+  const simulatorDeviceResponse = await request('/api/neptuno/devices', {
+    method: 'POST',
+    token: users[0].token,
+    body: { cropId: simulatorCropResponse.data.id, name: 'Smoke simulator device', interval_seconds: 1 },
+  });
+  expectStatus(simulatorDeviceResponse, [201], 'Create simulator device');
+  const simulatorEnvironment = {
+    DEVICE_KEY: simulatorDeviceResponse.data.key,
+    PATH: process.env.PATH || '',
+  };
+  for (const variable of ['SYSTEMROOT', 'WINDIR']) {
+    if (process.env[variable]) simulatorEnvironment[variable] = process.env[variable];
+  }
+  const simulator = spawn(process.execPath, [
+    fileURLToPath(new URL('./simulate-device.js', import.meta.url)),
+    '--url',
+    baseUrl,
+    '--interval',
+    '1',
+    '--humidity',
+    '31',
+  ], {
+    env: simulatorEnvironment,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let simulatorOutput = '';
+  let simulatorError = '';
+  simulator.stdout.setEncoding('utf8');
+  simulator.stderr.setEncoding('utf8');
+  simulator.stdout.on('data', (chunk) => { simulatorOutput += chunk; });
+  simulator.stderr.on('data', (chunk) => { simulatorError += chunk; });
+  const simulatorExit = new Promise((resolve) => simulator.once('exit', resolve));
+  try {
+    const deadline = Date.now() + 25_000;
+    let cycled = false;
+    while (Date.now() < deadline && simulator.exitCode === null) {
+      const states = [...simulatorOutput.matchAll(/riego (ON|OFF)/g)].map((match) => match[1]);
+      const firstOn = states.indexOf('ON');
+      const offAfterOn = states.indexOf('OFF', firstOn + 1);
+      cycled = firstOn >= 0 && offAfterOn >= 0 && states.indexOf('ON', offAfterOn + 1) >= 0;
+      if (cycled) break;
+      await sleep(250);
+    }
+    if (!cycled) throw new Error(`Simulator did not cycle AUTO ON → OFF → ON. ${simulatorError.trim()}`);
+    report('real simulator cycles an AUTO crop from ON to OFF and back to ON');
+  } finally {
+    if (simulator.exitCode === null) {
+      simulator.kill('SIGINT');
+      await Promise.race([simulatorExit, sleep(2000)]);
+      if (simulator.exitCode === null) simulator.kill();
+    }
   }
 } catch (error) {
   report('smoke test execution', error);

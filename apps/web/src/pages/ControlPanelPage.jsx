@@ -120,19 +120,14 @@ const ControlPanelPage = () => {
       if (!currentUser || !selectedCrop) {
         throw new Error('Selecciona un cultivo antes de cambiar el riego.');
       }
-      const newLog = await pb.collection('irrigation_logs').create({
-        userId: currentUser.id,
-        cropId: selectedCrop.id,
-        status: pendingStatus,
-        source: 'MANUAL',
-      }, { $autoCancel: false });
+      const response = await pb.send('/api/neptuno/irrigation/manual', {
+        method: 'POST',
+        body: { cropId: selectedCrop.id, status: pendingStatus },
+      });
 
-      setCurrentStatus(pendingStatus);
-      setLastLog(newLog);
-      if (selectedCrop.control_mode === 'AUTO') {
-        const minutes = Number(selectedCrop.manual_override_minutes) || 30;
-        setManualOverrideUntil(new Date(Date.now() + minutes * 60000).toISOString());
-      }
+      setCurrentStatus(response.log.status);
+      setLastLog(response.log);
+      setManualOverrideUntil(response.manual_override_until || null);
 
       toast({
         title: 'Éxito',
