@@ -27,40 +27,43 @@ cronAdd('automatic-irrigation', '* * * * *', () => {
     const now = new Date();
     const crops = $app.findAllRecords('crops');
     const devices = $app.findAllRecords('devices');
+    const cropById = new Map(crops.map((crop) => [crop.id, crop]));
     const invalidCropIds = new Set();
     for (const device of devices) {
-      try {
-        const deviceCrop = $app.findRecordById('crops', device.get('cropId'));
-        if (String(device.get('userId')) !== String(deviceCrop.get('userId'))) {
-          invalidCropIds.add(deviceCrop.id);
-          console.error(`Device ${device.id} user/crop ownership mismatch; skipping irrigation for crop ${deviceCrop.id}.`);
-        }
-      } catch (error) {
-        console.error(`Could not validate ownership for device ${device.id}:`, error);
+      const deviceCrop = cropById.get(String(device.get('cropId')));
+      if (deviceCrop && String(device.get('userId')) !== String(deviceCrop.get('userId'))) {
+        invalidCropIds.add(deviceCrop.id);
+        console.error(`Device ${device.id} user/crop ownership mismatch; skipping irrigation for crop ${deviceCrop.id}.`);
       }
     }
     const schedulesCollection = $app.findCollectionByNameOrId('irrigation_schedules');
     const logsCollection = $app.findCollectionByNameOrId('irrigation_logs');
+    const allSchedules = $app.findAllRecords(schedulesCollection);
+    const schedulesByCrop = new Map();
+    for (const schedule of allSchedules) {
+      const cropId = String(schedule.get('cropId') || '');
+      if (!schedulesByCrop.has(cropId)) schedulesByCrop.set(cropId, []);
+      schedulesByCrop.get(cropId).push(schedule);
+    }
+    const allLogs = $app.findAllRecords(logsCollection);
+    const latestLogByCrop = new Map();
+    for (const log of allLogs) {
+      const cropId = String(log.get('cropId') || '');
+      const current = latestLogByCrop.get(cropId);
+      if (!current || new Date(log.get('created')).getTime() > new Date(current.get('created')).getTime()) {
+        latestLogByCrop.set(cropId, log);
+      }
+    }
 
     for (const crop of crops) {
       const cropId = crop.id;
       const userId = crop.get('userId');
       if (!userId || invalidCropIds.has(cropId)) continue;
+      const latestLog = latestLogByCrop.get(cropId) || null;
+      if (crop.get('control_mode') !== 'SCHEDULE'
+        && !(latestLog?.get('status') === 'ON' && latestLog?.get('source') === 'SCHEDULE')) continue;
 
-      let schedules = [];
-      try {
-        schedules = $app.findRecordsByFilter(
-          schedulesCollection,
-          'cropId = {:cropId} && userId = {:userId}',
-          'startTime',
-          0,
-          0,
-          { cropId, userId },
-        );
-      } catch (error) {
-        console.error(`Could not load schedules for crop ${cropId}:`, error);
-        continue;
-      }
+      const schedules = schedulesByCrop.get(cropId) || [];
 
       let activeScheduleStartTimestamp = null;
       const active = crop.get('control_mode') === 'SCHEDULE' && schedules.some((schedule) => {
@@ -109,22 +112,6 @@ cronAdd('automatic-irrigation', '* * * * *', () => {
         return isActive;
       });
 
-      let latestLog = null;
-      try {
-        const latestLogs = $app.findRecordsByFilter(
-          logsCollection,
-          'cropId = {:cropId}',
-          '-created',
-          1,
-          0,
-          { cropId },
-        );
-        latestLog = latestLogs.length > 0 ? latestLogs[0] : null;
-      } catch (error) {
-        console.error(`Could not load irrigation status for crop ${cropId}:`, error);
-        continue;
-      }
-
       const latestStatus = latestLog?.get('status');
       const latestSource = latestLog?.get('source');
       if (active) {
@@ -140,12 +127,14 @@ cronAdd('automatic-irrigation', '* * * * *', () => {
         continue;
       }
 
-      $app.save(new Record(logsCollection, {
+      const newLog = new Record(logsCollection, {
         userId,
         cropId,
         status: active ? 'ON' : 'OFF',
         source: 'SCHEDULE',
-      }));
+      });
+      $app.save(newLog);
+      latestLogByCrop.set(cropId, newLog);
     }
   } catch (error) {
     console.error('Automatic irrigation scheduler failed:', error);

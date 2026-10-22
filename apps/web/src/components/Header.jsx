@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, LayoutDashboard, Sliders, BarChart3, LogOut, History, Sprout, Settings } from 'lucide-react';
+import { Menu, LayoutDashboard, Sliders, BarChart3, LogOut, History, Sprout, Settings, Activity } from 'lucide-react';
 import NotificationBell from '@/components/NotificationBell';
 import pb from '@/lib/pocketbaseClient';
 import { useCrop } from '@/contexts/CropContext';
@@ -30,6 +30,7 @@ const Header = () => {
     { to: '/historial', label: 'Historial de Riego', icon: History },
     { to: '/crops', label: 'Cultivos', icon: Sprout },
     { to: '/settings', label: 'Ajustes', icon: Settings },
+    { to: '/summary', label: 'Resumen', icon: Activity },
   ];
 
   const isActive = (path) => location.pathname === path;
