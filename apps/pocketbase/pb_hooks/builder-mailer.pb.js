@@ -12,10 +12,17 @@ onMailerSend((e) => {
         throw new Error('Falta la configuración del servicio de correo. Revisa BUILDER_MAILER_SENDER_ADDRESS y BUILDER_MAILER_API_KEY.');
     }
 
-    const emailTarget = e.message.to?.[0]?.address || e.message.to || '';
+    const emailTargets = Array.isArray(e.message.to)
+        ? e.message.to.map((item) => item.address || item).filter(Boolean)
+        : e.message.to
+            ? [e.message.to]
+            : [];
+    if (emailTargets.length === 0) {
+        throw new Error('No se pudo enviar el correo porque falta la dirección de destino.');
+    }
     const payload = {
         from: senderAddress,
-        to: Array.isArray(emailTarget) ? emailTarget.map((item) => item.address || item) : [emailTarget],
+        to: emailTargets,
         subject: e.message.subject || 'Sin asunto',
         html: e.message.html || `<p>${(e.message.text || '').replace(/\n/g, '<br/>')}</p>`,
         text: e.message.text || '',
@@ -31,10 +38,10 @@ onMailerSend((e) => {
         body: JSON.stringify(payload)
     });
 
-    if (response.statusCode >= 400) {
-        const errorMessage = response.json?.message || response.json?.error || response.text || 'No se pudo enviar el correo.';
-        $app.logger().error("Failed to send email", "error", response.json || response.text);
-        throw new ApiError(response.statusCode || 500, `No se pudo enviar el correo: ${errorMessage}`);
+    if (!response || typeof response.statusCode !== 'number' || response.statusCode < 200 || response.statusCode >= 300) {
+        const errorMessage = response?.json?.message || response?.json?.error || response?.text || 'No se pudo enviar el correo.';
+        $app.logger().error("Failed to send email", "error", response?.json || response?.text);
+        throw new ApiError(response?.statusCode || 500, `No se pudo enviar el correo: ${errorMessage}`);
     }
 
 })

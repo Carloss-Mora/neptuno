@@ -24,6 +24,7 @@ const SignupPage = () => {
   const [otpId, setOtpId] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [verificationMessage, setVerificationMessage] = useState('');
+  const [verificationError, setVerificationError] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
@@ -77,8 +78,9 @@ const SignupPage = () => {
       if (result.requiresVerification) {
         setVerificationEmail(result.email);
         setOtpId(result.otpId || '');
+        setVerificationError(!result.emailSent);
         setVerificationMessage(result.emailSent
-          ? 'Te enviamos un código de seis dígitos. Introdúcelo aquí para verificar tu correo y acceder.'
+          ? 'La solicitud del código de seis dígitos fue aceptada. Revisa el correo indicado e introdúcelo aquí para verificar tu cuenta.'
           : `La cuenta se creó, pero no se pudo enviar el código. ${result.verificationErrorMessage || 'Revisa la configuración del correo e inténtalo de nuevo.'}`);
       } else {
         navigate('/dashboard');
@@ -93,12 +95,16 @@ const SignupPage = () => {
   const handleResendVerification = async () => {
     setLoading(true);
     setVerificationMessage('');
+    setVerificationError(false);
+    setOtpId('');
+    setVerificationCode('');
     try {
       const result = await resendVerification(verificationEmail);
       setOtpId(result.otpId || '');
       setVerificationCode('');
-      setVerificationMessage('Si la cuenta necesita verificación, enviamos un nuevo código. Revisa tu correo y spam.');
+      setVerificationMessage('Si la cuenta necesita verificación, la solicitud del código fue aceptada. Revisa tu correo y spam.');
     } catch (resendError) {
+      setVerificationError(true);
       setVerificationMessage(resendError.message);
     } finally {
       setLoading(false);
@@ -109,10 +115,12 @@ const SignupPage = () => {
     event.preventDefault();
     setLoading(true);
     setVerificationMessage('');
+    setVerificationError(false);
     try {
       await verifyEmailCode(otpId, verificationCode);
       navigate('/dashboard');
     } catch (verificationError) {
+      setVerificationError(true);
       setVerificationMessage(verificationError.message);
     } finally {
       setLoading(false);
@@ -144,14 +152,21 @@ const SignupPage = () => {
           <CardContent>
             {verificationEmail ? (
               <form onSubmit={handleVerifyCode} className="space-y-5 text-center">
-                <CheckCircle2 className="mx-auto h-12 w-12 text-teal-700" />
+                {verificationError
+                  ? <AlertCircle className="mx-auto h-12 w-12 text-amber-600" />
+                  : <CheckCircle2 className="mx-auto h-12 w-12 text-teal-700" />}
                 <div>
                   <h2 className="font-semibold text-slate-900">Verifica tu correo</h2>
                   <p className="mt-2 text-sm text-slate-600">
                     Enviamos un código a <strong>{verificationEmail}</strong>. Introdúcelo para activar tu cuenta.
                   </p>
                 </div>
-                <p role="status" className="text-sm text-slate-700">{verificationMessage}</p>
+                <p
+                  role={verificationError ? 'alert' : 'status'}
+                  className={`text-sm ${verificationError ? 'text-red-700' : 'text-slate-700'}`}
+                >
+                  {verificationMessage}
+                </p>
                 <div className="space-y-2">
                   <Label htmlFor="verification-code">Código de seis dígitos</Label>
                   <InputOTP

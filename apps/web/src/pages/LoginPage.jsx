@@ -32,6 +32,8 @@ const LoginPage = () => {
   const handleResendVerification = async () => {
     setError('');
     setVerificationMessage('');
+    setOtpId('');
+    setVerificationCode('');
     if (!formData.email) {
       setError('Escribe tu correo para solicitar un código de verificación.');
       return;
@@ -42,7 +44,7 @@ const LoginPage = () => {
       const result = await resendVerification(formData.email);
       setOtpId(result.otpId || '');
       setVerificationCode('');
-      setVerificationMessage('Si la cuenta necesita verificación, enviamos un código. Revisa tu correo y spam.');
+      setVerificationMessage('Si la cuenta necesita verificación, la solicitud del código fue aceptada. Revisa tu correo y spam.');
     } catch (resendError) {
       setError(resendError.message);
     } finally {
@@ -79,7 +81,12 @@ const LoginPage = () => {
       await login(formData.email, formData.password);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.message || 'Error al iniciar sesión. Verifica tus credenciales.');
+      if (err.requiresVerification) {
+        setOtpId(err.otpId || '');
+        setVerificationMessage(err.message);
+      } else {
+        setError(err.message || 'Error al iniciar sesión. Verifica tus credenciales.');
+      }
     } finally {
       setLoading(false);
     }
@@ -116,7 +123,14 @@ const LoginPage = () => {
                 </div>
               )}
               {verificationMessage && (
-                <p role="status" className="rounded-lg border border-teal-200 bg-teal-50 p-3 text-sm text-teal-800">
+                <p
+                  role={otpId ? 'status' : 'alert'}
+                  className={`rounded-lg border p-3 text-sm ${
+                    otpId
+                      ? 'border-teal-200 bg-teal-50 text-teal-800'
+                      : 'border-red-200 bg-red-50 text-red-800'
+                  }`}
+                >
                   {verificationMessage}
                 </p>
               )}

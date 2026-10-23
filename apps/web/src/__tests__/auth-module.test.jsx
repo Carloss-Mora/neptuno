@@ -214,9 +214,10 @@ describe('Auth module', () => {
     );
 
     await userEvent.click(screen.getByRole('button', { name: /login/i }));
-    expect(await screen.findByText(/tu correo aún no está verificado/i)).toBeInTheDocument();
+    expect(await screen.findByText(/esta cuenta todavía no ha verificado su correo/i)).toBeInTheDocument();
     expect(screen.getByText('guest')).toBeInTheDocument();
     expect(mockPb.authStore.clear).toHaveBeenCalled();
+    expect(usersCollection.requestOTP).toHaveBeenCalledWith('user@example.com', { $autoCancel: false });
   });
 
   it('returns a clear duplicate-email message when PocketBase reports validation_not_unique', async () => {

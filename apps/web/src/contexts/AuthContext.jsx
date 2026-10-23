@@ -76,6 +76,17 @@ const extractErrorMessage = (error, fallback = 'Ha ocurrido un error inesperado.
   return fallback;
 };
 
+const isUnverifiedAccountError = (error) => {
+  const payload = error?.response?.data ?? error?.data ?? {};
+  const message = [error?.message, payload?.message, ...Object.values(payload || {})]
+    .filter((value) => typeof value === 'string')
+    .join(' ')
+    .toLowerCase();
+
+  return /not verified|unverified|verification required|must be verified/.test(message)
+    || /request does not satisfy the collection requirements to authenticate|request doesn't satisfy the collection requirements to authenticate/.test(message);
+};
+
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -98,12 +109,36 @@ export const AuthProvider = ({ children }) => {
       const authData = await pb.collection('users').authWithPassword(email, password);
       if (authData.record?.verified === false) {
         pb.authStore.clear();
-        throw new Error('Tu correo aún no está verificado. Solicita un código de seis dígitos para confirmarlo.');
+        const error = new Error('Esta cuenta todavía no ha verificado su correo.');
+        error.code = 'EMAIL_NOT_VERIFIED';
+        throw error;
       }
       setCurrentUser(authData.record);
       return { success: true, user: authData.record };
     } catch (error) {
       console.error('Login error:', error);
+      if (error?.code === 'EMAIL_NOT_VERIFIED' || isUnverifiedAccountError(error)) {
+        pb.authStore.clear();
+        let otp;
+        try {
+          otp = await pb.collection('users').requestOTP(email.trim(), { $autoCancel: false });
+        } catch (verificationError) {
+          const errorWithStatus = new Error(
+            `Esta cuenta todavía no ha verificado su correo, pero no se pudo enviar el código. ${extractErrorMessage(
+              verificationError,
+              'Inténtalo de nuevo más tarde.',
+            )}`,
+          );
+          errorWithStatus.requiresVerification = true;
+          throw errorWithStatus;
+        }
+        const verificationError = new Error(
+          `Esta cuenta todavía no ha verificado su correo. La solicitud del código fue aceptada para ${email.trim()}.`,
+        );
+        verificationError.requiresVerification = true;
+        verificationError.otpId = otp.otpId;
+        throw verificationError;
+      }
       throw new Error(extractErrorMessage(
         error,
         'Correo o contraseña incorrectos. Si tu cuenta es nueva, verifica tu correo antes de iniciar sesión.',

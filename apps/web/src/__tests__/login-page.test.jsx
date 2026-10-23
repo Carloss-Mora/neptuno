@@ -140,12 +140,36 @@ describe('Login page module', () => {
     await user.click(screen.getByRole('button', { name: /iniciar sesión/i }));
 
     expect(await screen.findByText(/esta cuenta todavía no ha verificado su correo/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /enviar código de verificación/i })).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /enviar código de verificación/i }));
     expect(await screen.findByLabelText(/código de verificación/i)).toBeInTheDocument();
     await user.type(screen.getByLabelText(/código de verificación/i), '123456');
     await user.click(screen.getByRole('button', { name: /verificar código/i }));
     expect(await screen.findByText('Dashboard')).toBeInTheDocument();
+  });
+
+  it('does not report OTP delivery as successful when the email request fails', async () => {
+    const user = userEvent.setup();
+    const usersCollection = createUsersCollection();
+    usersCollection.requestOTP = vi.fn(async () => {
+      throw new Error('Resend is unavailable');
+    });
+    mockPb.collection.mockImplementation(() => usersCollection);
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/login']}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>
+    );
+
+    await user.type(screen.getByLabelText(/correo electrónico/i), 'unverified@demo.com');
+    await user.type(screen.getByLabelText(/contraseña/i), 'a-valid-length-password');
+    await user.click(screen.getByRole('button', { name: /iniciar sesión/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/no se pudo enviar el código/i);
+    expect(screen.queryByText(/enviamos un código/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/código de verificación/i)).not.toBeInTheDocument();
   });
 });
