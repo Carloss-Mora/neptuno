@@ -133,4 +133,32 @@ describe('Signup page module', () => {
     await user.click(screen.getByRole('button', { name: /verificar correo/i }));
     expect(await screen.findByText('Dashboard')).toBeInTheDocument();
   });
+
+  it('reports an email request failure after account creation without claiming delivery', async () => {
+    const user = userEvent.setup();
+    const usersCollection = createUsersCollection();
+    usersCollection.requestOTP = vi.fn(async () => {
+      throw new Error('Resend is unavailable');
+    });
+    mockPb.collection.mockImplementation(() => usersCollection);
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/signup']}>
+          <Routes>
+            <Route path="/signup" element={<SignupPage />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>
+    );
+
+    await user.type(screen.getByLabelText(/nombre completo/i), 'Test User');
+    await user.type(screen.getByLabelText(/correo electrónico/i), 'test@example.com');
+    await user.type(screen.getByLabelText(/^contraseña$/i), '12345678');
+    await user.type(screen.getByLabelText(/confirmar contraseña/i), '12345678');
+    await user.click(screen.getByRole('button', { name: /crear cuenta/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/la cuenta se creó, pero no se pudo enviar el código/i);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
 });
