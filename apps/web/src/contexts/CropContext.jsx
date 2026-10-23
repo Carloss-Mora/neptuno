@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import pb from '@/lib/pocketbaseClient';
+import { getPocketBaseErrorDetails } from '@/lib/pocketbaseError';
 import { useAuth } from '@/contexts/AuthContext';
 
 const defaultContext = {
@@ -117,8 +118,7 @@ export const CropProvider = ({ children }) => {
     setError('');
     try {
       const records = await pb.collection('crops').getFullList({
-        filter: `userId = "${currentUser.id}"`,
-        sort: 'created',
+        sort: 'name',
         $autoCancel: false,
       });
       setCrops(records);
@@ -134,8 +134,15 @@ export const CropProvider = ({ children }) => {
       });
       return records;
     } catch (loadError) {
-      console.error('Error loading crops:', loadError);
-      setError('No se pudieron cargar los cultivos. Intenta actualizar la página.');
+      console.error('Error loading crops from PocketBase:', {
+        url: `${pb.baseURL}/api/collections/crops/records`,
+        status: loadError?.status || loadError?.response?.status || 0,
+        response: loadError?.response,
+        error: loadError,
+      });
+      setError(import.meta.env.DEV
+        ? `No se pudieron cargar los cultivos: ${getPocketBaseErrorDetails(loadError)}`
+        : 'No se pudieron cargar los cultivos. Intenta actualizar la página.');
       throw loadError;
     } finally {
       setLoading(false);

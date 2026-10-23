@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCrop } from '@/contexts/CropContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import pb from '@/lib/pocketbaseClient';
+import { getPocketBaseErrorDetails } from '@/lib/pocketbaseError';
 
 const deviceIsOnline = (device, now = Date.now()) => {
   const lastSeen = device?.last_seen ? new Date(device.last_seen).getTime() : 0;
@@ -15,8 +16,12 @@ const deviceIsOnline = (device, now = Date.now()) => {
 
 const SummaryPage = () => {
   const { currentUser } = useAuth();
-  const { selectCrop } = useCrop();
-  const [crops, setCrops] = useState([]);
+  const {
+    crops,
+    loading: cropsLoading,
+    error: cropsError,
+    selectCrop,
+  } = useCrop();
   const [readings, setReadings] = useState([]);
   const [logs, setLogs] = useState([]);
   const [devices, setDevices] = useState([]);
@@ -25,18 +30,37 @@ const SummaryPage = () => {
   const [error, setError] = useState('');
 
   const refresh = useCallback(async () => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      setReadings([]);
+      setLogs([]);
+      setDevices([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError('');
     try {
-      const [cropRecords, readingRecords, hourlyRecords, logRecords, deviceRecords] = await Promise.all([
-        pb.collection('crops').getFullList({ sort: 'name', $autoCancel: false }),
-        pb.collection('sensor_readings').getFullList({ sort: '-created', $autoCancel: false }),
-        pb.collection('sensor_readings_hourly').getFullList({ sort: '-hour_start', $autoCancel: false }),
-        pb.collection('irrigation_logs').getFullList({ sort: '-created', $autoCancel: false }),
-        pb.collection('devices').getFullList({ sort: 'name', $autoCancel: false }),
+      const getRecords = async (collection, options) => {
+        try {
+          return await pb.collection(collection).getFullList(options);
+        } catch (requestError) {
+          console.error(`Could not load PocketBase collection "${collection}":`, {
+            url: `${pb.baseURL}/api/collections/${collection}/records`,
+            status: requestError?.status || requestError?.response?.status || 0,
+            response: requestError?.response,
+            error: requestError,
+          });
+          throw new Error(`PocketBase "${collection}": ${getPocketBaseErrorDetails(requestError)}`, {
+            cause: requestError,
+          });
+        }
+      };
+      const [readingRecords, hourlyRecords, logRecords, deviceRecords] = await Promise.all([
+        getRecords('sensor_readings', { sort: '-created', $autoCancel: false }),
+        getRecords('sensor_readings_hourly', { sort: '-hour_start', $autoCancel: false }),
+        getRecords('irrigation_logs', { sort: '-created', $autoCancel: false }),
+        getRecords('devices', { sort: 'name', $autoCancel: false }),
       ]);
-      setCrops(cropRecords);
       setReadings([
         ...readingRecords,
         ...hourlyRecords.map((reading) => ({
@@ -53,13 +77,17 @@ const SummaryPage = () => {
       setNow(Date.now());
     } catch (loadError) {
       console.error('Could not load crop summary:', loadError);
-      setError('No se pudo cargar el resumen de cultivos.');
+      setError(import.meta.env.DEV
+        ? `No se pudo cargar el resumen: ${loadError.message}`
+        : 'No se pudo cargar el resumen de cultivos.');
     } finally {
       setLoading(false);
     }
   }, [currentUser]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 15000);
@@ -85,9 +113,9 @@ const SummaryPage = () => {
             <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Resumen de cultivos</h1>
             <p className="mt-2 text-slate-600">Una vista rápida de las lecturas, el riego y los dispositivos de cada cultivo.</p>
           </header>
-          {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p>}
-          {loading ? <p role="status" className="rounded-xl bg-white p-5 text-slate-600">Cargando resumen…</p>
-            : crops.length === 0 ? <Card><CardContent className="py-8 text-center text-slate-600">Todavía no tienes cultivos. <Link className="font-semibold text-teal-700 underline" to="/crops">Crea uno aquí</Link>.</CardContent></Card>
+          {(error || cropsError) && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error || cropsError}</p>}
+          {loading || cropsLoading ? <p role="status" className="rounded-xl bg-white p-5 text-slate-600">Cargando resumen…</p>
+            : crops.length === 0 && !cropsError ? <Card><CardContent className="py-8 text-center text-slate-600">Todavía no tienes cultivos. <Link className="font-semibold text-teal-700 underline" to="/crops">Crea uno aquí</Link>.</CardContent></Card>
               : <section aria-label="Resumen por cultivo" className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                 {crops.map((crop) => {
                   const { latestReading, latestLog, cropDevices, online } = cropData(crop);
