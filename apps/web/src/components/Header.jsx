@@ -12,7 +12,7 @@ import { useCrop } from '@/contexts/CropContext';
 
 const Header = () => {
   const { currentUser, logout } = useAuth();
-  const { crops, selectedCropId, selectCrop, loading: cropsLoading } = useCrop();
+  const { crops, selectedCropId, selectCrop, loading: cropsLoading, error: cropsError } = useCrop();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -82,9 +82,12 @@ const Header = () => {
               value={selectedCropId}
               onChange={(event) => selectCrop(event.target.value)}
               disabled={cropsLoading || crops.length === 0}
+              title={cropsError || undefined}
               className="max-w-44 rounded-lg border border-teal-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 disabled:text-slate-400"
             >
-              {crops.length === 0 ? <option value="">Sin cultivos</option> : crops.map((crop) => <option key={crop.id} value={crop.id}>{crop.name}</option>)}
+              {crops.length === 0
+                ? <option value="">{cropsLoading ? 'Cargando cultivos…' : cropsError ? 'Error al cargar cultivos' : 'Sin cultivos'}</option>
+                : crops.map((crop) => <option key={crop.id} value={crop.id}>{crop.name}</option>)}
             </select>
           </label>
 
@@ -163,9 +166,12 @@ const Header = () => {
                 value={selectedCropId}
                 onChange={(event) => selectCrop(event.target.value)}
                 disabled={cropsLoading || crops.length === 0}
+                title={cropsError || undefined}
                 className="h-10 w-full rounded-lg border border-teal-200 bg-white px-3 text-sm text-slate-700 disabled:text-slate-400"
               >
-                {crops.length === 0 ? <option value="">Sin cultivos</option> : crops.map((crop) => <option key={crop.id} value={crop.id}>{crop.name}</option>)}
+                {crops.length === 0
+                  ? <option value="">{cropsLoading ? 'Cargando cultivos…' : cropsError ? 'Error al cargar cultivos' : 'Sin cultivos'}</option>
+                  : crops.map((crop) => <option key={crop.id} value={crop.id}>{crop.name}</option>)}
               </select>
             </label>
             {navLinks.map((link) => {
