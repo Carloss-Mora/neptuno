@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const baseUrl = (process.env.PB_URL || '').replace(/\/+$/, '');
 const adminEmail = process.env.PB_ADMIN_EMAIL;
 const adminPassword = process.env.PB_ADMIN_PASSWORD;
+const mockMailUrl = (process.env.MOCK_MAIL_URL || '').replace(/\/+$/, '');
 const slowMode = process.argv.includes('--slow');
 
 if (!baseUrl || !adminEmail || !adminPassword) {
@@ -283,6 +284,84 @@ try {
   expectStatus(foreignSchedule, [400, 403, 404], 'Foreign schedule read denial');
   expectStatus(foreignWaterRecord, [400, 403, 404], 'Foreign water consumption read denial');
   report('users cannot move devices/schedules across crops or read another user data');
+
+  // Regresiones de datos: toda colección base debe tener created/updated y las consultas
+  // reales de la web (sort por created) deben responder 200.
+  const collectionList = await request('/api/collections?perPage=200', { token: adminToken });
+  expectStatus(collectionList, [200], 'List collections');
+  const withoutTimestamps = collectionList.data.items
+    .filter((collection) => collection.type === 'base' && !collection.system && !collection.name.startsWith('_'))
+    .filter((collection) => !['created', 'updated'].every((name) => collection.fields.some((field) => field.name === name)))
+    .map((collection) => collection.name);
+  if (withoutTimestamps.length > 0) throw new Error(`Collections without created/updated: ${withoutTimestamps.join(', ')}`);
+  for (const query of ['crops?sort=created', 'irrigation_schedules?sort=created', 'devices?sort=created', 'sensor_readings_hourly?sort=-created', 'user_settings?sort=-updated']) {
+    const [name, qs] = query.split('?');
+    expectStatus(await request(`/api/collections/${name}/records?${qs}`, { token: users[0].token }), [200], `Client query ${query}`);
+  }
+  report('every collection has created/updated and the web client queries return 200');
+
+  // Un cultivo sin umbrales (PocketBase guarda 0) no debe generar alertas ni correos.
+  const bareCrop = await request('/api/collections/crops/records', {
+    method: 'POST', token: users[0].token, body: { userId: users[0].id, name: 'Smoke crop sin umbrales', control_mode: 'MANUAL' },
+  });
+  expectStatus(bareCrop, [200, 201], 'Create crop without thresholds');
+  const bareDevice = await request('/api/neptuno/devices', {
+    method: 'POST', token: users[0].token, body: { cropId: bareCrop.data.id, name: 'Smoke bare device', interval_seconds: 5 },
+  });
+  expectStatus(bareDevice, [201], 'Create device for the bare crop');
+  expectStatus(await request('/api/neptuno/ingest', {
+    method: 'POST', deviceKey: bareDevice.data.key, body: { soil_humidity: 50, temperature: 45, water_level: 2 },
+  }), [200], 'Ingest for crop without thresholds');
+  const bareQueue = await request(`/api/collections/notification_queue/records?filter=${encodeURIComponent(`cropId="${bareCrop.data.id}"`)}`, { token: adminToken });
+  if (bareQueue.data.totalItems !== 0) throw new Error('A crop without thresholds queued an alert email.');
+  report('a crop without thresholds produces no alert and no queued email');
+
+  // Verificación de correo contra un proveedor simulado (solo si se indica MOCK_MAIL_URL).
+  if (mockMailUrl) {
+    const mock = async (path, body) => (await fetch(`${mockMailUrl}${path}`, {
+      method: body === undefined ? 'GET' : 'POST', headers: { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body),
+    })).json();
+    const otpStatus = async (otpId) => {
+      for (let attempt = 0; attempt < 25; attempt += 1) {
+        const status = await request(`/api/neptuno/auth/otp-status?otpId=${otpId}`);
+        if (status.data.status !== 'pending') return status.data;
+        await sleep(200);
+      }
+      return { status: 'pending' };
+    };
+    const otpEmail = `neptuno-smoke-otp-${id}@example.test`;
+    const otpUser = await request('/api/collections/users/records', {
+      method: 'POST', body: { email: otpEmail, password, passwordConfirm: password, name: 'E2E OTP' },
+    });
+    expectStatus(otpUser, [200, 201], 'Register unverified user');
+    createdUserIds.push(otpUser.data.id);
+    const unverifiedLogin = await request('/api/collections/users/auth-with-password', { method: 'POST', body: { identity: otpEmail, password } });
+    expectStatus(unverifiedLogin, [403], 'Unverified login is rejected');
+    await mock('/__reset', {});
+    await mock('/__mode', { mode: 'ok' });
+    const otpRequest = await request('/api/collections/users/request-otp', { method: 'POST', body: { email: otpEmail } });
+    expectStatus(otpRequest, [200], 'Request OTP');
+    const delivered = await otpStatus(otpRequest.data.otpId);
+    if (delivered.status !== 'sent') throw new Error(`OTP delivery status was ${JSON.stringify(delivered)}`);
+    const outbox = await mock('/__outbox');
+    const code = JSON.stringify(outbox).match(/\b(\d{6})\b/)?.[1];
+    if (!code) throw new Error('The OTP email did not contain a six-digit code.');
+    const otpAuth = await request('/api/collections/users/auth-with-otp', { method: 'POST', body: { otpId: otpRequest.data.otpId, password: code } });
+    expectStatus(otpAuth, [200], 'Authenticate with OTP');
+    if (otpAuth.data.record.verified !== true) throw new Error('OTP authentication did not verify the user.');
+    expectStatus(await request('/api/collections/users/auth-with-password', { method: 'POST', body: { identity: otpEmail, password } }), [200], 'Login after verification');
+    report('register → request OTP → six-digit email → auth-with-otp → verified → password login');
+
+    await mock('/__mode', { mode: '403' });
+    const rejected = await request('/api/collections/users/request-otp', { method: 'POST', body: { email: otpEmail } });
+    expectStatus(rejected, [200], 'Request OTP while the provider rejects');
+    const rejectedStatus = await otpStatus(rejected.data.otpId);
+    if (rejectedStatus.status !== 'failed' || rejectedStatus.reason !== 'provider_rejected') {
+      throw new Error(`Expected failed/provider_rejected but got ${JSON.stringify(rejectedStatus)}`);
+    }
+    await mock('/__mode', { mode: 'ok' });
+    report('a provider rejection is reported as failed/provider_rejected instead of silent success');
+  }
 
   if (slowMode) {
     const forcedOn = await request(`/api/collections/devices/records/${device.id}`, {

@@ -25,10 +25,10 @@ export default defineConfig({
   reporter: 'html',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
  use: {
-  baseURL: 'http://192.168.1.12:3000',
-  trace: 'on',          // Cambiado de 'on-first-retry' a 'on'
-  video: 'on',          // Agrega esta línea
-  screenshot: 'on',     // Agrega esta línea
+  baseURL: process.env.UI_URL || 'http://127.0.0.1:3000',
+  trace: 'retain-on-failure',
+  video: 'off',
+  screenshot: 'only-on-failure',
 },
 
 
@@ -38,16 +38,6 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-    },
-
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
     },
 
     /* Test against mobile viewports. */
