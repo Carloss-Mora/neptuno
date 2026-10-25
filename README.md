@@ -40,6 +40,19 @@ El modo `AUTO` requiere umbrales mínimos/máximos de humedad y límites configu
 
 El consumo se presenta como **estimado**: caudal configurado en L/min multiplicado por los minutos reales registrados. No se infiere consumo de agua cuando falta un caudal medido.
 
+## Configurar el correo (verificación de cuenta y alertas)
+
+El código de verificación y las alertas se envían por correo. Si el correo no está configurado, la app lo dice en pantalla ("El servidor no tiene el correo configurado") en lugar de aparentar que se envió.
+
+1. Crea una cuenta en [Resend](https://resend.com) y una API key.
+2. Copia `.env.example` a `.env` en la raíz y completa:
+   - `BUILDER_MAILER_API_KEY`: la API key de Resend.
+   - `BUILDER_MAILER_SENDER_ADDRESS`: remitente. Con `onboarding@resend.dev` (modo prueba) **solo se entrega al correo de tu cuenta de Resend**; para escribir a otros usuarios verifica un dominio propio y usa una dirección de ese dominio.
+3. Reinicia PocketBase (`npm run dev`). Al arrancar avisa si faltan las variables.
+4. Alternativa: configura SMTP en el panel de PocketBase (Settings > Mail); el hook lo usa si está activado.
+
+Notas: PocketBase limita `request-otp` a 10 solicitudes por hora por IP; la web ya no pide códigos automáticamente al iniciar sesión y deja 60 s entre solicitudes. El estado real de cada envío se consulta en `/api/neptuno/auth/otp-status?otpId=…`. Para probar sin enviar correos reales: `node tools/mock-mail-server.mjs --port 9999` y apunta `BUILDER_MAILER_API_URL=http://127.0.0.1:9999`.
+
 ## Qué es real y qué es simulado
 
 - Las lecturas se marcan como **Demo** cuando vienen del simulador; solo un dispositivo físico conectado al endpoint produce datos de hardware real.

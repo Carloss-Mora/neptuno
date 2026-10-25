@@ -223,7 +223,7 @@ describe('Neptuno app behavior', () => {
     await user.click(screen.getByRole('button', { name: /crear cuenta/i }));
 
     expect(await screen.findByRole('heading', { name: /verifica tu correo/i })).toBeInTheDocument();
-    expect(screen.getByText(/test@example.com/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/test@example.com/i).length).toBeGreaterThan(0);
   });
 
   it('muestra mensajes claros para validaciones de signup y correo duplicado', async () => {

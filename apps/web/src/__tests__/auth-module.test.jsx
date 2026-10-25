@@ -217,7 +217,8 @@ describe('Auth module', () => {
     expect(await screen.findByText(/esta cuenta todavía no ha verificado su correo/i)).toBeInTheDocument();
     expect(screen.getByText('guest')).toBeInTheDocument();
     expect(mockPb.authStore.clear).toHaveBeenCalled();
-    expect(usersCollection.requestOTP).toHaveBeenCalledWith('user@example.com', { $autoCancel: false });
+    // Ya no se pide un código automáticamente al iniciar sesión (agotaba el límite de 10 por hora).
+    expect(usersCollection.requestOTP).not.toHaveBeenCalled();
   });
 
   it('returns a clear duplicate-email message when PocketBase reports validation_not_unique', async () => {

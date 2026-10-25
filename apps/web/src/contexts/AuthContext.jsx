@@ -24,6 +24,9 @@ const extractErrorMessage = (error, fallback = 'Ha ocurrido un error inesperado.
   addValue(error?.message);
 
   const normalized = values.join(' ').toLowerCase();
+  if (error?.status === 429 || /too many requests|rate limit/.test(normalized)) {
+    return 'Demasiados intentos. Espera unos minutos antes de pedir otro código.';
+  }
   if (
     /not verified|unverified|verification required|must be verified/.test(normalized)
     || /request does not satisfy the collection requirements to authenticate|request doesn't satisfy the collection requirements to authenticate/.test(normalized)
@@ -87,6 +90,64 @@ const isUnverifiedAccountError = (error) => {
     || /request does not satisfy the collection requirements to authenticate|request doesn't satisfy the collection requirements to authenticate/.test(message);
 };
 
+const OTP_POLL_INTERVAL_MS = 400;
+const OTP_POLL_TIMEOUT_MS = 6000;
+
+const delay = (milliseconds) => new Promise((resolve) => { setTimeout(resolve, milliseconds); });
+
+// PocketBase responde 200 a request-otp aunque el correo falle (se envía en segundo plano).
+// Este sondeo consulta el estado real guardado por el hook otp-delivery.pb.js.
+const waitForOtpDelivery = async (otpId, { timeoutMs = OTP_POLL_TIMEOUT_MS, intervalMs = OTP_POLL_INTERVAL_MS } = {}) => {
+  if (!otpId || typeof pb.send !== 'function') return { status: 'unknown', reason: '' };
+  const deadline = Date.now() + timeoutMs;
+  let reachable = false;
+  while (Date.now() < deadline) {
+    try {
+      const result = await pb.send(`/api/neptuno/auth/otp-status?otpId=${encodeURIComponent(otpId)}`, {
+        method: 'GET',
+        $autoCancel: false,
+      });
+      reachable = true;
+      if (result?.status === 'sent' || result?.status === 'failed') {
+        return { status: result.status, reason: result.reason || '' };
+      }
+    } catch {
+      break;
+    }
+    await delay(intervalMs);
+  }
+  return { status: reachable ? 'pending' : 'unknown', reason: '' };
+};
+
+export const describeOtpDelivery = ({ status, reason }, email) => {
+  if (status === 'sent') {
+    return { delivered: true, message: `Te enviamos un código a ${email}. Revisa también la carpeta de spam.` };
+  }
+  if (status === 'failed') {
+    if (reason === 'not_configured') {
+      return { delivered: false, message: 'El servidor no tiene el correo configurado. Avisa al administrador.' };
+    }
+    if (reason === 'provider_rejected') {
+      return {
+        delivered: false,
+        message: 'El proveedor de correo rechazó el envío. Si usas el modo de prueba de Resend, solo se entrega al correo de tu cuenta de Resend.',
+      };
+    }
+    return { delivered: false, message: 'No se pudo enviar el correo con el código. Inténtalo de nuevo en un minuto.' };
+  }
+  if (status === 'pending') {
+    return { delivered: true, message: 'El correo tarda más de lo normal. Puedes pedir otro código en 60 s.' };
+  }
+  return { delivered: true, message: `Solicitamos un código para ${email}. Si no llega en un minuto, pide otro.` };
+};
+
+const requestVerificationCode = async (email) => {
+  const cleanEmail = email.trim();
+  const otp = await pb.collection('users').requestOTP(cleanEmail, { $autoCancel: false });
+  const delivery = await waitForOtpDelivery(otp.otpId);
+  return { otpId: otp.otpId, email: cleanEmail, ...delivery, ...describeOtpDelivery(delivery, cleanEmail) };
+};
+
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -119,24 +180,10 @@ export const AuthProvider = ({ children }) => {
       console.error('Login error:', error);
       if (error?.code === 'EMAIL_NOT_VERIFIED' || isUnverifiedAccountError(error)) {
         pb.authStore.clear();
-        let otp;
-        try {
-          otp = await pb.collection('users').requestOTP(email.trim(), { $autoCancel: false });
-        } catch (verificationError) {
-          const errorWithStatus = new Error(
-            `Esta cuenta todavía no ha verificado su correo, pero no se pudo enviar el código. ${extractErrorMessage(
-              verificationError,
-              'Inténtalo de nuevo más tarde.',
-            )}`,
-          );
-          errorWithStatus.requiresVerification = true;
-          throw errorWithStatus;
-        }
         const verificationError = new Error(
-          `Esta cuenta todavía no ha verificado su correo. La solicitud del código fue aceptada para ${email.trim()}.`,
+          'Esta cuenta todavía no ha verificado su correo. Pulsa «Enviarme un código» para recibir uno.',
         );
         verificationError.requiresVerification = true;
-        verificationError.otpId = otp.otpId;
         throw verificationError;
       }
       throw new Error(extractErrorMessage(
@@ -205,13 +252,14 @@ export const AuthProvider = ({ children }) => {
       await usersCollection.create(payload);
 
       try {
-        const otp = await usersCollection.requestOTP(email, { $autoCancel: false });
+        const result = await requestVerificationCode(email);
         return {
           success: true,
           requiresVerification: true,
-          emailSent: true,
+          emailSent: result.delivered,
           email,
-          otpId: otp.otpId,
+          otpId: result.otpId,
+          verificationMessage: result.message,
         };
       } catch (verificationError) {
         console.error('Account created but verification code could not be sent:', verificationError);
@@ -232,13 +280,14 @@ export const AuthProvider = ({ children }) => {
   const resendVerification = async (email) => {
     if (!email) throw new Error('Escribe el correo con el que creaste tu cuenta.');
     try {
-      return await pb.collection('users').requestOTP(email.trim(), { $autoCancel: false });
+      return await requestVerificationCode(email);
     } catch (error) {
       console.error('Email verification code request failed:', error);
-      throw new Error(extractErrorMessage(
+      const detail = extractErrorMessage(
         error,
-        'No se pudo solicitar el código de verificación. Revisa la dirección e inténtalo de nuevo.',
-      ));
+        'Revisa la dirección e inténtalo de nuevo.',
+      );
+      throw new Error(error?.status === 429 ? detail : `No se pudo enviar el código. ${detail}`);
     }
   };
 

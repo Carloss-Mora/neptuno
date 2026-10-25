@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useCooldown } from '@/hooks/useCooldown';
 import GoogleAuthButton from '@/components/GoogleAuthButton';
 import { Droplets, Mail, Lock, AlertCircle } from 'lucide-react';
 
@@ -20,6 +21,8 @@ const LoginPage = () => {
   const [verificationCode, setVerificationCode] = useState('');
   const [otpId, setOtpId] = useState('');
   const [loading, setLoading] = useState(false);
+  const [codeFailed, setCodeFailed] = useState(false);
+  const cooldown = useCooldown();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -27,6 +30,7 @@ const LoginPage = () => {
     setVerificationMessage('');
     setOtpId('');
     setVerificationCode('');
+    setCodeFailed(false);
   };
 
   const handleResendVerification = async () => {
@@ -42,10 +46,13 @@ const LoginPage = () => {
     setLoading(true);
     try {
       const result = await resendVerification(formData.email);
-      setOtpId(result.otpId || '');
+      setCodeFailed(!result.delivered);
+      setOtpId(result.delivered ? result.otpId || '' : '');
       setVerificationCode('');
-      setVerificationMessage('Si la cuenta necesita verificación, la solicitud del código fue aceptada. Revisa tu correo y spam.');
+      setVerificationMessage(result.message);
+      cooldown.start(60);
     } catch (resendError) {
+      setCodeFailed(true);
       setError(resendError.message);
     } finally {
       setLoading(false);
@@ -82,7 +89,7 @@ const LoginPage = () => {
       navigate('/dashboard');
     } catch (err) {
       if (err.requiresVerification) {
-        setOtpId(err.otpId || '');
+        setCodeFailed(true);
         setVerificationMessage(err.message);
       } else {
         setError(err.message || 'Error al iniciar sesión. Verifica tus credenciales.');
@@ -117,16 +124,16 @@ const LoginPage = () => {
           <CardContent>
             <form noValidate onSubmit={handleSubmit} className="space-y-5">
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start space-x-2">
+                <div role="alert" className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start space-x-2">
                   <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-red-800">{error}</p>
                 </div>
               )}
               {verificationMessage && (
                 <p
-                  role={otpId ? 'status' : 'alert'}
+                  role={otpId && !codeFailed ? 'status' : 'alert'}
                   className={`rounded-lg border p-3 text-sm ${
-                    otpId
+                    otpId && !codeFailed
                       ? 'border-teal-200 bg-teal-50 text-teal-800'
                       : 'border-red-200 bg-red-50 text-red-800'
                   }`}
@@ -210,8 +217,8 @@ const LoginPage = () => {
                 {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
               </Button>
 
-              <Button type="button" variant="link" className="w-full text-teal-700" onClick={handleResendVerification} disabled={loading}>
-                Enviar código de verificación
+              <Button type="button" variant="link" className="w-full text-teal-700" onClick={handleResendVerification} disabled={loading || cooldown.remaining > 0}>
+                {cooldown.remaining > 0 ? `Enviarme un código (${cooldown.remaining} s)` : 'Enviarme un código'}
               </Button>
               <GoogleAuthButton onAuthenticated={() => navigate('/dashboard')} />
 
