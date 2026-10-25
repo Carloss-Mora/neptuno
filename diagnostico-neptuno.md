@@ -1,3 +1,5 @@
+> **Resuelto:** la causa raíz era que seis colecciones creadas por migración no tenían los campos `created`/`updated`. La migración `1792644600_add_created_updated_fields.js` los añade y `tools/e2e-smoke.mjs` lo vigila. Este documento se conserva solo como histórico.
+
 # Diagnóstico de persistencia y carga de cultivos en Neptuno
 
 ## Resumen ejecutivo
