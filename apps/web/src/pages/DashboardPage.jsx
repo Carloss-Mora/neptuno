@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Droplets, Thermometer, Waves, Clock, AlertCircle, Bell, ArrowRight, Activity, CalendarDays, Gauge } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
+import { toFormValue } from '@/utils/optionalNumber';
 import { format, startOfDay } from 'date-fns';
 import {
   buildIrrigationSessions,
@@ -43,7 +44,7 @@ const DashboardPage = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const area = selectedCrop?.area_m2 == null ? '' : String(selectedCrop.area_m2);
+    const area = toFormValue(selectedCrop?.area_m2);
     setCultivatedArea(area);
     setAreaDraft(area);
     setIsEditingArea(!area);

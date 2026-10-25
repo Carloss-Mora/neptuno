@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertCircle, Pencil, Plus, Sprout, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { toFormValue } from '@/utils/optionalNumber';
 
 const emptyCrop = {
   name: '',
@@ -31,6 +32,22 @@ const stageLabels = {
   fructificación: 'Fructificación',
 };
 
+const cropToForm = (crop) => ({
+  name: crop.name || '',
+  variety: crop.variety || '',
+  area_m2: toFormValue(crop.area_m2),
+  flow_lpm: toFormValue(crop.flow_lpm),
+  phenological_stage: crop.phenological_stage || '',
+  humidity_min: toFormValue(crop.humidity_min),
+  humidity_max: toFormValue(crop.humidity_max),
+  max_irrigation_minutes: toFormValue(crop.max_irrigation_minutes),
+  min_rest_minutes: toFormValue(crop.min_rest_minutes),
+  manual_override_minutes: toFormValue(crop.manual_override_minutes, '30'),
+  alert_water_min: toFormValue(crop.alert_water_min),
+  alert_temp_max: toFormValue(crop.alert_temp_max),
+  control_mode: crop.control_mode || 'MANUAL',
+});
+
 const CropsPage = () => {
   const { crops, loading, error: loadError, createCrop, updateCrop, deleteCrop, selectCrop, selectedCropId } = useCrop();
   const [form, setForm] = useState(emptyCrop);
@@ -42,23 +59,7 @@ const CropsPage = () => {
   useEffect(() => {
     if (!editingId) return;
     const crop = crops.find((item) => item.id === editingId);
-    if (crop) {
-      setForm({
-        name: crop.name || '',
-        variety: crop.variety || '',
-        area_m2: crop.area_m2 == null ? '' : String(crop.area_m2),
-        flow_lpm: crop.flow_lpm == null ? '' : String(crop.flow_lpm),
-        phenological_stage: crop.phenological_stage || '',
-        humidity_min: crop.humidity_min == null ? '' : String(crop.humidity_min),
-        humidity_max: crop.humidity_max == null ? '' : String(crop.humidity_max),
-        max_irrigation_minutes: crop.max_irrigation_minutes == null ? '' : String(crop.max_irrigation_minutes),
-        min_rest_minutes: crop.min_rest_minutes == null ? '' : String(crop.min_rest_minutes),
-        manual_override_minutes: crop.manual_override_minutes == null ? '30' : String(crop.manual_override_minutes),
-        alert_water_min: crop.alert_water_min == null ? '' : String(crop.alert_water_min),
-        alert_temp_max: crop.alert_temp_max == null ? '' : String(crop.alert_temp_max),
-        control_mode: crop.control_mode || 'MANUAL',
-      });
-    }
+    if (crop) setForm(cropToForm(crop));
   }, [crops, editingId]);
 
   const handleChange = (event) => {
@@ -78,21 +79,7 @@ const CropsPage = () => {
   const startEdit = (crop) => {
     selectCrop(crop.id);
     setEditingId(crop.id);
-    setForm({
-      name: crop.name || '',
-      variety: crop.variety || '',
-      area_m2: crop.area_m2 == null ? '' : String(crop.area_m2),
-      flow_lpm: crop.flow_lpm == null ? '' : String(crop.flow_lpm),
-      phenological_stage: crop.phenological_stage || '',
-      humidity_min: crop.humidity_min == null ? '' : String(crop.humidity_min),
-      humidity_max: crop.humidity_max == null ? '' : String(crop.humidity_max),
-      max_irrigation_minutes: crop.max_irrigation_minutes == null ? '' : String(crop.max_irrigation_minutes),
-      min_rest_minutes: crop.min_rest_minutes == null ? '' : String(crop.min_rest_minutes),
-      manual_override_minutes: crop.manual_override_minutes == null ? '30' : String(crop.manual_override_minutes),
-      alert_water_min: crop.alert_water_min == null ? '' : String(crop.alert_water_min),
-      alert_temp_max: crop.alert_temp_max == null ? '' : String(crop.alert_temp_max),
-      control_mode: crop.control_mode || 'MANUAL',
-    });
+    setForm(cropToForm(crop));
     setError('');
     setNotice('');
   };
@@ -211,11 +198,11 @@ const CropsPage = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="crop-max-irrigation">Máximo de riego continuo (min)</Label>
-                      <Input id="crop-max-irrigation" name="max_irrigation_minutes" type="number" min="1" max="1440" step="1" value={form.max_irrigation_minutes} onChange={handleChange} placeholder="Configurable" />
+                      <Input id="crop-max-irrigation" name="max_irrigation_minutes" type="number" min="1" max="1440" step="1" value={form.max_irrigation_minutes} onChange={handleChange} placeholder="Requerido para AUTO" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="crop-min-rest">Descanso mínimo entre riegos (min)</Label>
-                      <Input id="crop-min-rest" name="min_rest_minutes" type="number" min="0" max="10080" step="1" value={form.min_rest_minutes} onChange={handleChange} placeholder="Configurable" />
+                      <Input id="crop-min-rest" name="min_rest_minutes" type="number" min="0" max="10080" step="1" value={form.min_rest_minutes} onChange={handleChange} placeholder="0 = sin descanso" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="crop-manual-override">Duración del control manual (min)</Label>
@@ -234,7 +221,7 @@ const CropsPage = () => {
                     Los umbrales de humedad iniciales no están precargados: valida los valores con AGROSAVIA (2022) antes de usar el modo AUTO. Los límites de tiempo son parámetros de seguridad que debes configurar para tu instalación.
                   </p>
                   <p className="text-xs leading-relaxed text-amber-800">
-                    Valores iniciales pendientes de validar con AGROSAVIA (2022). AUTO no actuará hasta que ambos umbrales estén configurados.
+                    Valores iniciales pendientes de validar con AGROSAVIA (2022). AUTO no actuará hasta que ambos umbrales y el máximo de riego continuo estén configurados.
                   </p>
                   <div className="space-y-2">
                     <Label htmlFor="crop-control-mode">Modo de control</Label>

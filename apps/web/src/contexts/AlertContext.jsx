@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { useAuth } from '@/contexts/AuthContext';
 import { useCrop } from '@/contexts/CropContext';
 import pb from '@/lib/pocketbaseClient';
+import { isSet } from '@/utils/optionalNumber';
 
 export const AlertContext = createContext(null);
 
@@ -67,7 +68,7 @@ export const AlertProvider = ({ children }) => {
 
     const applySensorAlert = (data) => {
       const humidityId = `alert-soil-${selectedCrop.id}`;
-      if (selectedCrop.humidity_min != null && Number(data.soil_humidity) < Number(selectedCrop.humidity_min)) {
+      if (isSet(selectedCrop.humidity_min) && Number(data.soil_humidity) < Number(selectedCrop.humidity_min)) {
         if (!dismissedAlertsRef.current.has(humidityId)) {
           addAlert(humidityId, 'warning', `Humedad bajo el mínimo configurado (${selectedCrop.humidity_min}%)`);
         }
@@ -77,7 +78,7 @@ export const AlertProvider = ({ children }) => {
       }
 
       const waterId = `alert-water-${selectedCrop.id}`;
-      if (selectedCrop.alert_water_min != null && Number(data.water_level) < Number(selectedCrop.alert_water_min)) {
+      if (isSet(selectedCrop.alert_water_min) && Number(data.water_level) < Number(selectedCrop.alert_water_min)) {
         if (!dismissedAlertsRef.current.has(waterId)) addAlert(waterId, 'warning', 'Nivel de agua bajo');
       } else {
         removeAlert(waterId);
@@ -85,7 +86,7 @@ export const AlertProvider = ({ children }) => {
       }
 
       const temperatureId = `alert-temperature-${selectedCrop.id}`;
-      if (selectedCrop.alert_temp_max != null && Number(data.temperature) > Number(selectedCrop.alert_temp_max)) {
+      if (isSet(selectedCrop.alert_temp_max) && Number(data.temperature) > Number(selectedCrop.alert_temp_max)) {
         if (!dismissedAlertsRef.current.has(temperatureId)) {
           addAlert(temperatureId, 'warning', `Temperatura por encima del máximo configurado (${selectedCrop.alert_temp_max} °C)`);
         }
