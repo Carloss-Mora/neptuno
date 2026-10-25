@@ -1,6 +1,7 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 routerAdd('POST', '/api/neptuno/ingest', (e) => {
+  const { isSet } = require(`${__hooks}/optional-number.js`);
   const request = e.requestInfo();
   const body = request.body || {};
   const deviceKey = String(
@@ -91,8 +92,8 @@ routerAdd('POST', '/api/neptuno/ingest', (e) => {
       : 0;
     const decision = policy.decide({
       humidity: soilHumidity,
-      humidityMin: crop.get('humidity_min') == null ? NaN : Number(crop.get('humidity_min')),
-      humidityMax: crop.get('humidity_max') == null ? NaN : Number(crop.get('humidity_max')),
+      humidityMin: isSet(crop.get('humidity_min')) ? Number(crop.get('humidity_min')) : NaN,
+      humidityMax: isSet(crop.get('humidity_max')) ? Number(crop.get('humidity_max')) : NaN,
       waterLevel: waterLevel,
       currentState: desiredState,
       nowMs: now.getTime(),
@@ -123,13 +124,14 @@ routerAdd('POST', '/api/neptuno/ingest', (e) => {
   const humidityMinimum = crop.get('humidity_min');
   const waterMinimum = crop.get('alert_water_min');
   const maximumTemperature = crop.get('alert_temp_max');
-  const alertCode = waterMinimum != null && waterLevel < Number(waterMinimum)
+  // PocketBase devuelve 0 en los campos vacíos: solo cuentan los umbrales configurados (> 0).
+  const alertCode = isSet(waterMinimum) && waterLevel < Number(waterMinimum)
     ? 'water_low'
-    : humidityMinimum != null && soilHumidity < Number(humidityMinimum)
+    : isSet(humidityMinimum) && soilHumidity < Number(humidityMinimum)
       ? 'humidity_low'
-      : maximumTemperature != null && temperature > Number(maximumTemperature)
+      : isSet(maximumTemperature) && temperature > Number(maximumTemperature)
         ? 'temperature_high'
-      : '';
+        : '';
   const previousAlertCode = String(device.get('last_alert_code') || '');
   if (alertCode !== previousAlertCode) {
     device.set('last_alert_code', alertCode);
