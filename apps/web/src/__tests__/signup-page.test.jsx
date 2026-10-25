@@ -125,7 +125,7 @@ describe('Signup page module', () => {
     await user.click(screen.getByRole('button', { name: /crear cuenta/i }));
 
     expect(await screen.findByRole('heading', { name: /verifica tu correo/i })).toBeInTheDocument();
-    expect(screen.getByText(/test@example.com/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/test@example.com/i).length).toBeGreaterThan(0);
     expect(screen.getByLabelText(/código de seis dígitos/i)).toBeInTheDocument();
     expect(container.querySelectorAll('.h-12.w-11')).toHaveLength(6);
 

@@ -44,6 +44,10 @@ if (!encryptionKey || encryptionKey.length !== 32) {
   process.exit(1);
 }
 
+if (!env.BUILDER_MAILER_SENDER_ADDRESS || !env.BUILDER_MAILER_API_KEY) {
+  console.warn('[correo] Faltan BUILDER_MAILER_SENDER_ADDRESS y/o BUILDER_MAILER_API_KEY en el .env de la raíz: los códigos de verificación no se enviarán, salvo que configures SMTP en PocketBase (Ajustes > Mail). Ver README, sección "Configurar el correo".');
+}
+
 if (env.BUILDER_MAILER_SENDER_ADDRESS?.toLowerCase().endsWith('@resend.dev')) {
   console.warn('El remitente de prueba de Resend solo entrega a destinatarios autorizados. Verifica tu propio dominio y usa una dirección de ese dominio para enviar códigos a otros usuarios.');
 }

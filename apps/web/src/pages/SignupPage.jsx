@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useCooldown } from '@/hooks/useCooldown';
 import GoogleAuthButton from '@/components/GoogleAuthButton';
 import { Droplets, Mail, Lock, User, AlertCircle, CheckCircle2 } from 'lucide-react';
 
@@ -26,6 +27,7 @@ const SignupPage = () => {
   const [verificationMessage, setVerificationMessage] = useState('');
   const [verificationError, setVerificationError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const cooldown = useCooldown();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -80,8 +82,9 @@ const SignupPage = () => {
         setOtpId(result.otpId || '');
         setVerificationError(!result.emailSent);
         setVerificationMessage(result.emailSent
-          ? 'La solicitud del código de seis dígitos fue aceptada. Revisa el correo indicado e introdúcelo aquí para verificar tu cuenta.'
-          : `La cuenta se creó, pero no se pudo enviar el código. ${result.verificationErrorMessage || 'Revisa la configuración del correo e inténtalo de nuevo.'}`);
+          ? result.verificationMessage
+          : `La cuenta se creó, pero no se pudo enviar el código. ${result.verificationMessage || result.verificationErrorMessage || 'Revisa la configuración del correo e inténtalo de nuevo.'}`);
+        cooldown.start(60);
       } else {
         navigate('/dashboard');
       }
@@ -100,9 +103,11 @@ const SignupPage = () => {
     setVerificationCode('');
     try {
       const result = await resendVerification(verificationEmail);
-      setOtpId(result.otpId || '');
+      setOtpId(result.delivered ? result.otpId || '' : '');
       setVerificationCode('');
-      setVerificationMessage('Si la cuenta necesita verificación, la solicitud del código fue aceptada. Revisa tu correo y spam.');
+      setVerificationError(!result.delivered);
+      setVerificationMessage(result.message);
+      cooldown.start(60);
     } catch (resendError) {
       setVerificationError(true);
       setVerificationMessage(resendError.message);
@@ -158,7 +163,7 @@ const SignupPage = () => {
                 <div>
                   <h2 className="font-semibold text-slate-900">Verifica tu correo</h2>
                   <p className="mt-2 text-sm text-slate-600">
-                    Enviamos un código a <strong>{verificationEmail}</strong>. Introdúcelo para activar tu cuenta.
+                    Cuenta creada para <strong>{verificationEmail}</strong>. Introduce el código para activarla.
                   </p>
                 </div>
                 <p
@@ -197,8 +202,8 @@ const SignupPage = () => {
                 <Button type="submit" className="w-full bg-teal-700 hover:bg-teal-800" disabled={loading || !otpId || verificationCode.length !== 6}>
                   {loading ? 'Verificando…' : 'Verificar correo'}
                 </Button>
-                <Button type="button" variant="outline" onClick={handleResendVerification} disabled={loading}>
-                  {loading ? 'Enviando…' : 'Enviar otro código'}
+                <Button type="button" variant="outline" onClick={handleResendVerification} disabled={loading || cooldown.remaining > 0}>
+                  {loading ? 'Enviando…' : cooldown.remaining > 0 ? `Enviar otro código (${cooldown.remaining} s)` : 'Enviar otro código'}
                 </Button>
                 <p className="text-sm text-gray-600">
                   <Link to="/login" className="font-semibold text-teal-700 hover:underline">
