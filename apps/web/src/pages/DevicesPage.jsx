@@ -35,7 +35,7 @@ const DevicesPage = () => {
     setError('');
     try {
       const records = await pb.collection('devices').getFullList({
-        filter: `cropId = "${cropId}"`,
+        filter: `cropId = "${cropId}" && is_simulated != true`,
         sort: 'name',
         $autoCancel: false,
       });
@@ -76,7 +76,7 @@ const DevicesPage = () => {
     let active = true;
     let unsubscribe = null;
     pb.collection('devices').subscribe('*', (event) => {
-      if (!active || event.record?.cropId !== cropId) return;
+      if (!active || event.record?.cropId !== cropId || event.record?.is_simulated) return;
       setDevices((current) => event.action === 'delete'
         ? current.filter((device) => device.id !== event.record.id)
         : [...current.filter((device) => device.id !== event.record.id), event.record]

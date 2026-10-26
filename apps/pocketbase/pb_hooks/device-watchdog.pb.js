@@ -6,6 +6,7 @@ cronAdd('device-watchdog', '* * * * *', () => {
   const now = Date.now();
 
   for (const device of devices) {
+    if (device.get('is_simulated') === true) continue;
     const lastSeen = device.get('last_seen') ? new Date(device.get('last_seen')).getTime() : 0;
     const offlineAfterMs = Math.max(2 * Math.max(1, Number(device.get('interval_seconds')) || 15), 60) * 1000;
     if (!lastSeen || now - lastSeen <= offlineAfterMs) continue;

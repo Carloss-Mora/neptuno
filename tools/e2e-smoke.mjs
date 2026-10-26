@@ -316,6 +316,47 @@ try {
   if (bareQueue.data.totalItems !== 0) throw new Error('A crop without thresholds queued an alert email.');
   report('a crop without thresholds produces no alert and no queued email');
 
+  // Laboratorio de simulación: mismo motor de decisiones, aislado de dispositivos físicos.
+  const labCrop = await request('/api/collections/crops/records', {
+    method: 'POST', token: users[0].token, body: { ...cropBody(users[0].id, 'Smoke laboratorio'), max_irrigation_minutes: 60 },
+  });
+  expectStatus(labCrop, [200, 201], 'Create lab crop');
+  const labCreated = await request('/api/neptuno/simulations', { method: 'POST', token: users[0].token, body: { cropId: labCrop.data.id } });
+  expectStatus(labCreated, [201], 'Create simulation');
+  const labId = labCreated.data.simulation.id;
+  const labCommand = (token, command, extra = {}) => request(`/api/neptuno/simulations/${labId}/command`, {
+    method: 'POST', token, body: { command, ...extra },
+  });
+  expectStatus(await labCommand(users[1].token, 'step'), [403], 'Another user cannot drive the simulation');
+  expectStatus(await request('/api/neptuno/simulations', { method: 'POST', token: users[1].token, body: { cropId: labCrop.data.id } }), [403], 'Another user cannot create a lab on a foreign crop');
+  expectStatus(await labCommand(users[0].token, 'set_humidity', { value: 150 }), [400], 'Out-of-range humidity is rejected');
+  expectStatus(await labCommand(users[0].token, 'set_humidity', { value: 20 }), [200], 'Set low humidity');
+  const lowStep = await labCommand(users[0].token, 'step');
+  if (lowStep.data.simulation.last_state !== 'ON' || lowStep.data.simulation.last_reason !== 'humidity_low') throw new Error('Simulated low humidity did not start irrigation.');
+  let recovered = false;
+  for (let index = 0; index < 12 && !recovered; index += 1) {
+    const result = await labCommand(users[0].token, 'step');
+    recovered = result.data.simulation.last_reason === 'humidity_recovered' && result.data.simulation.last_state === 'OFF';
+  }
+  if (!recovered) throw new Error('Simulated irrigation never reached the target humidity.');
+  await labCommand(users[0].token, 'set_humidity', { value: 20 });
+  await labCommand(users[0].token, 'step');
+  await labCommand(users[0].token, 'set_fault', { fault: 'sensor_offline' });
+  await labCommand(users[0].token, 'step');
+  const safeStop = await labCommand(users[0].token, 'step');
+  if (safeStop.data.simulation.last_reason !== 'safe_stop_no_reading' || safeStop.data.simulation.last_state !== 'OFF') throw new Error('A silent sensor did not trigger the safe stop.');
+  const labDevices = await request(`/api/collections/devices/records?filter=${encodeURIComponent(`cropId="${labCrop.data.id}"`)}`, { token: adminToken });
+  const labDevice = labDevices.data.items[0];
+  if (!labDevice?.is_simulated) throw new Error('The simulation device is not flagged as simulated.');
+  const rejectedIngest = await request('/api/neptuno/ingest', { method: 'POST', deviceKey: 'x'.repeat(64), body: { soil_humidity: 10, temperature: 22, water_level: 80 } });
+  expectStatus(rejectedIngest, [401], 'A simulated device has no usable key');
+  const labQueue = await request(`/api/collections/notification_queue/records?filter=${encodeURIComponent(`cropId="${labCrop.data.id}"`)}`, { token: adminToken });
+  if (labQueue.data.totalItems !== 0) throw new Error('A simulation queued real emails.');
+  const foreignEvents = await request('/api/collections/simulation_events/records', { token: users[1].token });
+  if (foreignEvents.data.totalItems !== 0) throw new Error('Another user can read simulation events.');
+  expectStatus(await labCommand(users[0].token, 'delete'), [200], 'Delete the simulation');
+  report('simulation lab: low humidity → ON → target → OFF, safe stop without readings, isolated from users, devices and email');
+
   // Verificación de correo contra un proveedor simulado (solo si se indica MOCK_MAIL_URL).
   if (mockMailUrl) {
     const mock = async (path, body) => (await fetch(`${mockMailUrl}${path}`, {

@@ -144,7 +144,7 @@ export const AlertProvider = ({ children }) => {
           $autoCancel: false,
         }),
         pb.collection('devices').getFullList({
-          filter: `cropId = "${selectedCrop.id}"`,
+          filter: `cropId = "${selectedCrop.id}" && is_simulated != true`,
           $autoCancel: false,
         }),
       ]);
@@ -199,6 +199,7 @@ export const AlertProvider = ({ children }) => {
       if (event.action !== 'delete') handleLog(event.record);
     });
     subscribe('devices', (event) => {
+      if (event.record.is_simulated) return;
       devices = event.action === 'delete'
         ? devices.filter((device) => device.id !== event.record.id)
         : [...devices.filter((device) => device.id !== event.record.id), event.record];
