@@ -87,4 +87,21 @@ El smoke test crea dos usuarios descartables, comprueba ingesta, AUTO, anulació
 node tools/e2e-smoke.mjs --slow
 ```
 
+Si defines además `MOCK_MAIL_URL=http://127.0.0.1:9999` (con `node tools/mock-mail-server.mjs --port 9999` y PocketBase arrancado con `BUILDER_MAILER_API_URL` apuntando ahí) se prueba también el flujo completo del código de verificación.
+
+También comprueba que todas las colecciones tengan `created`/`updated` y que un cultivo sin umbrales no genere alertas ni correos.
+
+### Prueba de pantallas en navegador
+
+Con PocketBase y la web (`npm run dev`) en marcha:
+
+```powershell
+$env:PB_URL = "http://127.0.0.1:8090"
+$env:PB_ADMIN_EMAIL = "superusuario-local@example.test"
+$env:PB_ADMIN_PASSWORD = "CONTRASENA_LOCAL"
+npx playwright test
+```
+
+Crea un usuario descartable, recorre las pantallas principales y falla ante cualquier respuesta HTTP >= 400 o `console.error`. Atajos: `npm test`, `npm run test:e2e`, `npm run test:ui`.
+
 Ejecuta estos checks solo contra una instancia local de pruebas; no uses una base con datos de producción.

@@ -6,7 +6,10 @@
     "dev": "node scripts/cleanup-dev-ports.js 3000 8090 && concurrently --kill-others --raw \"npm run dev --prefix apps/web\" \"npm run dev --prefix apps/pocketbase\"",
     "build": "concurrently --raw \"npm run build --prefix apps/web\"",
     "start": "node scripts/cleanup-dev-ports.js 3000 8090 && concurrently --kill-others --raw \"npm run start --prefix apps/pocketbase\"",
-    "lint": "concurrently --raw \"npm run lint --prefix apps/web\""
+    "lint": "concurrently --raw \"npm run lint --prefix apps/web\"",
+    "test": "npm run test:run --prefix apps/web",
+    "test:e2e": "node tools/e2e-smoke.mjs",
+    "test:ui": "playwright test"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",
