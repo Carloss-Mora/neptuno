@@ -19,6 +19,7 @@ import CropsPage from '@/pages/CropsPage';
 import DevicesPage from '@/pages/DevicesPage';
 import SettingsPage from '@/pages/SettingsPage';
 import SummaryPage from '@/pages/SummaryPage';
+import SimulatorPage from '@/pages/SimulatorPage';
 
 function App() {
   return (
@@ -48,6 +49,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ControlPanelPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/simulator"
+              element={
+                <ProtectedRoute>
+                  <SimulatorPage />
                 </ProtectedRoute>
               }
             />

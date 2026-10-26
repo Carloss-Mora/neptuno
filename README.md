@@ -54,6 +54,12 @@ El código de verificación y las alertas se envían por correo. Si el correo no
 
 Notas: PocketBase limita `request-otp` a 10 solicitudes por hora por IP; la web deja 60 s entre solicitudes. El estado real de cada envío se consulta en `/api/neptuno/auth/otp-status?otpId=…`. Para probar sin enviar correos reales: `node tools/mock-smtp-server.mjs --port 2525` (con `SMTP_HOST=127.0.0.1 SMTP_PORT=2525`) o `node tools/mock-mail-server.mjs --port 9999` (con `BUILDER_MAILER_API_URL=http://127.0.0.1:9999`).
 
+## Laboratorio de simulación
+
+En **Laboratorio** (`/simulator`) cada cultivo puede tener un cultivo virtual para probar el riego sin sensores ni agua. La simulación pasa por el mismo motor de decisiones que un dispositivo físico (`irrigation-core.js`), corre en el servidor (sigue aunque cierres sesión; en marcha avanza un paso por minuto real) y permite avanzar paso a paso, cambiar humedad, agua y temperatura a mano y provocar fallos: sensor desconectado, lectura inválida y riego sin efecto.
+
+Está aislada del hardware: usa un dispositivo marcado `is_simulated` que no acepta lecturas externas, sus lecturas y registros se marcan como Demo, y no envía correos. Los valores de la física del suelo (`simulation-model.js`) son ilustrativos: sirven para probar el software, no son parámetros agronómicos ni de un sensor real.
+
 ## Qué es real y qué es simulado
 
 - Las lecturas se marcan como **Demo** cuando vienen del simulador; solo un dispositivo físico conectado al endpoint produce datos de hardware real.
