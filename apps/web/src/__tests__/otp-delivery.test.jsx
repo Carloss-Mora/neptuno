@@ -44,6 +44,7 @@ describe('describeOtpDelivery', () => {
     expect(describeOtpDelivery({ status: 'sent' }, 'a@b.co')).toMatchObject({ delivered: true, message: expect.stringContaining('Te enviamos un código a a@b.co') });
     expect(describeOtpDelivery({ status: 'failed', reason: 'not_configured' }, 'a@b.co').message).toMatch(/no tiene el correo configurado/);
     expect(describeOtpDelivery({ status: 'failed', reason: 'provider_rejected' }, 'a@b.co').message).toMatch(/Resend/);
+    expect(describeOtpDelivery({ status: 'failed', reason: 'smtp_failed' }, 'a@b.co').message).toMatch(/SMTP/);
     expect(describeOtpDelivery({ status: 'failed', reason: 'unknown' }, 'a@b.co').delivered).toBe(false);
     expect(describeOtpDelivery({ status: 'pending' }, 'a@b.co').message).toMatch(/tarda más de lo normal/);
   });

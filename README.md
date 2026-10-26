@@ -42,16 +42,17 @@ El consumo se presenta como **estimado**: caudal configurado en L/min multiplica
 
 ## Configurar el correo (verificación de cuenta y alertas)
 
-El código de verificación y las alertas se envían por correo. Si el correo no está configurado, la app lo dice en pantalla ("El servidor no tiene el correo configurado") en lugar de aparentar que se envió.
+El código de verificación y las alertas se envían por correo. Si el correo no está configurado o el proveedor rechaza el envío, la app lo dice en pantalla en lugar de aparentar que se envió. Copia `.env.example` a `.env` en la raíz y elige **una** opción; reinicia PocketBase después (`npm run dev`).
 
-1. Crea una cuenta en [Resend](https://resend.com) y una API key.
-2. Copia `.env.example` a `.env` en la raíz y completa:
-   - `BUILDER_MAILER_API_KEY`: la API key de Resend.
-   - `BUILDER_MAILER_SENDER_ADDRESS`: remitente. Con `onboarding@resend.dev` (modo prueba) **solo se entrega al correo de tu cuenta de Resend**; para escribir a otros usuarios verifica un dominio propio y usa una dirección de ese dominio.
-3. Reinicia PocketBase (`npm run dev`). Al arrancar avisa si faltan las variables.
-4. Alternativa: configura SMTP en el panel de PocketBase (Settings > Mail); el hook lo usa si está activado.
+**Opción A – SMTP (la más rápida; entrega a cualquier correo, p. ej. Gmail, Hotmail, Outlook, institucionales):**
 
-Notas: PocketBase limita `request-otp` a 10 solicitudes por hora por IP; la web ya no pide códigos automáticamente al iniciar sesión y deja 60 s entre solicitudes. El estado real de cada envío se consulta en `/api/neptuno/auth/otp-status?otpId=…`. Para probar sin enviar correos reales: `node tools/mock-mail-server.mjs --port 9999` y apunta `BUILDER_MAILER_API_URL=http://127.0.0.1:9999`.
+1. En la cuenta que enviará los códigos activa la verificación en dos pasos y crea una *contraseña de aplicación* (Gmail: myaccount.google.com/apppasswords).
+2. Completa en `.env`: `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_USERNAME=tucuenta@gmail.com`, `SMTP_PASSWORD=<contraseña de aplicación>`, `SMTP_SENDER_ADDRESS=tucuenta@gmail.com`.
+3. Gmail limita los envíos diarios (cientos por día): suficiente para pruebas y piloto.
+
+**Opción B – Resend con dominio propio (recomendada al publicar):** verifica un dominio en resend.com/domains (registros SPF y DKIM) y define `BUILDER_MAILER_API_KEY` y `BUILDER_MAILER_SENDER_ADDRESS=no-reply@tudominio.com`. Con `onboarding@resend.dev` Resend solo entrega al correo de tu cuenta de Resend.
+
+Notas: PocketBase limita `request-otp` a 10 solicitudes por hora por IP; la web deja 60 s entre solicitudes. El estado real de cada envío se consulta en `/api/neptuno/auth/otp-status?otpId=…`. Para probar sin enviar correos reales: `node tools/mock-smtp-server.mjs --port 2525` (con `SMTP_HOST=127.0.0.1 SMTP_PORT=2525`) o `node tools/mock-mail-server.mjs --port 9999` (con `BUILDER_MAILER_API_URL=http://127.0.0.1:9999`).
 
 ## Qué es real y qué es simulado
 

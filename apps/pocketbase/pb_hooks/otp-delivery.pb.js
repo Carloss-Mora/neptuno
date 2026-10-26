@@ -23,7 +23,9 @@ onMailerRecordOTPSend((e) => {
     const text = String((error && error.message) || error);
     const reason = /Falta la configuraci/.test(text)
       ? 'not_configured'
-      : /No se pudo enviar el correo/.test(text) ? 'provider_rejected' : 'unknown';
+      : /No se pudo enviar el correo/.test(text)
+        ? 'provider_rejected'
+        : $app.settings().smtp.enabled ? 'smtp_failed' : 'unknown';
     console.error('Fallo el envío del código OTP:', text);
     store('failed', reason, text);
     throw error;
