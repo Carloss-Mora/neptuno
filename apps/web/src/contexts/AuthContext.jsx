@@ -133,6 +133,12 @@ export const describeOtpDelivery = ({ status, reason }, email) => {
         message: 'El proveedor de correo rechazó el envío. Si usas el modo de prueba de Resend, solo se entrega al correo de tu cuenta de Resend.',
       };
     }
+    if (reason === 'smtp_failed') {
+      return {
+        delivered: false,
+        message: 'El servidor de correo (SMTP) no aceptó el envío. Revisa el usuario, la contraseña de aplicación y el puerto en el .env.',
+      };
+    }
     return { delivered: false, message: 'No se pudo enviar el correo con el código. Inténtalo de nuevo en un minuto.' };
   }
   if (status === 'pending') {
