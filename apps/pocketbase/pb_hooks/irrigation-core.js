@@ -66,6 +66,14 @@ module.exports = {
         manualOverrideUntilMs: overrideUntil,
       });
       reason = decision.reason;
+      if (decision.state === 'ON' && desiredState !== 'ON' && decision.reason === 'humidity_low') {
+        const rainGuard = require(`${__hooks}/rain-guard.js`);
+        if (rainGuard.shouldSkip(crop, nowMs, soilHumidity, Number(crop.get('humidity_min')))) {
+          decision.state = 'OFF';
+          decision.reason = 'rain_expected';
+          reason = 'rain_expected';
+        }
+      }
       if (decision.state !== desiredState) {
         app.save(new Record(app.findCollectionByNameOrId('irrigation_logs'), {
           userId: device.get('userId'),

@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertCircle, Pencil, Plus, Sprout, Trash2, X } from 'lucide-react';
+import pb from '@/lib/pocketbaseClient';
 import { Link } from 'react-router-dom';
 import { toFormValue } from '@/utils/optionalNumber';
 import { useUserSettings } from '@/contexts/UserSettingsContext';
@@ -28,6 +29,10 @@ const emptyCrop = {
   alert_water_min: '',
   alert_temp_max: '',
   control_mode: 'MANUAL',
+  latitude: '',
+  longitude: '',
+  rain_skip: false,
+  rain_threshold_mm: '2',
 };
 
 const MODE_HELP = {
@@ -56,6 +61,10 @@ const cropToForm = (crop) => ({
   alert_water_min: toFormValue(crop.alert_water_min),
   alert_temp_max: toFormValue(crop.alert_temp_max),
   control_mode: crop.control_mode || 'MANUAL',
+  latitude: Number(crop.latitude) || Number(crop.longitude) ? String(crop.latitude) : '',
+  longitude: Number(crop.latitude) || Number(crop.longitude) ? String(crop.longitude) : '',
+  rain_skip: Boolean(crop.rain_skip),
+  rain_threshold_mm: toFormValue(crop.rain_threshold_mm, '2'),
 });
 
 // Los valores por defecto de Ajustes rellenan el formulario de un cultivo nuevo.
@@ -96,6 +105,37 @@ const CropsPage = () => {
     setNotice('');
   };
 
+  const handleToggle = (event) => {
+    const { name, checked } = event.target;
+    setForm((current) => ({ ...current, [name]: checked }));
+    setError('');
+    setNotice('');
+  };
+
+  const [locating, setLocating] = useState(false);
+  const useMyLocation = () => {
+    if (!navigator.geolocation) {
+      setError('Tu navegador no permite obtener la ubicación. Escribe la latitud y la longitud.');
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setForm((current) => ({
+          ...current,
+          latitude: position.coords.latitude.toFixed(4),
+          longitude: position.coords.longitude.toFixed(4),
+        }));
+        setLocating(false);
+      },
+      () => {
+        setError('No se pudo obtener la ubicación. Revisa el permiso del navegador o escribe las coordenadas.');
+        setLocating(false);
+      },
+      { timeout: 10000 },
+    );
+  };
+
   const handleStageChange = (event, force = false) => {
     const stage = typeof event === 'string' ? event : event.target.value;
     const { values, kept } = applyStageDefaults(form, stage, { force });
@@ -131,6 +171,7 @@ const CropsPage = () => {
     setError('');
     setNotice('');
     try {
+      let savedId = editingId;
       if (editingId) {
         await updateCrop(editingId, form);
         setNotice('Cultivo actualizado.');
@@ -138,6 +179,16 @@ const CropsPage = () => {
         const crop = await createCrop(form);
         setNotice('Cultivo creado y seleccionado.');
         setEditingId(crop.id);
+        savedId = crop.id;
+      }
+      if (form.rain_skip && savedId) {
+        try {
+          const forecast = await pb.send(`/api/neptuno/crops/${savedId}/rain-forecast`, { method: 'POST' });
+          setNotice((current) => `${current} Lluvia prevista en las próximas 6 horas: ${forecast.mm} mm.`);
+        } catch (forecastError) {
+          console.error('Could not fetch rain forecast:', forecastError);
+          setNotice((current) => `${current} No pude consultar el pronóstico ahora; se reintenta cada 30 minutos.`);
+        }
       }
     } catch (saveError) {
       console.error('Could not save crop:', saveError);
@@ -271,6 +322,38 @@ const CropsPage = () => {
                       <Input id="crop-alert-temperature" name="alert_temp_max" type="number" min="-10" max="60" step="any" value={form.alert_temp_max} onChange={handleChange} placeholder="Desactivada" />
                     </div>
                   </div>
+                  {form.control_mode !== 'MANUAL' && (
+                    <div className="space-y-3 rounded-lg border border-cyan-100 bg-cyan-50/50 p-4">
+                      <label className="flex items-start gap-3 text-sm font-medium text-slate-800">
+                        <input type="checkbox" name="rain_skip" checked={form.rain_skip} onChange={handleToggle} className="mt-1 h-4 w-4" />
+                        <span>
+                          No empezar a regar si se espera lluvia
+                          <span className="block text-xs font-normal text-slate-500">
+                            Consulta el pronóstico de las próximas 6 horas (Open-Meteo, gratis). Si el suelo está muy seco, riega igual para no arriesgar el cultivo. El riego en curso se sigue cortando por la humedad.
+                          </span>
+                        </span>
+                      </label>
+                      {form.rain_skip && (
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          <div className="space-y-1">
+                            <Label htmlFor="crop-latitude">Latitud</Label>
+                            <Input id="crop-latitude" name="latitude" type="number" step="any" min="-90" max="90" value={form.latitude} onChange={handleChange} placeholder="4.4545" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="crop-longitude">Longitud</Label>
+                            <Input id="crop-longitude" name="longitude" type="number" step="any" min="-180" max="180" value={form.longitude} onChange={handleChange} placeholder="-73.8" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="crop-rain-threshold">Lluvia que cuenta (mm)</Label>
+                            <Input id="crop-rain-threshold" name="rain_threshold_mm" type="number" step="any" min="0.1" max="200" value={form.rain_threshold_mm} onChange={handleChange} />
+                          </div>
+                          <div className="sm:col-span-3">
+                            <Button type="button" variant="outline" onClick={useMyLocation} disabled={locating}>{locating ? 'Buscando…' : 'Usar mi ubicación actual'}</Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {form.control_mode === 'AUTO' && (
                     <>
                   {stageNote && (
