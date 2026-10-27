@@ -1,3 +1,4 @@
+import { useZones, zoneFlowTotal } from '@/hooks/useZones';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useAuth } from '@/contexts/AuthContext';
@@ -56,7 +57,8 @@ const StatisticsPage = () => {
   const [consumptionData, setConsumptionData] = useState([]);
   const [irrigationLogs, setIrrigationLogs] = useState([]);
   const [sensorHistory, setSensorHistory] = useState([]);
-  const flowRate = Number(selectedCrop?.flow_lpm) || null;
+  const { flows: zoneFlows } = useZones(selectedCrop);
+  const flowRate = Number(selectedCrop?.flow_lpm) || zoneFlowTotal(zoneFlows) || null;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [consumptionError, setConsumptionError] = useState('');
@@ -148,7 +150,7 @@ const StatisticsPage = () => {
     };
   }, [userId, cropId]);
 
-  const sessions = useMemo(() => buildIrrigationSessions(irrigationLogs, now), [irrigationLogs, now]);
+  const sessions = useMemo(() => buildIrrigationSessions(irrigationLogs, now, zoneFlows), [irrigationLogs, now, zoneFlows]);
   const recentSessions = useMemo(() => {
     const cutoff = subDays(now, 30);
     return sessions.filter((session) => session.activationDate >= cutoff);

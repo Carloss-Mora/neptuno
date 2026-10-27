@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { History, Clock, Power, Filter, Sprout, Timer, AlertCircle } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
+import { useZones } from '@/hooks/useZones';
 import { formatDistanceStrict, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -18,6 +19,7 @@ const IrrigationHistoryPage = () => {
   const { currentUser } = useAuth();
   const { selectedCrop } = useCrop();
   const cropId = selectedCrop?.id || '';
+  const { zones } = useZones(selectedCrop);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -58,46 +60,60 @@ const IrrigationHistoryPage = () => {
       const orderedRecords = [...records].sort(
         (first, second) => new Date(first.created) - new Date(second.created)
       );
+      // Con zonas cada válvula es un riego propio; sin zonas, el riego del cultivo completo.
+      const zoneNames = new Map(zones.map((zone) => [zone.id, zone.name]));
+      const relevantRecords = orderedRecords.filter((record) => (zoneNames.size > 0
+        ? record.zoneId && zoneNames.has(record.zoneId)
+        : !record.zoneId));
+      const groups = new Map();
+      relevantRecords.forEach((record) => {
+        const key = record.zoneId || '';
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(record);
+      });
       const sessions = [];
-      let openSession = null;
+      groups.forEach((groupRecords, groupKey) => {
+        let openSession = null;
+        groupRecords.forEach((record) => {
+          if (record.status === 'ON' && !openSession) {
+            openSession = record;
+            return;
+          }
 
-      orderedRecords.forEach((record) => {
-        if (record.status === 'ON' && !openSession) {
-          openSession = record;
-          return;
-        }
+          if (record.status === 'OFF' && openSession) {
+            const activationDate = new Date(openSession.created);
+            const closingDate = new Date(record.created);
+            sessions.push({
+              id: `${openSession.id}-${record.id}`,
+              activationDate,
+              closingDate,
+              status: 'OFF',
+              durationMs: closingDate - activationDate,
+              durationStr: formatDistanceStrict(activationDate, closingDate, { locale: es }),
+              source: openSession.source,
+              closeSource: record.source,
+              zone: zoneNames.get(groupKey) || '',
+              is_demo: openSession.is_demo,
+            });
+            openSession = null;
+          }
+        });
 
-        if (record.status === 'OFF' && openSession) {
+        if (openSession) {
           const activationDate = new Date(openSession.created);
-          const closingDate = new Date(record.created);
           sessions.push({
-            id: `${openSession.id}-${record.id}`,
+            id: openSession.id,
             activationDate,
-            closingDate,
-            status: 'OFF',
-            durationMs: closingDate - activationDate,
-            durationStr: formatDistanceStrict(activationDate, closingDate, { locale: es }),
+            closingDate: null,
+            status: 'ON',
+            durationMs: new Date() - activationDate,
+            durationStr: `${formatDistanceStrict(activationDate, new Date(), { locale: es })} (en curso)`,
             source: openSession.source,
-            closeSource: record.source,
+            zone: zoneNames.get(groupKey) || '',
             is_demo: openSession.is_demo,
           });
-          openSession = null;
         }
       });
-
-      if (openSession) {
-        const activationDate = new Date(openSession.created);
-        sessions.push({
-          id: openSession.id,
-          activationDate,
-          closingDate: null,
-          status: 'ON',
-          durationMs: new Date() - activationDate,
-          durationStr: `${formatDistanceStrict(activationDate, new Date(), { locale: es })} (en curso)`,
-          source: openSession.source,
-          is_demo: openSession.is_demo,
-        });
-      }
 
       const startDate = dateFrom ? new Date(`${dateFrom}T00:00:00`) : cutoff;
       const endDate = dateTo ? new Date(`${dateTo}T23:59:59.999`) : null;
@@ -121,7 +137,7 @@ const IrrigationHistoryPage = () => {
       setError('No se pudo cargar el historial de riego. Intenta actualizar la página.');
       setLoading(false);
     }
-  }, [currentUser, cropId, filter, dateFrom, dateTo, minDuration, maxDuration]);
+  }, [currentUser, cropId, zones, filter, dateFrom, dateTo, minDuration, maxDuration]);
 
   useEffect(() => {
     fetchLogs();
@@ -256,6 +272,7 @@ const IrrigationHistoryPage = () => {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-slate-50/80">
+                        {zones.length > 0 && <TableHead className="font-semibold text-slate-800">Zona</TableHead>}
                         <TableHead className="font-semibold text-slate-800">Inicio</TableHead>
                         <TableHead className="font-semibold text-slate-800">Finalización</TableHead>
                         <TableHead className="font-semibold text-slate-800">Estado</TableHead>
@@ -266,6 +283,7 @@ const IrrigationHistoryPage = () => {
                     <TableBody>
                       {paginatedLogs.map((log) => (
                         <TableRow key={log.id} className="transition-colors hover:bg-teal-50/40">
+                          {zones.length > 0 && <TableCell className="font-medium text-gray-700">{log.zone || '—'}</TableCell>}
                           <TableCell className="font-medium text-gray-700">
                             {log.activationDate.toLocaleString('es-ES')}
                           </TableCell>

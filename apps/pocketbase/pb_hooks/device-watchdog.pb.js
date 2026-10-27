@@ -37,7 +37,7 @@ cronAdd('device-watchdog', '* * * * *', () => {
     if (String(device.get('desired_state') || 'OFF') === 'ON') {
       const activeLogs = $app.findRecordsByFilter(
         logsCollection,
-        'cropId = {:cropId}',
+        'cropId = {:cropId} && zoneId = ""',
         '-created',
         1,
         0,
@@ -53,6 +53,7 @@ cronAdd('device-watchdog', '* * * * *', () => {
           deviceId: device.id,
           is_demo: device.get('is_demo'),
         }));
+        require(`${__hooks}/zone-control.js`).mirror($app, crop, 'OFF', 'WATCHDOG', device.id, device.get('is_demo'));
       }
       device.set('desired_state', 'OFF');
     }

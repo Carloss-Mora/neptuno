@@ -1,3 +1,4 @@
+import { useZones } from '@/hooks/useZones';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
@@ -59,6 +60,7 @@ const ReportsPage = () => {
     return { from: startOfDay(new Date(now.getTime() - (preset - 1) * DAY_MS)), to: today };
   }, [preset, customFrom, customTo, now]);
 
+  const { zones, flows: zoneFlows } = useZones(selectedCrop);
   const fromTime = range.from?.getTime();
   const toTime = range.to?.getTime();
 
@@ -93,9 +95,9 @@ const ReportsPage = () => {
     if (!selectedCrop || !fromTime) return null;
     const interval = devices.length > 0 ? Math.min(...devices.map((device) => Number(device.interval_seconds) || 15)) : 15;
     return buildReport({
-      crop: selectedCrop, logs, hours, sensors, deviceIntervalSeconds: interval, from: new Date(fromTime), to: new Date(toTime), now: new Date(),
+      crop: selectedCrop, logs, hours, sensors, zones, zoneFlows, deviceIntervalSeconds: interval, from: new Date(fromTime), to: new Date(toTime), now: new Date(),
     });
-  }, [selectedCrop, logs, hours, sensors, devices, fromTime, toTime]);
+  }, [selectedCrop, logs, hours, sensors, zones, zoneFlows, devices, fromTime, toTime]);
 
   const hasFlow = report?.flowLpm !== null && report?.flowLpm !== undefined;
   const volumeUnit = settings.unit_volume;

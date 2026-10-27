@@ -78,6 +78,8 @@ routerAdd('POST', '/api/neptuno/irrigation/manual', (e) => {
       source: 'MANUAL',
     });
     txApp.save(createdLog);
+    // Con zonas, el riego manual del cultivo abre o cierra todas las válvulas.
+    require(`${__hooks}/zone-control.js`).mirror(txApp, crop, status, 'MANUAL');
   });
 
   return e.json(201, {

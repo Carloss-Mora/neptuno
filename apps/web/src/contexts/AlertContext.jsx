@@ -139,7 +139,7 @@ export const AlertProvider = ({ children }) => {
           $autoCancel: false,
         }),
         pb.collection('irrigation_logs').getList(1, 10, {
-          filter: `cropId = "${selectedCrop.id}"`,
+          filter: `cropId = "${selectedCrop.id}" && zoneId = ""`,
           sort: '-created',
           $autoCancel: false,
         }),
@@ -196,7 +196,7 @@ export const AlertProvider = ({ children }) => {
       if (event.action !== 'delete') applySensorAlert(event.record);
     });
     subscribe('irrigation_logs', (event) => {
-      if (event.action !== 'delete') handleLog(event.record);
+      if (event.action !== 'delete' && !event.record.zoneId) handleLog(event.record);
     });
     subscribe('devices', (event) => {
       if (event.record.is_simulated) return;

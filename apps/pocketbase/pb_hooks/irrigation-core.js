@@ -34,7 +34,7 @@ module.exports = {
     }
 
     let desiredState = String(device.get('desired_state') || 'OFF');
-    const latestLogs = app.findRecordsByFilter('irrigation_logs', 'cropId = {:cropId}', '-created', 1, 0, { cropId: device.get('cropId') });
+    const latestLogs = app.findRecordsByFilter('irrigation_logs', 'cropId = {:cropId} && zoneId = ""', '-created', 1, 0, { cropId: device.get('cropId') });
     const latestLog = latestLogs[0] || null;
     if (latestLog && (latestLog.get('status') === 'ON' || latestLog.get('status') === 'OFF')) {
       desiredState = latestLog.get('status');
@@ -42,7 +42,26 @@ module.exports = {
 
     let reason = 'manual_mode';
     let pulseInfo = { pulse: '', endCycle: false };
-    if (crop.get('control_mode') === 'AUTO') {
+    const zoneControl = require(`${__hooks}/zone-control.js`);
+    const zones = !isDemo && !clock ? zoneControl.list(app, device.get('cropId')) : [];
+    if (zones.length > 0 && crop.get('control_mode') === 'AUTO') {
+      // Cada zona se decide con la humedad de sus propios sensores; el cultivo completo está regando si alguna zona riega.
+      const results = zoneControl.decideAll(app, { device, crop, zones, soilHumidity, waterLevel, nowMs });
+      const anyOn = results.some((item) => item.state === 'ON');
+      reason = anyOn ? 'zone_irrigating' : (results[0] ? results[0].reason : 'humidity_sufficient');
+      const nextState = anyOn ? 'ON' : 'OFF';
+      if (nextState !== desiredState) {
+        app.save(new Record(app.findCollectionByNameOrId('irrigation_logs'), {
+          userId: device.get('userId'),
+          cropId: device.get('cropId'),
+          status: nextState,
+          source: 'THRESHOLD',
+          deviceId: device.id,
+          is_demo: isDemo,
+        }));
+        desiredState = nextState;
+      }
+    } else if (crop.get('control_mode') === 'AUTO') {
       const policy = require(`${__hooks}/irrigation-policy.js`);
       let activeSinceMs = desiredState === 'ON' && latestLog ? new Date(latestLog.get('created')).getTime() : NaN;
       let lastStoppedAtMs = NaN;
@@ -50,7 +69,7 @@ module.exports = {
         activeSinceMs = clock.activeSinceMs;
         lastStoppedAtMs = clock.lastStoppedAtMs;
       } else {
-        const stoppedLogs = app.findRecordsByFilter('irrigation_logs', 'cropId = {:cropId} && status = "OFF"', '-created', 1, 0, { cropId: device.get('cropId') });
+        const stoppedLogs = app.findRecordsByFilter('irrigation_logs', 'cropId = {:cropId} && zoneId = "" && status = "OFF"', '-created', 1, 0, { cropId: device.get('cropId') });
         lastStoppedAtMs = stoppedLogs[0] ? new Date(stoppedLogs[0].get('created')).getTime() : NaN;
       }
       const overrideUntil = crop.get('manual_override_until') ? new Date(crop.get('manual_override_until')).getTime() : 0;
@@ -58,7 +77,7 @@ module.exports = {
       if (clock) {
         pulseState = { inPulseCycle: Boolean(clock.pulseCycle), cycleOnMs: Number(clock.cycleOnMs) || 0 };
       } else {
-        const recent = app.findRecordsByFilter('irrigation_logs', 'cropId = {:cropId}', '-created', 40, 0, { cropId: device.get('cropId') });
+        const recent = app.findRecordsByFilter('irrigation_logs', 'cropId = {:cropId} && zoneId = ""', '-created', 40, 0, { cropId: device.get('cropId') });
         pulseState = policy.cycleFromLogs(recent.map((log) => ({
           status: String(log.get('status')),
           source: String(log.get('source') || ''),
@@ -118,7 +137,7 @@ module.exports = {
       device.set('last_flow_lpm', flowLpm);
       device.set('last_flow_at', nowIso);
       // Desde cuándo está la válvula en el estado actual (el último registro de riego, o ahora si acaba de cambiar).
-      const sinceLog = app.findRecordsByFilter('irrigation_logs', 'cropId = {:cropId}', '-created', 1, 0, { cropId: device.get('cropId') })[0];
+      const sinceLog = app.findRecordsByFilter('irrigation_logs', 'cropId = {:cropId} && zoneId = ""', '-created', 1, 0, { cropId: device.get('cropId') })[0];
       const stateSinceMs = sinceLog ? new Date(String(sinceLog.get('created')).replace(' ', 'T')).getTime() : NaN;
       flowAlert = require(`${__hooks}/flow-check.js`).check({
         measured: flowLpm,
@@ -160,6 +179,12 @@ module.exports = {
       }
     }
     app.save(device);
-    return { desiredState, reason, pulse: pulseInfo.pulse, endCycle: pulseInfo.endCycle };
+    return {
+      desiredState,
+      reason,
+      pulse: pulseInfo.pulse,
+      endCycle: pulseInfo.endCycle,
+      zones: zones.length > 0 ? zoneControl.states(app, device.get('cropId')) : [],
+    };
   },
 };

@@ -12,6 +12,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCrop } from '@/contexts/CropContext';
 import { useUserSettings } from '@/contexts/UserSettingsContext';
 import pb from '@/lib/pocketbaseClient';
+import ZonesCard from '@/components/ZonesCard';
+import { useZones } from '@/hooks/useZones';
 import { SENSOR_KINDS, formatAge, layoutOf, sensorStatus, staleAfterMs } from '@/utils/sensorStatus';
 
 const KIND_ICONS = { soil_humidity: Droplets, temperature: Thermometer, water_level: Waves };
@@ -24,7 +26,7 @@ const STATE_STYLES = {
   never: { tile: 'border-slate-200 bg-slate-50', icon: 'bg-slate-100 text-slate-500', pill: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' },
 };
 
-const emptyForm = { name: '', kind: 'soil_humidity', cell: '' };
+const emptyForm = { name: '', kind: 'soil_humidity', cell: '', zoneId: '' };
 
 const describeError = (error) => {
   if (error?.status === 0) return 'No se pudo conectar con el servidor.';
@@ -48,6 +50,8 @@ const SensorsPage = () => {
   const [formError, setFormError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  const { zones, reload: reloadZones } = useZones(selectedCrop);
+  const zoneNames = useMemo(() => new Map(zones.map((zone) => [zone.id, zone.name])), [zones]);
   const { rows, cols } = layoutOf(selectedCrop);
 
   const load = useCallback(async () => {
@@ -136,7 +140,7 @@ const SensorsPage = () => {
     setEditing(sensor.id);
     setConfirmDelete(false);
     setFormError('');
-    setForm({ name: sensor.name, kind: sensor.kind, cell: `${Number(sensor.grid_row)}-${Number(sensor.grid_col)}` });
+    setForm({ name: sensor.name, kind: sensor.kind, cell: `${Number(sensor.grid_row)}-${Number(sensor.grid_col)}`, zoneId: sensor.zoneId || '' });
   };
   const closeForm = () => {
     setEditing(null);
@@ -160,9 +164,9 @@ const SensorsPage = () => {
     setFormError('');
     try {
       if (editing === 'new') {
-        await pb.collection('sensors').create({ userId, cropId, name, kind: form.kind, grid_row: gridRow, grid_col: gridCol }, { $autoCancel: false });
+        await pb.collection('sensors').create({ userId, cropId, name, kind: form.kind, grid_row: gridRow, grid_col: gridCol, ...(form.kind === 'soil_humidity' && form.zoneId ? { zoneId: form.zoneId } : {}) }, { $autoCancel: false });
       } else {
-        await pb.collection('sensors').update(editing, { name, grid_row: gridRow, grid_col: gridCol }, { $autoCancel: false });
+        await pb.collection('sensors').update(editing, { name, grid_row: gridRow, grid_col: gridCol, ...(form.kind === 'soil_humidity' ? { zoneId: form.zoneId || '' } : {}) }, { $autoCancel: false });
       }
       closeForm();
       await load();
@@ -316,7 +320,7 @@ const SensorsPage = () => {
                               <div>
                                 <p className="text-2xl font-extrabold tracking-tight text-slate-900">{readingText(sensor)}</p>
                                 <p className="truncate text-sm font-semibold text-slate-700">{sensor.name}</p>
-                                <p className="truncate text-xs text-slate-500">{SENSOR_KINDS[sensor.kind]?.label}</p>
+                                <p className="truncate text-xs text-slate-500">{SENSOR_KINDS[sensor.kind]?.label}{sensor.zoneId && zoneNames.get(sensor.zoneId) ? ` · ${zoneNames.get(sensor.zoneId)}` : ''}</p>
                                 {sensor.kind === 'soil_humidity' && status.state !== 'stale' && status.state !== 'never' && soilState(sensor.last_value, selectedCrop) && (
                                   <p className="mt-1 text-xs font-semibold text-slate-700">{soilState(sensor.last_value, selectedCrop).label}</p>
                                 )}
@@ -372,6 +376,21 @@ const SensorsPage = () => {
                           </select>
                           {freeCells.length === 0 && <p className="text-xs text-slate-500">Agrega una fila o columna al plano para tener más espacio.</p>}
                         </div>
+                        {form.kind === 'soil_humidity' && zones.length > 0 && (
+                          <div className="space-y-2">
+                            <Label htmlFor="sensor-zone">Zona de riego</Label>
+                            <select
+                              id="sensor-zone"
+                              value={form.zoneId}
+                              onChange={(event) => setForm((current) => ({ ...current, zoneId: event.target.value }))}
+                              className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm"
+                            >
+                              <option value="">Sin zona (lectura general)</option>
+                              {zones.map((zone) => <option key={zone.id} value={zone.id}>{zone.name}</option>)}
+                            </select>
+                            <p className="text-xs text-slate-500">La zona se riega según el promedio de sus sensores de suelo.</p>
+                          </div>
+                        )}
                         {formError && <p role="alert" className="text-sm text-rose-700">{formError}</p>}
                         <div className="flex flex-wrap gap-2">
                           <Button type="submit" disabled={saving || freeCells.length === 0} className="bg-teal-700 hover:bg-teal-800">{saving ? 'Guardando…' : 'Guardar sensor'}</Button>
@@ -410,6 +429,8 @@ const SensorsPage = () => {
                   </CardContent>
                 </Card>
               </div>
+
+              <ZonesCard crop={selectedCrop} userId={userId} zones={zones} reload={reloadZones} sensors={sensors} />
 
               <Card className="rounded-3xl border-teal-100">
                 <CardHeader>

@@ -12,21 +12,25 @@ const sessionEnd = (session) => (session.closingDate
 
 // Minutos de riego, número de riegos y litros (caudal × minutos reales) de cada día del periodo.
 export const dailyBreakdown = (sessions, from, to, flowLpm) => {
-  const hasFlow = Number.isFinite(Number(flowLpm)) && Number(flowLpm) > 0;
+  const hasFlow = (Number.isFinite(Number(flowLpm)) && Number(flowLpm) > 0) || sessions.some((session) => Number(session.flowLpm) > 0);
   const rows = [];
   for (let day = startOfDay(from); day <= to; day = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1)) {
     const dayStart = day.getTime();
     const dayEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1).getTime();
     let minutes = 0;
+    let liters = 0;
     let started = 0;
     for (const session of sessions) {
       const start = new Date(session.activationDate).getTime();
       const end = sessionEnd(session).getTime();
       if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) continue;
       if (start >= dayStart && start < dayEnd) started += 1;
-      minutes += Math.max(0, Math.min(end, dayEnd) - Math.max(start, dayStart)) / 60000;
+      const overlap = Math.max(0, Math.min(end, dayEnd) - Math.max(start, dayStart)) / 60000;
+      minutes += overlap;
+      const flow = Number(session.flowLpm) > 0 ? Number(session.flowLpm) : Number(flowLpm);
+      if (Number.isFinite(flow) && flow > 0) liters += overlap * flow;
     }
-    rows.push({ date: dateKey(day), sessions: started, minutes, liters: hasFlow ? minutes * Number(flowLpm) : null });
+    rows.push({ date: dateKey(day), sessions: started, minutes, liters: hasFlow ? liters : null });
   }
   return rows;
 };
@@ -47,16 +51,18 @@ export const sensorSummary = (hours) => METRICS.map(([key, label, unit]) => {
   return { key, label, unit, average: weighted / samples, minimum: Math.min(...values), maximum: Math.max(...values), samples };
 });
 
-export const buildReport = ({ crop, logs = [], hours = [], sensors = [], deviceIntervalSeconds, from, to, now = new Date() }) => {
-  const flowLpm = Number(crop?.flow_lpm) > 0 ? Number(crop.flow_lpm) : null;
-  const sessions = buildIrrigationSessions(logs.filter((log) => !log.is_demo), now).filter((session) => {
+export const buildReport = ({ crop, logs = [], hours = [], sensors = [], zones = [], zoneFlows = null, deviceIntervalSeconds, from, to, now = new Date() }) => {
+  const zoneFlowTotal = zoneFlows instanceof Map ? [...zoneFlows.values()].reduce((total, value) => total + (Number(value) || 0), 0) : 0;
+  const flowLpm = Number(crop?.flow_lpm) > 0 ? Number(crop.flow_lpm) : (zoneFlowTotal > 0 ? zoneFlowTotal : null);
+  const zoneNames = new Map(zones.map((zone) => [zone.id, zone.name]));
+  const sessions = buildIrrigationSessions(logs.filter((log) => !log.is_demo), now, zoneFlows).filter((session) => {
     const end = sessionEnd(session);
     return end >= from && new Date(session.activationDate) <= to;
   });
   const daily = dailyBreakdown(sessions, from, to, flowLpm);
   const totalMinutes = daily.reduce((total, row) => total + row.minutes, 0);
   const totalSessions = daily.reduce((total, row) => total + row.sessions, 0);
-  const liters = flowLpm ? daily.reduce((total, row) => total + row.liters, 0) : null;
+  const liters = daily.some((row) => row.liters !== null) ? daily.reduce((total, row) => total + (row.liters || 0), 0) : null;
   const peak = daily.reduce((best, row) => (row.minutes > (best?.minutes ?? 0) ? row : best), null);
   const sessionRows = sessions
     .filter((session) => new Date(session.activationDate) >= from && new Date(session.activationDate) <= to)
@@ -66,7 +72,8 @@ export const buildReport = ({ crop, logs = [], hours = [], sensors = [], deviceI
         start: new Date(session.activationDate),
         end: session.closingDate ? new Date(session.closingDate) : null,
         minutes,
-        liters: flowLpm ? minutes * flowLpm : null,
+        liters: Number(session.flowLpm) > 0 ? minutes * Number(session.flowLpm) : (flowLpm ? minutes * flowLpm : null),
+        zone: session.zoneId ? (zoneNames.get(session.zoneId) || '') : '',
         source: session.source || '',
         active: Boolean(session.active),
       };
