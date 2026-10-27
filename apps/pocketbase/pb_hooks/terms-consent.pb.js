@@ -23,7 +23,13 @@ onRecordAuthWithOAuth2Request((e) => {
     if (data.termsAccepted !== true && data.termsAccepted !== 'true') {
       throw new BadRequestError('Esta cuenta de Google aún no está registrada. Créala desde «Registrarme» aceptando los términos y la política de privacidad.');
     }
-    e.record.set('terms_accepted_at', new DateTime());
+    // En una cuenta nueva el registro puede no existir todavía: la fecha viaja en createData.
+    try {
+      if (e.record) e.record.set('terms_accepted_at', new DateTime());
+      else data.terms_accepted_at = new Date().toISOString();
+    } catch (error) {
+      console.error('No se pudo guardar la fecha de aceptación de términos:', error);
+    }
   }
   e.next();
 }, 'users');
