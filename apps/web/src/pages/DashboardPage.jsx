@@ -1,4 +1,6 @@
 
+import AreaInput from '@/components/AreaInput';
+import { formatArea } from '@/utils/area';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
@@ -388,23 +390,10 @@ const DashboardPage = () => {
                   {isEditingArea ? (
                     <form onSubmit={saveCultivatedArea} className="mt-4 space-y-2">
                       <label htmlFor="cultivated-area" className="block text-sm font-medium text-slate-700">
-                        Área de cultivo (m²)
+                        Área total del cultivo
                       </label>
                       <div className="flex gap-2">
-                        <Input
-                          id="cultivated-area"
-                          type="number"
-                          min="0.01"
-                          step="any"
-                          inputMode="decimal"
-                          value={areaDraft}
-                          onChange={(event) => {
-                            setAreaDraft(event.target.value);
-                          }}
-                          className="h-10 min-w-0"
-                          placeholder="Ej. 120"
-                          required
-                        />
+                        <AreaInput id="cultivated-area" valueM2={areaDraft} onChangeM2={setAreaDraft} placeholder="Ej. 120" required />
                         <Button type="submit" disabled={areaSaving} className="shrink-0 bg-teal-700 text-white hover:bg-teal-800">
                           {areaSaving ? 'Guardando…' : 'Guardar'}
                         </Button>
@@ -422,7 +411,7 @@ const DashboardPage = () => {
                     </form>
                   ) : (
                     <div className="mt-4 space-y-2">
-                      <p className="text-sm font-medium text-slate-700">Área registrada: {cultivatedArea} m²</p>
+                      <p className="text-sm font-medium text-slate-700">Área total registrada: {formatArea(cultivatedArea)}</p>
                       <Button
                         type="button"
                         variant="outline"

@@ -10,6 +10,8 @@ import { AlertCircle, Pencil, Plus, Sprout, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toFormValue } from '@/utils/optionalNumber';
 import { useUserSettings } from '@/contexts/UserSettingsContext';
+import AreaInput from '@/components/AreaInput';
+import { formatArea } from '@/utils/area';
 import { STRAWBERRY_STAGE_DEFAULTS, applyStageDefaults } from '@/utils/strawberryStages';
 
 const emptyCrop = {
@@ -26,6 +28,12 @@ const emptyCrop = {
   alert_water_min: '',
   alert_temp_max: '',
   control_mode: 'MANUAL',
+};
+
+const MODE_HELP = {
+  MANUAL: 'Solo se usan las alertas. El riego lo controlas tú desde el panel.',
+  SCHEDULE: 'El riego sigue los horarios que crees en el panel; aquí solo se configuran las alertas.',
+  AUTO: 'El sistema riega cuando la humedad baja del mínimo y corta al llegar al máximo o al límite de tiempo.',
 };
 
 const stageLabels = {
@@ -197,6 +205,15 @@ const CropsPage = () => {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="crop-control-mode">Modo de control</Label>
+                    <select id="crop-control-mode" name="control_mode" value={form.control_mode} onChange={handleChange} className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm">
+                      <option value="MANUAL">Manual: tú enciendes y apagas el riego</option>
+                      <option value="SCHEDULE">Programado: riega en los horarios que definas</option>
+                      <option value="AUTO">Automático: riega según la humedad del suelo</option>
+                    </select>
+                    <p className="text-xs text-slate-500">{MODE_HELP[form.control_mode]}</p>
+                  </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="crop-name">Nombre</Label>
@@ -207,8 +224,8 @@ const CropsPage = () => {
                       <Input id="crop-variety" name="variety" value={form.variety} onChange={handleChange} placeholder="Opcional" maxLength={100} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="crop-area">Área (m²)</Label>
-                      <Input id="crop-area" name="area_m2" type="number" min="0.01" step="any" value={form.area_m2} onChange={handleChange} placeholder="Opcional" />
+                      <Label htmlFor="crop-area">Área total del cultivo</Label>
+                      <AreaInput id="crop-area" valueM2={form.area_m2} onChangeM2={(value) => { setForm((current) => ({ ...current, area_m2: value })); setError(''); setNotice(''); }} placeholder="Opcional" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="crop-flow">Caudal medido (L/min)</Label>
@@ -221,6 +238,8 @@ const CropsPage = () => {
                         {Object.entries(stageLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                       </select>
                     </div>
+                    {form.control_mode === 'AUTO' && (
+                      <>
                     <div className="space-y-2">
                       <Label htmlFor="crop-humidity-min">Humedad mínima (%)</Label>
                       <Input id="crop-humidity-min" name="humidity_min" type="number" min="0" max="100" step="any" value={form.humidity_min} onChange={handleChange} placeholder="Sin configurar" />
@@ -241,6 +260,8 @@ const CropsPage = () => {
                       <Label htmlFor="crop-manual-override">Duración del control manual (min)</Label>
                       <Input id="crop-manual-override" name="manual_override_minutes" type="number" min="1" max="1440" step="1" value={form.manual_override_minutes} onChange={handleChange} required />
                     </div>
+                      </>
+                    )}
                     <div className="space-y-2">
                       <Label htmlFor="crop-alert-water">Alertar si el nivel de agua baja de (%)</Label>
                       <Input id="crop-alert-water" name="alert_water_min" type="number" min="0" max="100" step="any" value={form.alert_water_min} onChange={handleChange} placeholder="Desactivada" />
@@ -250,6 +271,8 @@ const CropsPage = () => {
                       <Input id="crop-alert-temperature" name="alert_temp_max" type="number" min="-10" max="60" step="any" value={form.alert_temp_max} onChange={handleChange} placeholder="Desactivada" />
                     </div>
                   </div>
+                  {form.control_mode === 'AUTO' && (
+                    <>
                   {stageNote && (
                     <div className="rounded-lg border border-cyan-200 bg-cyan-50 p-3 text-sm text-cyan-900">
                       <p>
@@ -269,14 +292,8 @@ const CropsPage = () => {
                   <p className="text-xs leading-relaxed text-amber-800">
                     AUTO no actuará hasta que ambos umbrales y el máximo de riego continuo estén configurados.
                   </p>
-                  <div className="space-y-2">
-                    <Label htmlFor="crop-control-mode">Modo de control</Label>
-                    <select id="crop-control-mode" name="control_mode" value={form.control_mode} onChange={handleChange} className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm">
-                      <option value="MANUAL">MANUAL</option>
-                      <option value="SCHEDULE">SCHEDULE</option>
-                      <option value="AUTO">AUTO</option>
-                    </select>
-                  </div>
+                    </>
+                  )}
                   <div className="flex flex-wrap gap-2">
                     <Button type="submit" disabled={saving} className="bg-teal-700 text-white hover:bg-teal-800">
                       {editingId ? 'Guardar cambios' : <><Plus className="mr-2 h-4 w-4" /> Crear cultivo</>}
@@ -300,7 +317,7 @@ const CropsPage = () => {
                     <button type="button" onClick={() => selectCrop(crop.id)} className="min-w-0 flex-1 text-left">
                       <span className="block truncate font-semibold text-slate-900">{crop.name}</span>
                       <span className="mt-1 block text-xs text-slate-500">
-                        {[crop.variety, crop.area_m2 ? `${crop.area_m2} m²` : '', stageLabels[crop.phenological_stage] || 'Etapa sin especificar'].filter(Boolean).join(' · ')}
+                        {[crop.variety, formatArea(crop.area_m2), stageLabels[crop.phenological_stage] || 'Etapa sin especificar'].filter(Boolean).join(' · ')}
                       </span>
                       <span className="mt-1 block text-xs font-medium text-teal-700">Modo {crop.control_mode || 'MANUAL'}</span>
                     </button>
