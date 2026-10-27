@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { AlertCircle, Pencil, Plus, Sprout, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toFormValue } from '@/utils/optionalNumber';
+import { useUserSettings } from '@/contexts/UserSettingsContext';
 
 const emptyCrop = {
   name: '',
@@ -48,13 +49,29 @@ const cropToForm = (crop) => ({
   control_mode: crop.control_mode || 'MANUAL',
 });
 
+// Los valores por defecto de Ajustes rellenan el formulario de un cultivo nuevo.
+const withDefaults = (settings) => ({
+  ...emptyCrop,
+  humidity_min: toFormValue(settings.default_humidity_min),
+  humidity_max: toFormValue(settings.default_humidity_max),
+  max_irrigation_minutes: toFormValue(settings.default_max_irrigation_minutes),
+  min_rest_minutes: toFormValue(settings.default_min_rest_minutes),
+  flow_lpm: toFormValue(settings.default_flow_lpm),
+});
+
 const CropsPage = () => {
   const { crops, loading, error: loadError, createCrop, updateCrop, deleteCrop, selectCrop, selectedCropId } = useCrop();
-  const [form, setForm] = useState(emptyCrop);
+  const { settings: userSettings } = useUserSettings();
+  const [form, setForm] = useState(() => withDefaults(userSettings));
   const [editingId, setEditingId] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Si los ajustes llegan después de abrir la página, se aplican mientras el formulario siga vacío.
+  useEffect(() => {
+    if (!editingId) setForm((current) => (current.name ? current : withDefaults(userSettings)));
+  }, [userSettings, editingId]);
 
   useEffect(() => {
     if (!editingId) return;
@@ -71,7 +88,7 @@ const CropsPage = () => {
 
   const resetForm = () => {
     setEditingId('');
-    setForm(emptyCrop);
+    setForm(withDefaults(userSettings));
     setError('');
     setNotice('');
   };

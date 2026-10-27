@@ -5,6 +5,7 @@ import { Activity, Droplets, Sprout, Thermometer, Wifi, WifiOff } from 'lucide-r
 import Header from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCrop } from '@/contexts/CropContext';
+import { useUserSettings } from '@/contexts/UserSettingsContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import pb from '@/lib/pocketbaseClient';
 import { getPocketBaseErrorDetails } from '@/lib/pocketbaseError';
@@ -22,6 +23,7 @@ const SummaryPage = () => {
     error: cropsError,
     selectCrop,
   } = useCrop();
+  const { formatTemperature } = useUserSettings();
   const [readings, setReadings] = useState([]);
   const [logs, setLogs] = useState([]);
   const [devices, setDevices] = useState([]);
@@ -149,7 +151,7 @@ const SummaryPage = () => {
                             <p className="text-xs text-slate-500">Temperatura</p>
                             <p className="mt-1 flex items-center gap-1 font-semibold text-slate-800">
                               <Thermometer className="h-4 w-4 text-orange-600" />
-                              {latestReading ? `${Number(latestReading.temperature).toFixed(1)} °C` : 'Sin lectura'}
+                              {latestReading ? formatTemperature(Number(latestReading.temperature)) : 'Sin lectura'}
                             </p>
                           </div>
                         </div>

@@ -42,6 +42,20 @@ routerAdd('POST', '/api/neptuno/ingest', (e) => {
     throw new BadRequestError('Lectura fuera de los rangos permitidos.');
   }
 
+  // Opcional: valores por sensor { "<id del sensor>": número }. Sin esto, cada lectura general
+  // actualiza los sensores del mismo tipo del cultivo.
+  let sensorReadings = null;
+  if (body.sensor_readings && typeof body.sensor_readings === 'object' && !Array.isArray(body.sensor_readings)) {
+    sensorReadings = {};
+    for (const key of Object.keys(body.sensor_readings).slice(0, 24)) {
+      const value = Number(body.sensor_readings[key]);
+      if (!Number.isFinite(value) || value < -10 || value > 100) {
+        throw new BadRequestError('Lectura de sensor fuera de los rangos permitidos.');
+      }
+      sensorReadings[key] = value;
+    }
+  }
+
   const now = new Date();
   const lastIngest = device.get('last_ingest_at') ? new Date(device.get('last_ingest_at')) : null;
   const intervalSeconds = Math.max(1, Number(device.get('interval_seconds')) || 15);
@@ -61,7 +75,7 @@ routerAdd('POST', '/api/neptuno/ingest', (e) => {
     device,
     crop,
     { soilHumidity, temperature, waterLevel },
-    { isDemo, nowMs: now.getTime() },
+    { isDemo, nowMs: now.getTime(), sensorReadings },
   );
 
   return e.json(200, { irrigation: desiredState });

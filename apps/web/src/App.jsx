@@ -3,6 +3,7 @@ import React from 'react';
 import { Route, Routes, BrowserRouter as Router } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { CropProvider } from '@/contexts/CropContext';
+import { UserSettingsProvider } from '@/contexts/UserSettingsContext';
 import { AlertProvider } from '@/contexts/AlertContext.jsx';
 import { Toaster } from '@/components/ui/toaster';
 import ScrollToTop from '@/components/ScrollToTop';
@@ -20,10 +21,13 @@ import DevicesPage from '@/pages/DevicesPage';
 import SettingsPage from '@/pages/SettingsPage';
 import SummaryPage from '@/pages/SummaryPage';
 import SimulatorPage from '@/pages/SimulatorPage';
+import SensorsPage from '@/pages/SensorsPage';
+import ReportsPage from '@/pages/ReportsPage';
 
 function App() {
   return (
     <AuthProvider>
+      <UserSettingsProvider>
       <CropProvider>
         <AlertProvider>
           <Router>
@@ -108,11 +112,28 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/sensors"
+              element={
+                <ProtectedRoute>
+                  <SensorsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reports"
+              element={
+                <ProtectedRoute>
+                  <ReportsPage />
+                </ProtectedRoute>
+              }
+            />
             </Routes>
             <Toaster />
           </Router>
         </AlertProvider>
       </CropProvider>
+      </UserSettingsProvider>
     </AuthProvider>
   );
 }

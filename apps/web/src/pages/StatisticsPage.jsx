@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCrop } from '@/contexts/CropContext';
+import { useUserSettings } from '@/contexts/UserSettingsContext';
+import { volumeFromLiters, volumeUnitLabel } from '@/utils/units';
 import Header from '@/components/Header';
 import ConsumptionChart from '@/components/ConsumptionChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,6 +51,7 @@ const StatisticsPage = () => {
   const { currentUser } = useAuth();
   const userId = currentUser?.id || '';
   const { selectedCrop } = useCrop();
+  const { settings: prefs, formatVolume } = useUserSettings();
   const cropId = selectedCrop?.id || '';
   const [consumptionData, setConsumptionData] = useState([]);
   const [irrigationLogs, setIrrigationLogs] = useState([]);
@@ -180,7 +183,7 @@ const StatisticsPage = () => {
         date: format(date, 'd MMM', { locale: es }),
         activations: 0,
         minutes: 0,
-        estimatedLiters: estimatedConsumptionByDay.get(key) || 0,
+        estimatedLiters: volumeFromLiters(estimatedConsumptionByDay.get(key) || 0, prefs.unit_volume),
       });
     }
 
@@ -193,7 +196,7 @@ const StatisticsPage = () => {
     });
 
     return Array.from(activityByDate.values());
-  }, [recentSessions, estimatedConsumptionByDay, now]);
+  }, [recentSessions, estimatedConsumptionByDay, now, prefs.unit_volume]);
 
   const totalRuntime = recentSessions.reduce((total, session) => total + session.durationMs, 0);
   const averageRuntime = recentSessions.length > 0 ? totalRuntime / recentSessions.length : 0;
@@ -300,11 +303,11 @@ const StatisticsPage = () => {
                   <span className="rounded-2xl bg-sky-50 p-3 text-sky-700"><Droplets className="h-5 w-5" /></span>
                 </div>
                 <p className="text-3xl font-extrabold tracking-tight text-slate-900">
-                  {flowRate ? `${estimatedConsumptionToday.toFixed(1)} L` : 'Configura el caudal'}
+                  {flowRate ? formatVolume(estimatedConsumptionToday) : 'Configura el caudal'}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                   {flowRate
-                    ? `${flowRate} L/min × duración real · promedio diario: ${averageEstimatedDailyConsumption.toFixed(1)} L`
+                    ? `${flowRate} L/min × duración real · promedio diario: ${formatVolume(averageEstimatedDailyConsumption)}`
                     : 'Configura el caudal medido en la administración del cultivo para estimar litros.'}
                 </p>
               </CardContent>
@@ -397,9 +400,9 @@ const StatisticsPage = () => {
                     <Tooltip
                       cursor={{ fill: '#e0f2fe' }}
                       contentStyle={{ borderRadius: 14, border: '1px solid #bae6fd' }}
-                      formatter={(value) => [`${Number(value).toFixed(1)} L`, 'Consumo estimado']}
+                      formatter={(value) => [`${Number(value).toFixed(1)} ${volumeUnitLabel(prefs.unit_volume)}`, 'Consumo estimado']}
                     />
-                    <Bar dataKey="estimatedLiters" name="Consumo estimado" fill="#0284c7" radius={[6, 6, 0, 0]} maxBarSize={30} />
+                    <Bar dataKey="estimatedLiters" name="Consumo estimado" fill="#2468b6" radius={[6, 6, 0, 0]} maxBarSize={30} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -442,11 +445,11 @@ const StatisticsPage = () => {
             <CardContent className="grid gap-4 sm:grid-cols-3">
               <div className="rounded-2xl bg-teal-50 p-5">
                 <p className="text-sm font-medium text-teal-800">Mes actual</p>
-                <p className="mt-2 text-3xl font-extrabold text-teal-900">{flowRate ? monthlyConsumption.current.toFixed(1) : '—'} <span className="text-sm">L</span></p>
+                <p className="mt-2 text-3xl font-extrabold text-teal-900">{flowRate ? formatVolume(monthlyConsumption.current) : '—'}</p>
               </div>
               <div className="rounded-2xl bg-slate-50 p-5">
                 <p className="text-sm font-medium text-slate-600">Mes anterior</p>
-                <p className="mt-2 text-3xl font-extrabold text-slate-800">{flowRate ? monthlyConsumption.previous.toFixed(1) : '—'} <span className="text-sm">L</span></p>
+                <p className="mt-2 text-3xl font-extrabold text-slate-800">{flowRate ? formatVolume(monthlyConsumption.previous) : '—'}</p>
               </div>
               <div className={`rounded-2xl p-5 ${monthlyConsumption.change > 0 ? 'bg-amber-50' : 'bg-emerald-50'}`}>
                 <p className="text-sm font-medium text-slate-600">Variación mensual</p>

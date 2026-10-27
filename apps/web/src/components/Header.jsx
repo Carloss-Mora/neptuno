@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, LayoutDashboard, Sliders, BarChart3, LogOut, History, Sprout, Settings, Activity, FlaskConical, ChevronDown } from 'lucide-react';
+import { Menu, LayoutDashboard, Sliders, BarChart3, LogOut, History, Sprout, Settings, Activity, FlaskConical, ChevronDown, Radio, FileText } from 'lucide-react';
 import NotificationBell from '@/components/NotificationBell';
 import pb from '@/lib/pocketbaseClient';
 import { useCrop } from '@/contexts/CropContext';
@@ -28,6 +28,8 @@ const Header = () => {
     { to: '/control', label: 'Panel de Control', short: 'Panel', icon: Sliders },
     { to: '/statistics', label: 'Estadísticas', icon: BarChart3 },
     { to: '/historial', label: 'Historial de Riego', short: 'Historial', icon: History },
+    { to: '/sensors', label: 'Sensores', icon: Radio },
+    { to: '/reports', label: 'Reportes', icon: FileText },
     { to: '/crops', label: 'Cultivos', icon: Sprout },
     { to: '/simulator', label: 'Laboratorio', icon: FlaskConical },
     { to: '/settings', label: 'Ajustes', icon: Settings },

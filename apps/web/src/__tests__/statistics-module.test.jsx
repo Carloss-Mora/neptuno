@@ -69,8 +69,8 @@ describe('Irrigation statistics', () => {
     });
     expect(screen.getByTestId('total-irrigation-runtime')).toHaveTextContent('1 h 00 min');
     expect(screen.getByText('Duración promedio').parentElement.parentElement).toHaveTextContent('1 h 00 min');
-    expect(screen.getByText('Consumo estimado hoy').parentElement.parentElement).toHaveTextContent(`${expectedTodayLiters} L`);
-    expect(screen.getByText('Mes actual').parentElement.parentElement).toHaveTextContent('12.0 L');
+    expect(screen.getByText('Consumo estimado hoy').parentElement.parentElement).toHaveTextContent(`${Number(expectedTodayLiters).toLocaleString("es-CO")} L`);
+    expect(screen.getByText('Mes actual').parentElement.parentElement).toHaveTextContent('12 L');
     expect(screen.getByText('Comparación mensual estimada')).toBeInTheDocument();
     expect(screen.queryByText(/Aún no hay sesiones de riego/i)).not.toBeInTheDocument();
   });

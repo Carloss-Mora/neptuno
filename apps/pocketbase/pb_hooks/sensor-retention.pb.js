@@ -1,7 +1,17 @@
 /// <reference path="../pb_data/types.d.ts" />
 
+// Cada usuario puede elegir cuántos días conservar las lecturas detalladas (Ajustes; 30 por defecto).
+// Pasado ese plazo se resumen por hora y se borran las lecturas detalladas.
 cronAdd('sensor-reading-retention', '0 2 * * *', () => {
-  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const retentionByUser = new Map();
+  let shortest = 30;
+  for (const setting of $app.findRecordsByFilter('user_settings', 'retention_days > 0', '', 0, 0)) {
+    const days = Number(setting.get('retention_days'));
+    retentionByUser.set(String(setting.get('userId')), days);
+    if (days < shortest) shortest = days;
+  }
+  const cutoff = new Date(Date.now() - shortest * DAY_MS).toISOString();
   const oldReadings = $app.findRecordsByFilter(
     'sensor_readings',
     'created < {:cutoff}',
@@ -15,6 +25,8 @@ cronAdd('sensor-reading-retention', '0 2 * * *', () => {
   for (const reading of oldReadings) {
     const createdAt = new Date(reading.get('created'));
     if (Number.isNaN(createdAt.getTime())) continue;
+    const keepDays = retentionByUser.get(String(reading.get('userId'))) || 30;
+    if (createdAt.getTime() > Date.now() - keepDays * DAY_MS) continue;
     createdAt.setUTCMinutes(0, 0, 0);
     const hourStart = createdAt.toISOString();
     const key = `${reading.get('cropId')}:${hourStart}`;
