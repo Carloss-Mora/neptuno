@@ -16,7 +16,7 @@ fi
 
 apt-get update -y
 apt-get install -y git curl unzip debian-keyring debian-archive-keyring apt-transport-https gpg
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
 apt-get install -y nodejs
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor --yes -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' > /etc/apt/sources.list.d/caddy-stable.list
@@ -50,7 +50,7 @@ fi
 
 # Web
 set -a; . "$ENV_FILE"; set +a
-npm ci --no-audit --no-fund
+npm ci --include=dev --no-audit --no-fund
 npm run build --prefix apps/web
 node apps/pocketbase/install-pocketbase.cjs
 mkdir -p "$DATA"
