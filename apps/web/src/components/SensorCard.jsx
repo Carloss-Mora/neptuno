@@ -1,9 +1,10 @@
 
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
+import { SOIL_TONE_CLASSES } from '@/utils/soilState';
 import { Progress } from '@/components/ui/progress';
 
-const SensorCard = ({ icon: Icon, label, value, unit, progress, color = 'teal' }) => {
+const SensorCard = ({ icon: Icon, label, value, unit, progress, color = 'teal', badge = null }) => {
   const colorClasses = {
     teal: 'bg-teal-100 text-teal-700',
     blue: 'bg-cyan-100 text-cyan-700',
@@ -23,7 +24,10 @@ const SensorCard = ({ icon: Icon, label, value, unit, progress, color = 'teal' }
             <p className="text-sm font-medium text-slate-500">{unit}</p>
           </div>
         </div>
-        <p className="mb-3 text-sm font-semibold text-slate-600">{label}</p>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <p className="text-sm font-semibold text-slate-600">{label}</p>
+          {badge && <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${SOIL_TONE_CLASSES[badge.tone]}`}>{badge.label}</span>}
+        </div>
         {progress !== undefined && (
           <Progress value={progress} className="h-2" />
         )}

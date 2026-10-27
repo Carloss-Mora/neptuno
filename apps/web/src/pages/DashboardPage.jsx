@@ -1,4 +1,5 @@
 
+import { soilState } from '@/utils/soilState';
 import AreaInput from '@/components/AreaInput';
 import { formatArea } from '@/utils/area';
 import React, { useState, useEffect, useCallback } from 'react';
@@ -455,6 +456,7 @@ const DashboardPage = () => {
               unit="%"
               progress={sensorData?.soil_humidity || 0}
               color="teal"
+              badge={soilState(sensorData?.soil_humidity, selectedCrop)}
             />
 
             <SensorCard

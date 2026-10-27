@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Route, Routes, BrowserRouter as Router } from 'react-router-dom';
+import { Navigate, Route, Routes, BrowserRouter as Router } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { CropProvider } from '@/contexts/CropContext';
 import { UserSettingsProvider } from '@/contexts/UserSettingsContext';
@@ -19,7 +19,6 @@ import IrrigationHistoryPage from '@/pages/IrrigationHistoryPage.jsx';
 import CropsPage from '@/pages/CropsPage';
 import DevicesPage from '@/pages/DevicesPage';
 import SettingsPage from '@/pages/SettingsPage';
-import SummaryPage from '@/pages/SummaryPage';
 import SimulatorPage from '@/pages/SimulatorPage';
 import SensorsPage from '@/pages/SensorsPage';
 import ReportsPage from '@/pages/ReportsPage';
@@ -104,14 +103,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/summary"
-              element={
-                <ProtectedRoute>
-                  <SummaryPage />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/summary" element={<Navigate to="/dashboard" replace />} />
             <Route
               path="/sensors"
               element={

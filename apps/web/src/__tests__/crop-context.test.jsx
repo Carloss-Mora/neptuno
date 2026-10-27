@@ -4,7 +4,6 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { CropProvider, useCrop } from '@/contexts/CropContext';
 import CropsPage from '@/pages/CropsPage';
-import SummaryPage from '@/pages/SummaryPage';
 
 vi.mock('@/components/NotificationBell', () => ({ default: () => null }));
 
@@ -70,7 +69,6 @@ const renderCropPages = (initialEntry = '/crops') => render(
       <CropProvider>
         <Routes>
           <Route path="/crops" element={<CropsPage />} />
-          <Route path="/summary" element={<SummaryPage />} />
         </Routes>
       </CropProvider>
     </AuthProvider>
@@ -201,22 +199,9 @@ describe('crop selection', () => {
       $autoCancel: false,
     });
 
-    const cropCollectionCalls = mockPb.collection.mock.calls.filter(([name]) => name === 'crops').length;
-    fireEvent.click(screen.getByRole('link', { name: 'Resumen' }));
-    expect(await screen.findByLabelText('Resumen por cultivo')).toHaveTextContent('Fresas del lote sur');
-    await waitFor(() => expect(summaryListRequests).toHaveLength(4));
-    expect(summaryListRequests.map(({ name, options }) => [name, options.filter])).toEqual([
-      ['sensor_readings', undefined],
-      ['sensor_readings_hourly', undefined],
-      ['irrigation_logs', undefined],
-      ['devices', undefined],
-    ]);
-    expect(screen.getAllByLabelText('Cultivo seleccionado')[0]).toHaveTextContent('Fresas del lote sur');
-    expect(mockPb.collection.mock.calls.filter(([name]) => name === 'crops')).toHaveLength(cropCollectionCalls);
-
     unmount();
-    renderCropPages('/summary');
-    expect(await screen.findByLabelText('Resumen por cultivo')).toHaveTextContent('Fresas del lote sur');
+    renderCropPages('/crops');
+    expect(within(await screen.findByLabelText('Cultivos registrados')).getByText('Fresas del lote sur')).toBeInTheDocument();
     expect(screen.getAllByLabelText('Cultivo seleccionado')[0]).toHaveTextContent('Fresas del lote sur');
 
     fireEvent.click(screen.getByRole('link', { name: 'Cultivos' }));
