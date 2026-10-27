@@ -85,7 +85,7 @@ const Header = () => {
   );
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-teal-100 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+    <header className="sticky top-0 z-50 w-full border-b border-teal-100 bg-white">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Barra superior: marca, cultivo activo, alertas y cuenta */}
         <div className="flex h-16 items-center justify-between gap-4">

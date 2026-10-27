@@ -17,15 +17,15 @@ module.exports = {
     },
     extend: {
       colors: {
-        // Escala "hoja": reemplaza al teal de Tailwind en toda la interfaz
+        // Escala "ola": azul cobalto del logotipo. Sustituye al teal de Tailwind en toda la interfaz.
         teal: {
-          50: '#f1f8f4', 100: '#dff0e6', 200: '#bfe0cd', 300: '#94c9ad', 400: '#62ab87',
-          500: '#3f9068', 600: '#327a58', 700: '#2a6449', 800: '#234f3c', 900: '#1d4031',
+          50: '#f2f8fe', 100: '#e2effb', 200: '#c4dcf6', 300: '#94c1ee', 400: '#5e9fe2',
+          500: '#3680d2', 600: '#2468b6', 700: '#1c5195', 800: '#193f75', 900: '#17345d', 950: '#0f2142',
         },
-        // Escala "agua": estado de riego y datos de humedad
+        // Escala "espuma": aqua pastel para el agua, el riego y los datos de humedad.
         cyan: {
-          50: '#eff9fc', 100: '#d8f0f7', 200: '#b2e1ee', 300: '#7fcbe0', 400: '#4fb2ce',
-          500: '#2f98b8', 600: '#257e9a', 700: '#1f657c', 800: '#1c5265', 900: '#1b4455',
+          50: '#effbfc', 100: '#d7f4f7', 200: '#b0e8ef', 300: '#7cd5e4', 400: '#44bad1',
+          500: '#22a0b9', 600: '#1a8399', 700: '#196a7c', 800: '#1a5664', 900: '#1a4753',
         },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

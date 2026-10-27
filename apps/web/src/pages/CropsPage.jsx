@@ -133,7 +133,7 @@ const CropsPage = () => {
         <meta name="description" content="Administra tus cultivos y configura su modo de riego." />
       </Helmet>
       <Header />
-      <main className="min-h-screen bg-[#f4fbfa] py-10 sm:py-14">
+      <main className="min-h-screen bg-dew py-10 sm:py-14">
         <div className="container mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
           <header>
             <p className="mb-2 inline-flex items-center gap-2 text-sm font-semibold text-teal-700">

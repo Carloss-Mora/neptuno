@@ -152,7 +152,7 @@ const IrrigationHistoryPage = () => {
 
       <Header />
 
-      <main className="relative min-h-screen overflow-hidden bg-[#f4fbfa] py-10 sm:py-14">
+      <main className="relative min-h-screen overflow-hidden bg-dew py-10 sm:py-14">
         <div className="container relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           {/* Page Header */}
           <div className="mb-8 rounded-3xl border border-teal-100 bg-white p-6 shadow-sm sm:p-8">
@@ -177,8 +177,8 @@ const IrrigationHistoryPage = () => {
             </Card>
             <Card className="rounded-3xl border-white/80 shadow-lg shadow-slate-900/5">
               <CardContent className="flex items-center gap-4 p-6">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl shadow-md bg-cyan-600">
-                  <Timer className="h-6 w-6 text-white" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-100 text-cyan-700">
+                  <Timer className="h-6 w-6" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-slate-500">Tiempo registrado</p>
