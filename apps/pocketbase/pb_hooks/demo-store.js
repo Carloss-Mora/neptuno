@@ -24,12 +24,16 @@ module.exports = {
       zones = app.findRecordsByFilter('zones', 'cropId = {:cropId}', 'valve_channel', 0, 0, { cropId });
     }
     const sensors = app.findRecordsByFilter('sensors', 'cropId = {:cropId}', '', 0, 0, { cropId });
-    if (sensors.length === 0) {
-      const sensorCol = app.findCollectionByNameOrId('sensors');
-      zones.forEach((zone, index) => {
-        app.save(new Record(sensorCol, { userId, cropId, name: `Humedad ${zone.get('name')}`, kind: 'soil_humidity', zoneId: zone.id, grid_row: 0, grid_col: index }));
-      });
+    const sensorCol = app.findCollectionByNameOrId('sensors');
+    // Cada zona necesita su sensor de suelo; temperatura y nivel del tanque solo si no hay ninguno.
+    zones.forEach((zone, index) => {
+      const has = sensors.some((sensor) => sensor.get('kind') === 'soil_humidity' && String(sensor.get('zoneId')) === zone.id);
+      if (!has) app.save(new Record(sensorCol, { userId, cropId, name: `Humedad ${zone.get('name')}`, kind: 'soil_humidity', zoneId: zone.id, grid_row: 0, grid_col: index }));
+    });
+    if (!sensors.some((sensor) => sensor.get('kind') === 'temperature')) {
       app.save(new Record(sensorCol, { userId, cropId, name: 'Temperatura del cultivo', kind: 'temperature', grid_row: 1, grid_col: 0 }));
+    }
+    if (!sensors.some((sensor) => sensor.get('kind') === 'water_level')) {
       app.save(new Record(sensorCol, { userId, cropId, name: 'Nivel del tanque', kind: 'water_level', grid_row: 1, grid_col: 1 }));
     }
     return zones;
