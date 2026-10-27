@@ -5,6 +5,7 @@ const START = {
   SCHEDULE: 'Horario programado',
   AUTOMATIC: 'Modo automático',
   WATCHDOG: 'Control de seguridad',
+  PULSE: 'Siguiente pulso del riego por pulsos',
 };
 const END = {
   MANUAL: 'Lo apagaste tú',
@@ -12,6 +13,7 @@ const END = {
   SCHEDULE: 'Terminó el horario',
   AUTOMATIC: 'Modo automático',
   WATCHDOG: 'Apagado de seguridad (el dispositivo dejó de reportar)',
+  PULSE: 'Pausa entre pulsos',
 };
 
 export const startReason = (source) => START[source] || 'Registro del sistema';

@@ -33,6 +33,8 @@ const emptyCrop = {
   longitude: '',
   rain_skip: false,
   rain_threshold_mm: '2',
+  pulse_on_minutes: '',
+  pulse_off_minutes: '',
 };
 
 const MODE_HELP = {
@@ -65,6 +67,8 @@ const cropToForm = (crop) => ({
   longitude: Number(crop.latitude) || Number(crop.longitude) ? String(crop.longitude) : '',
   rain_skip: Boolean(crop.rain_skip),
   rain_threshold_mm: toFormValue(crop.rain_threshold_mm, '2'),
+  pulse_on_minutes: toFormValue(crop.pulse_on_minutes),
+  pulse_off_minutes: toFormValue(crop.pulse_off_minutes),
 });
 
 // Los valores por defecto de Ajustes rellenan el formulario de un cultivo nuevo.
@@ -108,6 +112,18 @@ const CropsPage = () => {
   const handleToggle = (event) => {
     const { name, checked } = event.target;
     setForm((current) => ({ ...current, [name]: checked }));
+    setError('');
+    setNotice('');
+  };
+
+  const pulsesOn = form.pulse_on_minutes !== '' || form.pulse_off_minutes !== '';
+  const togglePulses = (event) => {
+    const checked = event.target.checked;
+    setForm((current) => ({
+      ...current,
+      pulse_on_minutes: checked ? '10' : '',
+      pulse_off_minutes: checked ? '20' : '',
+    }));
     setError('');
     setNotice('');
   };
@@ -311,6 +327,29 @@ const CropsPage = () => {
                       <Label htmlFor="crop-manual-override">Duración del control manual (min)</Label>
                       <Input id="crop-manual-override" name="manual_override_minutes" type="number" min="1" max="1440" step="1" value={form.manual_override_minutes} onChange={handleChange} required />
                     </div>
+                        <div className="space-y-2 sm:col-span-2">
+                          <label className="flex items-start gap-3 text-sm font-medium text-slate-800">
+                            <input type="checkbox" checked={pulsesOn} onChange={togglePulses} className="mt-1 h-4 w-4" />
+                            <span>
+                              Regar por pulsos
+                              <span className="block text-xs font-normal text-slate-500">
+                                Riega en tandas cortas con pausa para que el agua se absorba (útil en fresa, de raíz superficial). Sigue hasta la humedad máxima, y el máximo de riego cuenta todo el tiempo regado.
+                              </span>
+                            </span>
+                          </label>
+                          {pulsesOn && (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <div className="space-y-1">
+                                <Label htmlFor="crop-pulse-on">Minutos regando por pulso</Label>
+                                <Input id="crop-pulse-on" name="pulse_on_minutes" type="number" min="1" max="1440" step="1" value={form.pulse_on_minutes} onChange={handleChange} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label htmlFor="crop-pulse-off">Minutos de pausa</Label>
+                                <Input id="crop-pulse-off" name="pulse_off_minutes" type="number" min="1" max="1440" step="1" value={form.pulse_off_minutes} onChange={handleChange} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </>
                     )}
                     <div className="space-y-2">

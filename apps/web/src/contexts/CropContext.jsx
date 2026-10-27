@@ -84,6 +84,24 @@ const rainFields = (data) => {
   return out;
 };
 
+// Riego por pulsos: minutos regando y de pausa; ambos o ninguno. El pulso no puede superar el máximo de riego.
+const pulseFields = (data) => {
+  if (!('pulse_on_minutes' in data) && !('pulse_off_minutes' in data)) return {};
+  const hasOn = isProvided(data.pulse_on_minutes) && Number(data.pulse_on_minutes) > 0;
+  const hasOff = isProvided(data.pulse_off_minutes) && Number(data.pulse_off_minutes) > 0;
+  if (!hasOn && !hasOff) return { pulse_on_minutes: 0, pulse_off_minutes: 0 };
+  if (hasOn !== hasOff) throw new Error('Para el riego por pulsos indica los minutos de riego y los de pausa.');
+  const on = Number(data.pulse_on_minutes);
+  const off = Number(data.pulse_off_minutes);
+  if (!Number.isInteger(on) || !Number.isInteger(off) || on > 1440 || off > 1440) {
+    throw new Error('Los minutos de pulso y de pausa deben ser números enteros de 1 a 1440.');
+  }
+  if (isSet(data.max_irrigation_minutes) && on > Number(data.max_irrigation_minutes)) {
+    throw new Error('Cada pulso no puede durar más que el máximo de riego continuo.');
+  }
+  return { pulse_on_minutes: on, pulse_off_minutes: off };
+};
+
 const normalizeCrop = (data) => {
   validateThresholds(data);
   requirePositive(data.area_m2, 'El área debe ser un número mayor que cero.');
@@ -124,6 +142,7 @@ const normalizeCrop = (data) => {
     alert_temp_max: alertTemperatureMaximum,
     control_mode: data.control_mode || 'MANUAL',
     ...rainFields(data),
+    ...pulseFields(data),
   };
 };
 
