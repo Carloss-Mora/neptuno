@@ -20,6 +20,10 @@ describe('rain-guard', () => {
     expect(guard.shouldSkip(cropOf({ ...base, rain_skip: false }), now)).toBe(false);
     expect(guard.shouldSkip(cropOf({ ...base, latitude: 0, longitude: 0 }), now)).toBe(false);
   });
+  it('en invernadero nunca omite el riego por lluvia', () => {
+    expect(guard.shouldSkip(cropOf({ ...base, growing_environment: 'greenhouse' }), now)).toBe(false);
+    expect(guard.shouldSkip(cropOf({ ...base, growing_environment: 'open_air' }), now)).toBe(true);
+  });
   it('respeta el umbral de mm (2 por defecto)', () => {
     expect(guard.shouldSkip(cropOf({ ...base, rain_forecast_mm: 1.5 }), now)).toBe(false);
     expect(guard.shouldSkip(cropOf({ ...base, rain_forecast_mm: 1.5, rain_threshold_mm: 1 }), now)).toBe(true);

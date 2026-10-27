@@ -31,6 +31,7 @@ const emptyCrop = {
   control_mode: 'MANUAL',
   latitude: '',
   longitude: '',
+  growing_environment: 'open_air',
   rain_skip: false,
   rain_threshold_mm: '2',
   pulse_on_minutes: '',
@@ -67,6 +68,7 @@ const cropToForm = (crop) => ({
   control_mode: crop.control_mode || 'MANUAL',
   latitude: Number(crop.latitude) || Number(crop.longitude) ? String(crop.latitude) : '',
   longitude: Number(crop.latitude) || Number(crop.longitude) ? String(crop.longitude) : '',
+  growing_environment: crop.growing_environment === 'greenhouse' ? 'greenhouse' : 'open_air',
   rain_skip: Boolean(crop.rain_skip),
   rain_threshold_mm: toFormValue(crop.rain_threshold_mm, '2'),
   pulse_on_minutes: toFormValue(crop.pulse_on_minutes),
@@ -218,7 +220,7 @@ const CropsPage = () => {
         setEditingId(crop.id);
         savedId = crop.id;
       }
-      if (form.rain_skip && savedId) {
+      if (form.rain_skip && form.growing_environment !== 'greenhouse' && savedId) {
         try {
           const forecast = await pb.send(`/api/neptuno/crops/${savedId}/rain-forecast`, { method: 'POST' });
           setNotice((current) => `${current} Lluvia prevista en las próximas 6 horas: ${forecast.mm} mm.`);
@@ -293,6 +295,18 @@ const CropsPage = () => {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="crop-environment">¿Dónde está el cultivo?</Label>
+                    <select id="crop-environment" name="growing_environment" value={form.growing_environment} onChange={handleChange} className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm">
+                      <option value="open_air">Al aire libre</option>
+                      <option value="greenhouse">En invernadero</option>
+                    </select>
+                    <p className="text-xs text-slate-500">
+                      {form.growing_environment === 'greenhouse'
+                        ? 'En invernadero la lluvia no moja el cultivo, así que no se consulta el pronóstico.'
+                        : 'Al aire libre puedes pedir que no se riegue cuando va a llover.'}
+                    </p>
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="crop-control-mode">Modo de control</Label>
                     <select id="crop-control-mode" name="control_mode" value={form.control_mode} onChange={handleChange} className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm">
@@ -399,14 +413,14 @@ const CropsPage = () => {
                       <Input id="crop-alert-temperature" name="alert_temp_max" type="number" min="-10" max="60" step="any" value={form.alert_temp_max} onChange={handleChange} placeholder="Desactivada" />
                     </div>
                   </div>
-                  {form.control_mode !== 'MANUAL' && (
+                  {form.control_mode !== 'MANUAL' && form.growing_environment !== 'greenhouse' && (
                     <div className="space-y-3 rounded-lg border border-cyan-100 bg-cyan-50/50 p-4">
                       <label className="flex items-start gap-3 text-sm font-medium text-slate-800">
                         <input type="checkbox" name="rain_skip" checked={form.rain_skip} onChange={handleToggle} className="mt-1 h-4 w-4" />
                         <span>
                           No empezar a regar si se espera lluvia
                           <span className="block text-xs font-normal text-slate-500">
-                            Consulta el pronóstico de las próximas 6 horas (Open-Meteo, gratis). Si el suelo está muy seco, riega igual para no arriesgar el cultivo. El riego en curso se sigue cortando por la humedad.
+                            Neptuno mira el pronóstico de las próximas 6 horas y, si va a llover, no abre la válvula. Si el suelo ya está muy seco, riega de todos modos. Los sensores siguen midiendo siempre y un riego en curso se corta por la humedad.
                           </span>
                         </span>
                       </label>

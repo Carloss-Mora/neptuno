@@ -73,7 +73,7 @@ const rainFields = (data) => {
     out.longitude = 0;
   }
   if ('rain_skip' in data) {
-    out.rain_skip = Boolean(data.rain_skip);
+    out.rain_skip = Boolean(data.rain_skip) && data.growing_environment !== 'greenhouse';
     if (out.rain_skip && !hasLatitude) throw new Error('Para no regar con lluvia primero indica la ubicación del cultivo.');
   }
   if (isProvided(data.rain_threshold_mm)) {
@@ -160,6 +160,7 @@ const normalizeCrop = (data) => {
     alert_temp_max: alertTemperatureMaximum,
     control_mode: data.control_mode || 'MANUAL',
     ...rainFields(data),
+    ...(('growing_environment' in data) ? { growing_environment: data.growing_environment === 'greenhouse' ? 'greenhouse' : 'open_air' } : {}),
     ...pulseFields(data),
     ...referenceFields(data),
     ...(('planting_date' in data) ? { planting_date: plantingDate(data.planting_date) } : {}),

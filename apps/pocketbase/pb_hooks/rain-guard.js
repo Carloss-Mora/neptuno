@@ -23,7 +23,7 @@ module.exports = {
   // humidity y humidityMin son opcionales (modo programado no los usa).
   // Si el suelo está muy seco (más de 10 puntos bajo el mínimo) se riega igual: no se arriesga el cultivo.
   shouldSkip(crop, nowMs, humidity, humidityMin) {
-    if (!crop.get('rain_skip') || !this.hasLocation(crop)) return false;
+    if (!crop.get('rain_skip') || crop.get('growing_environment') === 'greenhouse' || !this.hasLocation(crop)) return false;
     const at = crop.get('rain_forecast_at') ? new Date(String(crop.get('rain_forecast_at')).replace(' ', 'T')).getTime() : NaN;
     if (!Number.isFinite(at) || nowMs - at > FORECAST_MAX_AGE_MS || nowMs - at < -60000) return false;
     if (Number(crop.get('rain_forecast_mm')) < this.thresholdMm(crop)) return false;
