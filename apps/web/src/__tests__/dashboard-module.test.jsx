@@ -262,21 +262,13 @@ describe('Dashboard and route module', () => {
     expect(within(menu).getByRole('link', { name: 'Historial de Riego' })).toBeInTheDocument();
   });
 
-  it('saves cultivated area in the selected crop record', async () => {
-    const user = userEvent.setup();
-    const storedCrop = {
-      ...defaultCrop,
-      userId: 'user-1',
-      area_m2: 100,
-    };
-    const updateCrop = vi.fn(async (id, payload) => {
-      Object.assign(storedCrop, payload);
-      return { ...storedCrop, id };
-    });
+  it('shows the farm total area as the sum of all crops and no longer edits area on the home screen', async () => {
     mockPb.collection.mockImplementation((name) => {
       if (name === 'crops') return {
-        getFullList: vi.fn(async () => [{ ...storedCrop }]),
-        update: updateCrop,
+        getFullList: vi.fn(async () => [
+          { ...defaultCrop, area_m2: 100, planting_date: '2024-01-01', phenological_stage: 'floración' },
+          { ...defaultCrop, id: 'crop-2', name: 'Lote 2', area_m2: 150 },
+        ]),
       };
       if (name === 'sensor_readings') {
         return { getList: vi.fn(async () => ({ items: [] })), subscribe: vi.fn(async () => vi.fn()) };
@@ -284,7 +276,7 @@ describe('Dashboard and route module', () => {
       return { getList: vi.fn(async () => ({ items: [] })), getFullList: vi.fn(async () => []), subscribe: vi.fn(async () => vi.fn()) };
     });
 
-    const dashboard = () => (
+    render(
       <AuthProvider>
         <CropProvider>
           <AlertProvider>
@@ -297,31 +289,36 @@ describe('Dashboard and route module', () => {
         </CropProvider>
       </AuthProvider>
     );
-    const { unmount } = render(dashboard());
 
-    await user.click(await screen.findByRole('button', { name: 'Modificar área' }));
-    const areaInput = await screen.findByLabelText('Área total del cultivo');
-    await user.clear(areaInput);
-    await user.type(areaInput, '250');
-    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+    expect(await screen.findByText('Área total de la finca: 250 m²')).toBeInTheDocument();
+    expect(screen.getByText('2 cultivos. Es la suma del área de todos tus cultivos.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Modificar área' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Editar cultivos y área/ })).toBeInTheDocument();
+    expect(screen.getByText(/Floración, día \d+ desde la siembra/)).toBeInTheDocument();
+  });
 
-    await waitFor(() => {
-      expect(updateCrop).toHaveBeenCalledWith(
-        'crop-1',
-        expect.objectContaining({ area_m2: 250 }),
-        { $autoCancel: false },
-      );
+  it('asks for the flow rate instead of showing a made-up consumption', async () => {
+    mockPb.collection.mockImplementation((name) => {
+      if (name === 'crops') return { getFullList: vi.fn(async () => [{ ...defaultCrop, flow_lpm: 0 }]) };
+      if (name === 'sensor_readings') {
+        return { getList: vi.fn(async () => ({ items: [] })), subscribe: vi.fn(async () => vi.fn()) };
+      }
+      return { getList: vi.fn(async () => ({ items: [] })), getFullList: vi.fn(async () => []), subscribe: vi.fn(async () => vi.fn()) };
     });
-    expect(screen.getByRole('status')).toHaveTextContent('Área guardada.');
-    expect(screen.getByText('Área total registrada: 250 m²')).toBeInTheDocument();
-    expect(screen.getByText('0.2 L/min × duración real')).toBeInTheDocument();
-    await waitFor(() => {
-      expect(storedCrop.area_m2).toBe(250);
-      expect(screen.getByText('Área total registrada: 250 m²')).toBeInTheDocument();
-    }, { timeout: 6000 });
-
-    unmount();
-    render(dashboard());
-    expect(await screen.findByText('Área total registrada: 250 m²')).toBeInTheDocument();
+    render(
+      <AuthProvider>
+        <CropProvider>
+          <AlertProvider>
+            <MemoryRouter initialEntries={['/dashboard']}>
+              <Routes>
+                <Route path="/dashboard" element={<DashboardPage />} />
+              </Routes>
+            </MemoryRouter>
+          </AlertProvider>
+        </CropProvider>
+      </AuthProvider>
+    );
+    expect(await screen.findByText('Falta el caudal')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Registrar el caudal/ })).toBeInTheDocument();
   });
 });

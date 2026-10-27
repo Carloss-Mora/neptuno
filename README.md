@@ -133,3 +133,7 @@ Ejecuta estos checks solo contra una instancia local de pruebas; no uses una bas
 3. Copia el *ID de cliente* y el *Secreto* a `.env` como `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` y reinicia PocketBase. Si en el arranque ves «[google] Inicio de sesión con Google activado desde el entorno», el botón aparece en Registro e Inicio de sesión.
 4. Mientras la app esté en modo *Pruebas*, solo entran los correos que añadas como usuarios de prueba; para abrirla a todos, pulsa *Publicar aplicación* en la pantalla de consentimiento.
 5. Quien se registra con Google queda con el correo verificado y no necesita código. Si ya existía una cuenta con ese correo, se enlaza a ella.
+
+## Panel Principal (Inicio)
+
+Es la primera pantalla del agricultor: nombre del cultivo, etapa y día desde la siembra, estado del riego con el motivo del último cambio y el próximo riego, lluvia prevista (si activaste «no regar con lluvia»), humedad con su estado (Muy seco / Seco / Húmedo y estable / Mucha agua) frente al rango ideal, nivel de agua, temperatura, consumo estimado de hoy (pide registrar el caudal si falta), alertas activas, resumen de zonas y «Mi finca». El área total de la finca es solo informativa: la suma del área de todos tus cultivos. El área de cada cultivo se edita en **Cultivos**.
