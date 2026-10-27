@@ -8,6 +8,12 @@ APP=/opt/neptuno
 DATA=/var/lib/neptuno
 ENV_FILE=/etc/neptuno.env
 
+# Memoria extra (swap) para poder compilar la web en máquinas de 1 GB
+if ! swapon --show | grep -q .; then
+  fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+  grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
 apt-get update -y
 apt-get install -y git curl unzip debian-keyring debian-archive-keyring apt-transport-https gpg
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
