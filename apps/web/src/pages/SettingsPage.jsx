@@ -5,6 +5,7 @@ import { BellRing, Database, Droplets, FlaskConical, Settings2, ShieldAlert, Use
 import Header from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserSettings } from '@/contexts/UserSettingsContext';
+import { useCrop } from '@/contexts/CropContext';
 import { validateDefaults } from '@/utils/settingsValidation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,6 +22,53 @@ const describeRequestError = (error) => {
   if (status === 401 || status === 403) return 'Tu sesión no tiene permiso para esta acción. Cierra sesión y vuelve a entrar.';
   if (status) return `El servidor respondió con el error ${status}${error?.response?.message ? `: ${error.response.message}` : ''}.`;
   return error?.message || 'Error desconocido.';
+};
+
+// Datos de ejemplo para mostrar Neptuno funcionando sin hardware: 30 días de lecturas y riegos que siguen en vivo.
+const DemoDataSection = () => {
+  const { selectedCrop, refreshCrops } = useCrop();
+  const [busy, setBusy] = useState('');
+  const [message, setMessage] = useState('');
+
+  const run = async (action) => {
+    if (!selectedCrop) return;
+    setBusy(action);
+    setMessage('');
+    try {
+      if (action === 'load') {
+        const result = await pb.send('/api/neptuno/demo/history', { method: 'POST', body: { cropId: selectedCrop.id, days: 30, live: true } });
+        setMessage(`Listo: ${result.readings} lecturas y ${result.logs} cambios de riego de los últimos 30 días. Seguirán actualizándose solos cada 5 minutos.`);
+      } else {
+        await pb.send('/api/neptuno/demo/history', { method: 'DELETE', query: { cropId: selectedCrop.id } });
+        setMessage('Datos de ejemplo borrados. Tus datos reales no se tocaron.');
+      }
+      await refreshCrops();
+    } catch (error) {
+      setMessage(`No se pudo completar la acción. ${describeRequestError(error)}`);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  return (
+    <div className="space-y-3 border-t border-slate-100 pt-5">
+      <p className="text-sm font-semibold text-slate-800">Datos de ejemplo</p>
+      <p className="text-sm text-slate-600">
+        {selectedCrop
+          ? `Llena «${selectedCrop.name}» con 30 días de lecturas, riegos y zonas de ejemplo para ver todos los paneles y gráficos con datos, como si el sistema ya estuviera conectado. Quedan marcados como demostración.`
+          : 'Crea o selecciona un cultivo para cargar datos de ejemplo.'}
+      </p>
+      <div className="flex flex-wrap gap-3">
+        <Button type="button" onClick={() => run('load')} disabled={!selectedCrop || Boolean(busy)} className="bg-teal-700 text-white hover:bg-teal-800">
+          {busy === 'load' ? 'Cargando…' : selectedCrop?.demo_live ? 'Volver a generar datos' : 'Cargar datos de ejemplo'}
+        </Button>
+        <Button type="button" variant="outline" onClick={() => run('clear')} disabled={!selectedCrop || Boolean(busy)} className="border-rose-200 text-rose-700 hover:bg-rose-50">
+          {busy === 'clear' ? 'Borrando…' : 'Borrar datos de ejemplo'}
+        </Button>
+      </div>
+      {message && <p role="status" className="text-sm text-slate-700">{message}</p>}
+    </div>
+  );
 };
 
 const RETENTION_OPTIONS = [7, 14, 30, 60, 90];
@@ -220,6 +268,7 @@ const SettingsPage = () => {
             <p className="text-sm text-slate-600">
               Los datos simulados no aparecen en tus sensores ni en tus reportes. <Link to="/simulator" className="font-semibold text-teal-700 hover:underline">Abrir el laboratorio</Link>.
             </p>
+            <DemoDataSection />
           </Section>
 
           <Section icon={Database} title="Datos y privacidad" description="Qué se guarda de tus sensores y cómo llevarte tu información.">

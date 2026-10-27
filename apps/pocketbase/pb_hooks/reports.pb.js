@@ -1,7 +1,7 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 // Lecturas de sensores agrupadas por hora para los reportes (evita bajar miles de lecturas al navegador).
-// GET /api/neptuno/reports/readings?cropId=...&from=ISO&to=ISO  (máximo 400 días, solo datos reales)
+// GET /api/neptuno/reports/readings?cropId=...&from=ISO&to=ISO[&include_demo=1]  (máximo 400 días; sin include_demo, solo datos reales)
 routerAdd('GET', '/api/neptuno/reports/readings', (e) => {
   const info = e.requestInfo();
   const cropId = String(info.query.cropId || '');
@@ -13,6 +13,7 @@ routerAdd('GET', '/api/neptuno/reports/readings', (e) => {
   if (to.getTime() - from.getTime() > 400 * 24 * 60 * 60 * 1000) {
     throw new BadRequestError('El periodo máximo es de 400 días.');
   }
+  const includeDemo = String(info.query.include_demo || '') === '1';
   const crop = $app.findRecordById('crops', cropId);
   if (String(crop.get('userId')) !== String(e.auth.id)) {
     throw new ForbiddenError('El cultivo no pertenece al usuario autenticado.');
@@ -35,10 +36,11 @@ routerAdd('GET', '/api/neptuno/reports/readings', (e) => {
     `SELECT substr(created, 1, 13) AS hour, AVG(soil_humidity) AS h, AVG(temperature) AS t,
             AVG(water_level) AS w, COUNT(*) AS n
      FROM sensor_readings
-     WHERE cropId = {:cropId} AND (is_demo IS NULL OR is_demo = 0) AND created >= {:from} AND created <= {:to}
+     WHERE cropId = {:cropId} AND (is_demo IS NULL OR is_demo = 0 OR {:includeDemo} = 1) AND created >= {:from} AND created <= {:to}
      GROUP BY substr(created, 1, 13)`,
   ).bind({
     cropId,
+    includeDemo: includeDemo ? 1 : 0,
     from: from.toISOString().replace('T', ' '),
     to: to.toISOString().replace('T', ' '),
   }).all(raw);
@@ -47,7 +49,7 @@ routerAdd('GET', '/api/neptuno/reports/readings', (e) => {
   // Las lecturas antiguas ya resumidas por hora (ver sensor-retention.pb.js).
   const summarized = $app.findRecordsByFilter(
     'sensor_readings_hourly',
-    'cropId = {:cropId} && (is_demo = false || is_demo = null) && hour_start >= {:from} && hour_start <= {:to}',
+    `cropId = {:cropId} && ${includeDemo ? '' : '(is_demo = false || is_demo = null) && '}hour_start >= {:from} && hour_start <= {:to}`,
     'hour_start',
     0,
     0,
