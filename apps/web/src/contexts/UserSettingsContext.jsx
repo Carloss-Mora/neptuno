@@ -7,6 +7,9 @@ export const SETTINGS_DEFAULTS = {
   ...DEFAULT_PREFERENCES,
   notify_irrigation_events: false,
   notify_alerts: true,
+  whatsapp_enabled: false,
+  whatsapp_phone: '',
+  whatsapp_apikey: '',
   default_humidity_min: '',
   default_humidity_max: '',
   default_max_irrigation_minutes: '',
@@ -26,6 +29,9 @@ export const fromRecord = (record) => {
   settings.unit_temp = record.unit_temp || 'C';
   settings.notify_irrigation_events = record.notify_irrigation_events ?? false;
   settings.notify_alerts = record.notify_alerts ?? true;
+  settings.whatsapp_enabled = record.whatsapp_enabled ?? false;
+  settings.whatsapp_phone = record.whatsapp_phone || '';
+  settings.whatsapp_apikey = record.whatsapp_apikey || '';
   settings.retention_days = Number(record.retention_days) > 0 ? Number(record.retention_days) : 30;
   NUMERIC_KEYS.forEach((key) => {
     settings[key] = Number(record[key]) > 0 ? Number(record[key]) : '';

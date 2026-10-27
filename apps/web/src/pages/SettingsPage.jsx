@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useNavigate } from 'react-router-dom';
-import { BellRing, Database, Droplets, FlaskConical, Settings2, ShieldAlert, Smartphone, User } from 'lucide-react';
+import { BellRing, Database, MessageCircle, Droplets, FlaskConical, Settings2, ShieldAlert, Smartphone, User } from 'lucide-react';
 import Header from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserSettings } from '@/contexts/UserSettingsContext';
@@ -103,6 +103,72 @@ const InstallSection = () => {
         <p className="text-sm text-slate-600">En iPhone: toca el botón Compartir de Safari y elige «Agregar a pantalla de inicio».</p>
       ) : (
         <p className="text-sm text-slate-600">En Android: abre el menú del navegador (⋮) y elige «Instalar app» o «Agregar a pantalla de inicio». Requiere abrir Neptuno desde su dirección segura (https).</p>
+      )}
+    </div>
+  );
+};
+
+// Alertas por WhatsApp: opcionales; la persona decide y registra su celular.
+const WhatsappSection = ({ draft, set, disabled, dirty }) => {
+  const [status, setStatus] = useState(null);
+  const [testing, setTesting] = useState(false);
+  const [testMessage, setTestMessage] = useState('');
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const result = await pb.send('/api/neptuno/whatsapp/status', {});
+        if (active) setStatus(result || null);
+      } catch {
+        if (active) setStatus(null);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+  const sendTest = async () => {
+    setTesting(true);
+    setTestMessage('');
+    try {
+      await pb.send('/api/neptuno/whatsapp/test', { method: 'POST' });
+      setTestMessage('Mensaje enviado. Revisa tu WhatsApp.');
+    } catch (error) {
+      setTestMessage(error?.response?.message || describeRequestError(error));
+    } finally {
+      setTesting(false);
+    }
+  };
+  return (
+    <div className="space-y-4">
+      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-teal-100 p-4 hover:bg-teal-50/40">
+        <input type="checkbox" checked={Boolean(draft.whatsapp_enabled)} disabled={disabled} onChange={(event) => set('whatsapp_enabled', event.target.checked)} className="mt-1 h-4 w-4 accent-teal-700" />
+        <span>
+          <span className="block font-semibold text-slate-900">Quiero recibir las alertas importantes por WhatsApp</span>
+          <span className="mt-1 block text-sm text-slate-600">Solo alertas (tanque bajo, temperatura alta, dispositivo sin conexión), no cada riego. Puedes desactivarlo cuando quieras.</span>
+        </span>
+      </label>
+      {draft.whatsapp_enabled && (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="settings-whatsapp-phone">Tu celular con indicativo</Label>
+            <Input id="settings-whatsapp-phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="+57 300 123 4567" value={draft.whatsapp_phone} disabled={disabled} onChange={(event) => set('whatsapp_phone', event.target.value)} className="max-w-xs" />
+            <p className="text-xs text-slate-500">Solo se usa para enviarte estas alertas, y se comparte con el proveedor de WhatsApp para entregarlas.</p>
+          </div>
+          {status?.needs_api_key && (
+            <div className="space-y-2">
+              <Label htmlFor="settings-whatsapp-key">Clave de CallMeBot</Label>
+              <Input id="settings-whatsapp-key" value={draft.whatsapp_apikey} disabled={disabled} onChange={(event) => set('whatsapp_apikey', event.target.value)} autoComplete="off" className="max-w-xs" />
+              <p className="text-xs text-slate-500">Escríbele «I allow callmebot to send me messages» al +34 644 51 95 23 en WhatsApp y te responde con tu clave.</p>
+            </div>
+          )}
+          {status && !status.available && (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Este servidor aún no tiene un proveedor de WhatsApp configurado: tu preferencia se guarda, pero todavía no se envían mensajes.</p>
+          )}
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="button" variant="outline" onClick={sendTest} disabled={testing || dirty || !status?.available} className="border-teal-200 text-teal-800 hover:bg-teal-50">{testing ? 'Enviando…' : 'Enviar mensaje de prueba'}</Button>
+            {dirty && <span className="text-xs text-slate-500">Guarda los cambios para poder probar.</span>}
+          </div>
+          {testMessage && <p role="status" className="text-sm text-slate-700">{testMessage}</p>}
+        </div>
       )}
     </div>
   );
@@ -299,6 +365,10 @@ const SettingsPage = () => {
             <p className="text-sm text-slate-600">
               Los umbrales que disparan las alertas se configuran por cultivo en <Link to="/crops" className="font-semibold text-teal-700 hover:underline">Cultivos</Link>.
             </p>
+          </Section>
+
+          <Section icon={MessageCircle} title="Alertas por WhatsApp" description="Opcional. Recibe las alertas importantes en tu celular.">
+            <WhatsappSection draft={draft} set={set} disabled={loading || saving} dirty={dirty} />
           </Section>
 
           <Section icon={FlaskConical} title="Modo demostración" description="Un laboratorio para probar el riego con datos simulados, sin tocar tu cultivo real.">
