@@ -3,12 +3,19 @@
 HOST {
 	encode gzip
 
-	# PocketBase (API y panel de administración) en la misma dirección que la web
-	@pb path /api/* /_/*
-	reverse_proxy @pb 127.0.0.1:8090
+	# PocketBase (API y panel de administración) en la misma dirección que la web.
+	# Cada bloque "handle" es excluyente: lo que empieza por /api o /_ va a PocketBase y nada más.
+	handle /api/* {
+		reverse_proxy 127.0.0.1:8090
+	}
+	handle /_/* {
+		reverse_proxy 127.0.0.1:8090
+	}
 
-	# La web (React): cualquier ruta devuelve index.html
-	root * /opt/neptuno/dist/apps/web
-	try_files {path} /index.html
-	file_server
+	# La web (React): cualquier otra ruta devuelve index.html
+	handle {
+		root * /opt/neptuno/dist/apps/web
+		try_files {path} /index.html
+		file_server
+	}
 }
