@@ -102,6 +102,15 @@ const pulseFields = (data) => {
   return { pulse_on_minutes: on, pulse_off_minutes: off };
 };
 
+// Minutos por día de un riego fijo habitual (para calcular el ahorro de agua); vacío = sin referencia.
+const referenceFields = (data) => {
+  if (!('reference_minutes_per_day' in data)) return {};
+  if (!isProvided(data.reference_minutes_per_day) || Number(data.reference_minutes_per_day) === 0) return { reference_minutes_per_day: 0 };
+  const minutes = Number(data.reference_minutes_per_day);
+  if (!Number.isFinite(minutes) || minutes < 0 || minutes > 1440) throw new Error('El riego fijo de referencia debe ser de 1 a 1440 minutos por día.');
+  return { reference_minutes_per_day: minutes };
+};
+
 const normalizeCrop = (data) => {
   validateThresholds(data);
   requirePositive(data.area_m2, 'El área debe ser un número mayor que cero.');
@@ -143,6 +152,7 @@ const normalizeCrop = (data) => {
     control_mode: data.control_mode || 'MANUAL',
     ...rainFields(data),
     ...pulseFields(data),
+    ...referenceFields(data),
   };
 };
 

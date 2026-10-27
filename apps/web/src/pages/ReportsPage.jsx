@@ -210,7 +210,7 @@ const ReportsPage = () => {
                       Para calcular litros falta el caudal del cultivo. Mientras tanto verás los minutos de riego. <Link to="/crops" className="font-semibold underline">Configurar caudal</Link>
                     </p>
                   )}
-                  <section aria-label="Resumen del periodo" className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-4 ${loading ? 'opacity-60' : ''}`}>
+                  <section aria-label="Resumen del periodo" className={`grid gap-4 sm:grid-cols-2 ${report.savings ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} ${loading ? 'opacity-60' : ''}`}>
                     <Kpi icon={Droplets} label="Consumo estimado" tone="bg-cyan-100 text-cyan-700" value={hasFlow ? formatVolume(report.totals.liters, volumeUnit) : 'Sin caudal'}
                       note={hasFlow && report.areaM2 ? `${(volumeFromLiters(report.totals.liters, volumeUnit) / report.areaM2).toFixed(1)} ${volumeUnitLabel(volumeUnit)} por m²` : undefined} />
                     <Kpi icon={Sprout} label="Riegos" tone="bg-teal-100 text-teal-700" value={String(report.totals.sessions)}
@@ -219,6 +219,11 @@ const ReportsPage = () => {
                     <Kpi icon={Clock3} label="Promedio diario" tone="bg-emerald-100 text-emerald-700"
                       value={hasFlow ? formatVolume(report.totals.averageLitersPerDay, volumeUnit) : formatMinutes(report.totals.minutes / Math.max(1, report.days))}
                       note={report.totals.peakDay ? `Mayor riego: ${report.totals.peakDay.date.split('-').reverse().slice(0, 2).join('/')}` : undefined} />
+                    {report.savings && (
+                      <Kpi icon={Sprout} label={report.savings.savedLiters >= 0 ? 'Agua ahorrada' : 'Sobre el riego fijo'} tone="bg-emerald-100 text-emerald-700"
+                        value={formatVolume(Math.abs(report.savings.savedLiters), volumeUnit)}
+                        note={`${Math.abs(report.savings.savedPercent).toFixed(0)} % ${report.savings.savedLiters >= 0 ? 'menos' : 'más'} que ${report.savings.referenceMinutesPerDay} min/día fijos`} />
+                    )}
                   </section>
 
                   <Card className="rounded-3xl border-teal-100">

@@ -35,6 +35,7 @@ const emptyCrop = {
   rain_threshold_mm: '2',
   pulse_on_minutes: '',
   pulse_off_minutes: '',
+  reference_minutes_per_day: '',
 };
 
 const MODE_HELP = {
@@ -69,6 +70,7 @@ const cropToForm = (crop) => ({
   rain_threshold_mm: toFormValue(crop.rain_threshold_mm, '2'),
   pulse_on_minutes: toFormValue(crop.pulse_on_minutes),
   pulse_off_minutes: toFormValue(crop.pulse_off_minutes),
+  reference_minutes_per_day: toFormValue(crop.reference_minutes_per_day),
 });
 
 // Los valores por defecto de Ajustes rellenan el formulario de un cultivo nuevo.
@@ -297,6 +299,11 @@ const CropsPage = () => {
                     <div className="space-y-2">
                       <Label htmlFor="crop-flow">Caudal medido (L/min)</Label>
                       <Input id="crop-flow" name="flow_lpm" type="number" min="0.01" step="any" value={form.flow_lpm} onChange={handleChange} placeholder="Requerido para consumo estimado" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="crop-reference">Riego fijo habitual (min/día)</Label>
+                      <Input id="crop-reference" name="reference_minutes_per_day" type="number" min="1" max="1440" step="1" value={form.reference_minutes_per_day} onChange={handleChange} placeholder="Opcional" />
+                      <p className="text-xs text-slate-500">Cuánto regarías cada día sin Neptuno. Sirve para calcular cuánta agua ahorras en Reportes.</p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="crop-stage">Etapa fenológica</Label>

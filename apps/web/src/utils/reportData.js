@@ -72,6 +72,19 @@ export const buildReport = ({ crop, logs = [], hours = [], sensors = [], deviceI
       };
     });
 
+  // Ahorro frente a un riego fijo de referencia (minutos por día habituales del cultivo). Puede ser negativo.
+  const referenceMinutes = Number(crop?.reference_minutes_per_day) > 0 ? Number(crop.reference_minutes_per_day) : null;
+  let savings = null;
+  if (referenceMinutes && flowLpm && daily.length > 0) {
+    const referenceLiters = referenceMinutes * flowLpm * daily.length;
+    savings = {
+      referenceMinutesPerDay: referenceMinutes,
+      referenceLiters,
+      savedLiters: referenceLiters - liters,
+      savedPercent: ((referenceLiters - liters) / referenceLiters) * 100,
+    };
+  }
+
   return {
     cropName: crop?.name || 'Cultivo',
     areaM2: Number(crop?.area_m2) > 0 ? Number(crop.area_m2) : null,
@@ -88,6 +101,7 @@ export const buildReport = ({ crop, logs = [], hours = [], sensors = [], deviceI
       averageLitersPerDay: liters !== null && daily.length > 0 ? liters / daily.length : null,
       peakDay: peak ? { date: peak.date, minutes: peak.minutes, liters: peak.liters } : null,
     },
+    savings,
     daily,
     sessions: sessionRows,
     hours,
