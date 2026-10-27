@@ -147,3 +147,23 @@ describe('exportación', () => {
     expect(formatMinutes(20)).toBe('20 min');
   });
 });
+
+describe('ahorro de agua', () => {
+  const day = (d) => new Date(`2026-10-${d}T12:00:00`);
+  const logs = [
+    { id: '1', status: 'ON', source: 'THRESHOLD', created: '2026-10-10T06:00:00', cropId: 'c' },
+    { id: '2', status: 'OFF', source: 'THRESHOLD', created: '2026-10-10T06:30:00', cropId: 'c' },
+  ];
+  const base = { logs, from: new Date('2026-10-10T00:00:00'), to: new Date('2026-10-11T23:59:59'), now: day(12) };
+  it('compara con el riego fijo de referencia', () => {
+    const report = buildReport({ ...base, crop: { name: 'A', flow_lpm: 10, reference_minutes_per_day: 60 } });
+    expect(report.savings.referenceLiters).toBe(60 * 10 * report.days);
+    expect(report.savings.savedLiters).toBe(60 * 10 * report.days - 300);
+    expect(report.savings.savedPercent).toBeGreaterThan(50);
+  });
+  it('puede ser negativo y no aparece sin referencia o sin caudal', () => {
+    expect(buildReport({ ...base, crop: { name: 'A', flow_lpm: 10, reference_minutes_per_day: 5 } }).savings.savedLiters).toBeLessThan(0);
+    expect(buildReport({ ...base, crop: { name: 'A', flow_lpm: 10 } }).savings).toBeNull();
+    expect(buildReport({ ...base, crop: { name: 'A', reference_minutes_per_day: 60 } }).savings).toBeNull();
+  });
+});

@@ -67,9 +67,10 @@ export const createPdf = async (report, preferences = {}) => {
     ['Riegos', String(report.totals.sessions)],
     ['Tiempo de riego', formatMinutes(report.totals.minutes)],
     ['Promedio por día', hasFlow ? formatVolume(report.totals.averageLitersPerDay, volumeUnit) : formatMinutes(report.totals.minutes / Math.max(1, report.days))],
+    ...(report.savings ? [[report.savings.savedLiters >= 0 ? 'Agua ahorrada' : 'Sobre el riego fijo', `${formatVolume(Math.abs(report.savings.savedLiters), volumeUnit)} (${Math.abs(report.savings.savedPercent).toFixed(0)} %)`]] : []),
   ];
   const boxGap = 10;
-  const boxWidth = (contentWidth - boxGap * 3) / 4;
+  const boxWidth = (contentWidth - boxGap * (kpis.length - 1)) / kpis.length;
   kpis.forEach(([label, value], index) => {
     const x = margin + index * (boxWidth + boxGap);
     doc.setFillColor(...PALE);
@@ -79,7 +80,7 @@ export const createPdf = async (report, preferences = {}) => {
     doc.setFontSize(8.5);
     doc.text(pdfText(label), x + 10, 121);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
+    doc.setFontSize(kpis.length > 4 ? 11 : 14);
     doc.text(pdfText(value), x + 10, 143);
   });
 
@@ -250,6 +251,11 @@ export const createWorkbook = async (report, preferences = {}) => {
     [`Promedio diario (${volumeLabel})`, hasFlow ? round(volumeFromLiters(report.totals.averageLitersPerDay, volumeUnit)) : 'Requiere caudal'],
     ['Duración promedio por riego (min)', report.totals.averageMinutesPerSession === null ? '-' : round(report.totals.averageMinutesPerSession, 1)],
     ['Día de mayor riego', report.totals.peakDay ? `${report.totals.peakDay.date} (${formatMinutes(report.totals.peakDay.minutes)})` : '-'],
+    ...(report.savings ? [
+      [`Riego fijo de referencia (${volumeLabel})`, round(volumeFromLiters(report.savings.referenceLiters, volumeUnit))],
+      [`Agua ahorrada (${volumeLabel})`, round(volumeFromLiters(report.savings.savedLiters, volumeUnit))],
+      ['Ahorro (%)', round(report.savings.savedPercent, 1)],
+    ] : []),
     ['Nota', 'El consumo es una estimación: caudal configurado x minutos reales de riego.'],
   ].forEach((row) => summary.addRow({ k: row[0], v: row[1] }));
   styleHeader(summary);
