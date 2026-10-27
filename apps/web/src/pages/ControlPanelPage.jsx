@@ -236,7 +236,6 @@ const ControlPanelPage = () => {
       <Header />
 
       <div className="relative min-h-screen overflow-hidden bg-[#f4fbfa] py-10 sm:py-14">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-gradient-to-br from-teal-100/80 via-cyan-50/70 to-transparent" />
         <div className="container relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           {/* Page Header */}
           <div className="mb-10">
@@ -252,7 +251,7 @@ const ControlPanelPage = () => {
             {/* Left Column: Manual Control */}
             <div className="lg:col-span-5 space-y-8">
               <Card className="overflow-hidden rounded-3xl border-white/80 bg-white shadow-xl shadow-slate-900/5">
-                <CardHeader className="border-b border-slate-100 bg-gradient-to-br from-white to-teal-50/70 pb-6 text-center">
+                <CardHeader className="border-b border-slate-100 pb-6 text-center bg-teal-50/70">
                   <span className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-100 text-teal-700">
                     <Power className="h-5 w-5" />
                   </span>
@@ -288,8 +287,8 @@ const ControlPanelPage = () => {
                       size="lg"
                       className={`h-14 w-full max-w-[280px] rounded-2xl text-base font-bold shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl ${
                         displayedStatus === 'ON'
-                          ? 'bg-gradient-to-r from-rose-500 to-red-600 text-white hover:from-rose-600 hover:to-red-700'
-                          : 'bg-gradient-to-r from-teal-500 to-emerald-600 text-white hover:from-teal-600 hover:to-emerald-700'
+                          ? 'text-white bg-rose-600 hover:bg-rose-700'
+                          : 'text-white bg-teal-700 hover:bg-teal-800'
                       }`}
                     >
                       <Power className="w-6 h-6 mr-3" />
@@ -312,7 +311,7 @@ const ControlPanelPage = () => {
 
                   {/* Last Activity */}
                   {lastLog && (
-                    <div className="rounded-2xl border border-teal-100 bg-gradient-to-br from-teal-50 to-cyan-50/70 p-4">
+                    <div className="rounded-2xl border border-teal-100 p-4 bg-teal-50/70">
                       <div className="flex items-start space-x-3">
                         <Clock className="w-5 h-5 text-teal-600 flex-shrink-0 mt-0.5" />
                         <div>
@@ -332,7 +331,7 @@ const ControlPanelPage = () => {
 
               {/* Next Scheduled Info Card */}
               <Card className="overflow-hidden rounded-3xl border-teal-100 bg-white shadow-lg shadow-slate-900/5">
-                <CardContent className="relative bg-gradient-to-br from-teal-50/70 via-white to-cyan-50/50 p-6 sm:p-7">
+                <CardContent className="relative p-6 sm:p-7 bg-teal-50/70">
                   <div className="flex items-center space-x-4">
                     <div className="rounded-2xl bg-teal-100 p-3 text-teal-700">
                       <CalendarClock className="h-8 w-8" />

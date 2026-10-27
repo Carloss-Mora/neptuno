@@ -186,9 +186,9 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
 
   return (
     <Card className="overflow-hidden border-teal-100/80 bg-white shadow-xl shadow-teal-950/5">
-      <CardHeader className="border-b border-teal-100 bg-gradient-to-r from-teal-50 via-cyan-50 to-white pb-5">
+      <CardHeader className="border-b border-teal-100 pb-5 bg-teal-50/70">
         <CardTitle className="flex items-center gap-3 text-xl text-slate-900">
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 text-white shadow-lg shadow-teal-600/20">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl text-white shadow-lg shadow-teal-600/20 bg-teal-700">
             <Droplets className="h-5 w-5" />
           </span>
           <span>{initialData ? 'Editar horario' : 'Programar un riego'}</span>
@@ -370,7 +370,7 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
             <Button
               type="submit"
               disabled={isSubmitting || isPastSchedule}
-              className="h-12 flex-1 bg-gradient-to-r from-teal-600 to-cyan-600 font-semibold text-white shadow-lg shadow-teal-600/20 transition hover:-translate-y-0.5 hover:from-teal-500 hover:to-cyan-500 hover:shadow-xl disabled:translate-y-0"
+              className="h-12 flex-1 font-semibold text-white shadow-lg shadow-teal-600/20 transition hover:-translate-y-0.5 hover:shadow-xl disabled:translate-y-0 bg-teal-700 hover:bg-teal-800"
             >
               {isSubmitting ? (
                 <><LoaderCircle className="mr-2 h-4 w-4 animate-spin" />Guardando...</>

@@ -235,7 +235,6 @@ const StatisticsPage = () => {
 
       <Header />
       <main className="relative min-h-screen overflow-hidden bg-[#f4fbfa] py-10 sm:py-14">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-gradient-to-br from-cyan-100/80 via-teal-50/70 to-transparent" />
         <div className="container relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <section className="mb-8 rounded-3xl border border-teal-100 bg-white p-6 shadow-sm sm:p-8">
             <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">

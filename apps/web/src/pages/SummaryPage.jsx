@@ -122,7 +122,7 @@ const SummaryPage = () => {
                   const irrigationState = latestLog?.status === 'ON' ? 'ON' : 'OFF';
                   return (
                     <Card key={crop.id} className="overflow-hidden border-teal-100 bg-white shadow-sm">
-                      <CardHeader className="bg-gradient-to-r from-teal-50 to-cyan-50">
+                      <CardHeader className="bg-teal-50/70">
                         <CardTitle className="flex items-center gap-2 text-slate-900"><Sprout className="h-5 w-5 text-teal-700" />{crop.name}</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4 p-5">
