@@ -8,7 +8,7 @@ const PALE = [226, 239, 251];
 const AQUA = [34, 160, 185];
 
 const SOURCE_LABELS = { MANUAL: 'Manual', AUTOMATIC: 'Programado', THRESHOLD: 'Automático por humedad' };
-export const sourceLabel = (source) => SOURCE_LABELS[source] || source || '';
+const sourceLabel = (source) => SOURCE_LABELS[source] || source || '';
 
 const round = (value, digits = 2) => (Number.isFinite(value) ? Number(value.toFixed(digits)) : null);
 
@@ -25,7 +25,7 @@ const pdfText = (value) => String(value ?? '').replace(/—/g, '-').replace(/[�
 const slug = (text) => String(text).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'cultivo';
 export const reportFileName = (report, extension) => `neptuno-informe-${slug(report.cropName)}-${dateKey(report.from)}_${dateKey(report.to)}.${extension}`;
 
-export const saveBlob = (blob, filename) => {
+const saveBlob = (blob, filename) => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;

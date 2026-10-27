@@ -1,4 +1,4 @@
-export const LITERS_PER_MINUTE_LABEL = 'L/min';
+const LITERS_PER_MINUTE_LABEL = 'L/min';
 
 const weekDayNumber = (value) => {
   if (Number.isInteger(value) && value >= 0 && value <= 6) return value;

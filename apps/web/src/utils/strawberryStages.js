@@ -67,7 +67,7 @@ export function applyStageDefaults(form, nextStage, { force = false } = {}) {
 
 // Calendario de referencia por días desde la siembra (planta nueva en clima frío de altura, como Susa).
 // Es una aproximación: la variedad, la altitud y el manejo mueven estas fechas, por eso solo se sugiere.
-export const STAGE_CALENDAR = [
+const STAGE_CALENDAR = [
   { stage: 'vegetativo', fromDay: 0, toDay: 60 },
   { stage: 'floración', fromDay: 60, toDay: 90 },
   { stage: 'fructificación', fromDay: 90, toDay: Infinity },

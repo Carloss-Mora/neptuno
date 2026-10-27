@@ -1,5 +1,5 @@
 // Textos en español para las decisiones del motor de riego y los fallos simulados.
-export const REASON_LABELS = {
+const REASON_LABELS = {
   humidity_low: 'Humedad por debajo del mínimo: inicia el riego',
   hysteresis_hold: 'Entre los umbrales: mantiene el riego encendido',
   humidity_recovered: 'Humedad objetivo alcanzada: detiene el riego',

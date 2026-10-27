@@ -3,7 +3,7 @@ import { isSet } from '@/utils/optionalNumber';
 // Margen (puntos de %) por debajo del mínimo a partir del cual el suelo se considera "muy seco".
 export const VERY_DRY_MARGIN = 10;
 
-export const SOIL_STATES = {
+const SOIL_STATES = {
   very_dry: { label: 'Muy seco', tone: 'rose' },
   dry: { label: 'Seco', tone: 'amber' },
   ok: { label: 'Húmedo y estable', tone: 'emerald' },
