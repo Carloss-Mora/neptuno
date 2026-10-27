@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { Button } from '@/components/ui/button';
@@ -67,6 +67,41 @@ const FieldScene = () => (
     <path d="M10 113 H -20" stroke="#2468b6" strokeWidth="10" strokeLinecap="round" />
   </svg>
 );
+
+// Si existe public/hero-cultivo.mp4 (un video real de tu cultivo, sin sonido) se muestra en bucle;
+// si no, se usa la escena dibujada. Con «reducir movimiento» activado solo se ve la imagen fija (hero-cultivo.jpg).
+const HeroMedia = () => {
+  const [hasVideo, setHasVideo] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [reduceMotion] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const response = await fetch('/hero-cultivo.mp4', { method: 'HEAD' });
+        if (active && response.ok && /video/.test(response.headers.get('content-type') || '')) setHasVideo(true);
+      } catch {
+        // sin video: se queda la escena dibujada
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+  if (!hasVideo || failed) return <FieldScene />;
+  return (
+    <video
+      className="aspect-[4/3] h-auto w-full object-cover"
+      src="/hero-cultivo.mp4"
+      poster="/hero-cultivo.jpg"
+      autoPlay={!reduceMotion}
+      muted
+      loop
+      playsInline
+      preload="metadata"
+      onError={() => setFailed(true)}
+      aria-label="Cultivo de fresa con riego por goteo"
+    />
+  );
+};
 
 const StatusChip = ({ className, label, value, tone }) => (
   <div className={`absolute rounded-2xl border border-white bg-white/95 px-4 py-3 shadow-lg shadow-sky-900/10 ${className}`}>
@@ -162,7 +197,7 @@ const HomePage = () => (
           <div className="relative mx-auto w-full max-w-[560px] pt-8 lg:pt-0">
             <div className="rounded-[2rem] border border-white bg-white/60 p-3 shadow-xl shadow-sky-900/10 backdrop-blur">
               <div className="overflow-hidden rounded-[1.5rem] bg-gradient-to-b from-sky-100 via-sky-50 to-white">
-                <FieldScene />
+                <HeroMedia />
               </div>
             </div>
             <StatusChip className="-left-1 top-2 sm:-left-5" label="Humedad del suelo" value="68 %  Húmedo y estable" tone="text-emerald-700" />
@@ -241,7 +276,7 @@ const HomePage = () => (
       <footer className="border-t border-sky-100 bg-white/70">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-5 py-6 sm:flex-row sm:px-8">
           <Link to="/" className="flex items-center" aria-label="Neptuno, inicio">
-            <img src="/neptuno-logo-cropped.png" alt="Neptuno" className="h-12 w-auto object-contain" />
+            <img src="/neptuno-logo-cropped.png" alt="Neptuno" className="h-12 w-auto object-contain mix-blend-multiply" />
           </Link>
           <p className="text-center text-sm text-slate-500">Riego inteligente para una agricultura sostenible.</p>
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-slate-500">
