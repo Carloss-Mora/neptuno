@@ -48,6 +48,7 @@ cronAdd('automatic-irrigation', '* * * * *', () => {
     const allLogs = $app.findAllRecords(logsCollection);
     const latestLogByCrop = new Map();
     for (const log of allLogs) {
+      if (log.get('zoneId')) continue; // los registros por zona no cuentan como estado del cultivo
       const cropId = String(log.get('cropId') || '');
       const current = latestLogByCrop.get(cropId);
       if (!current || new Date(log.get('created')).getTime() > new Date(current.get('created')).getTime()) {
@@ -137,6 +138,7 @@ cronAdd('automatic-irrigation', '* * * * *', () => {
       });
       $app.save(newLog);
       latestLogByCrop.set(cropId, newLog);
+      require(`${__hooks}/zone-control.js`).mirror($app, crop, active ? 'ON' : 'OFF', 'SCHEDULE');
     }
   } catch (error) {
     console.error('Automatic irrigation scheduler failed:', error);

@@ -8,7 +8,7 @@ import { randomBytes } from 'node:crypto';
 const pbUrl = (process.env.PB_URL || '').replace(/\/+$/, '');
 const adminEmail = process.env.PB_ADMIN_EMAIL || '';
 const adminPassword = process.env.PB_ADMIN_PASSWORD || '';
-const routes = ['/dashboard', '/control', '/statistics', '/historial', '/crops', '/simulator', '/devices', '/summary', '/settings', '/sensors', '/reports'];
+const routes = ['/dashboard', '/control', '/statistics', '/historial', '/crops', '/simulator', '/devices', '/settings', '/sensors', '/reports'];
 
 const api = async (path: string, init: { method?: string; token?: string; body?: unknown } = {}) => {
   const response = await fetch(`${pbUrl}${path}`, {

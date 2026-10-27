@@ -282,7 +282,9 @@ export const createWorkbook = async (report, preferences = {}) => {
   styleHeader(daily);
 
   const sessions = workbook.addWorksheet('Riegos');
+  const hasZones = report.sessions.some((row) => row.zone);
   sessions.columns = [
+    ...(hasZones ? [{ header: 'Zona', key: 'zone', width: 18 }] : []),
     { header: 'Inicio', key: 'start', width: 20 },
     { header: 'Fin', key: 'end', width: 20 },
     { header: 'Minutos', key: 'minutes', width: 12 },
@@ -290,6 +292,7 @@ export const createWorkbook = async (report, preferences = {}) => {
     { header: 'Origen', key: 'source', width: 24 },
   ];
   report.sessions.forEach((row) => sessions.addRow({
+    zone: row.zone || '',
     start: formatDateTime(row.start, timezone),
     end: row.end ? formatDateTime(row.end, timezone) : 'En curso',
     minutes: round(row.minutes, 1),

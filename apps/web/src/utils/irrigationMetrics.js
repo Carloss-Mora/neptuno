@@ -118,7 +118,9 @@ export const getDisplayedIrrigationStatus = (currentStatus, lastLog, activeSched
   return currentStatus || 'OFF';
 };
 
-export const buildIrrigationSessions = (records, now = new Date()) => {
+// Une los registros ON/OFF en riegos. Sin zonas se usan los registros del cultivo completo (sin zoneId).
+// Con zonas (zoneFlows = Map zoneId → L/min) cada válvula es un riego propio, con su caudal.
+const pairSessions = (records, now, extra = () => ({})) => {
   const orderedRecords = [...records]
     .filter((record) => record.status === 'ON' || record.status === 'OFF')
     .sort((first, second) => new Date(first.created) - new Date(second.created));
@@ -142,6 +144,7 @@ export const buildIrrigationSessions = (records, now = new Date()) => {
         durationMs: Math.max(0, timestamp - openSession.activationDate),
         source: openSession.source,
         active: false,
+        ...extra(openSession),
       });
       openSession = null;
     }
@@ -155,10 +158,27 @@ export const buildIrrigationSessions = (records, now = new Date()) => {
       durationMs: Math.max(0, now - openSession.activationDate),
       source: openSession.source,
       active: true,
+      ...extra(openSession),
     });
   }
 
   return sessions;
+};
+
+export const buildIrrigationSessions = (records, now = new Date(), zoneFlows = null) => {
+  if (!(zoneFlows instanceof Map) || zoneFlows.size === 0) {
+    return pairSessions(records.filter((record) => !record.zoneId), now);
+  }
+  const byZone = new Map();
+  records.filter((record) => record.zoneId && zoneFlows.has(record.zoneId)).forEach((record) => {
+    if (!byZone.has(record.zoneId)) byZone.set(record.zoneId, []);
+    byZone.get(record.zoneId).push(record);
+  });
+  const sessions = [];
+  byZone.forEach((zoneRecords, zoneId) => {
+    sessions.push(...pairSessions(zoneRecords, now, () => ({ zoneId, flowLpm: zoneFlows.get(zoneId) || null })));
+  });
+  return sessions.sort((first, second) => first.activationDate - second.activationDate);
 };
 
 const formatLocalDateKey = (date) => {
@@ -180,7 +200,8 @@ export const estimateDailyConsumption = (
   const lastDay = new Date(endDate);
   lastDay.setHours(0, 0, 0, 0);
   const flowRate = Number(flowRateLitersPerMinute);
-  if (!Number.isFinite(flowRate) || flowRate <= 0) return dailyLiters;
+  const hasDefaultFlow = Number.isFinite(flowRate) && flowRate > 0;
+  if (!hasDefaultFlow && !sessions.some((session) => Number(session.flowLpm) > 0)) return dailyLiters;
 
   for (const date = new Date(firstDay); date <= lastDay; date.setDate(date.getDate() + 1)) {
     dailyLiters.set(formatLocalDateKey(date), 0);
@@ -198,8 +219,9 @@ export const estimateDailyConsumption = (
       const dayStart = new Date(year, month - 1, day).getTime();
       const dayEnd = new Date(year, month - 1, day + 1).getTime();
       const overlapMs = Math.max(0, Math.min(closingDate.getTime(), dayEnd) - Math.max(activationDate.getTime(), dayStart));
-      if (overlapMs > 0) {
-        dailyLiters.set(key, dailyLiters.get(key) + (overlapMs / 60000) * flowRate);
+      const sessionFlow = Number(session.flowLpm) > 0 ? Number(session.flowLpm) : flowRate;
+      if (overlapMs > 0 && Number.isFinite(sessionFlow) && sessionFlow > 0) {
+        dailyLiters.set(key, dailyLiters.get(key) + (overlapMs / 60000) * sessionFlow);
       }
     }
   });

@@ -1,4 +1,5 @@
 
+import { useZones, zoneFlowTotal } from '@/hooks/useZones';
 import { soilState } from '@/utils/soilState';
 import AreaInput from '@/components/AreaInput';
 import { formatArea } from '@/utils/area';
@@ -36,6 +37,7 @@ const DashboardPage = () => {
   const { settings: prefs, formatVolume } = useUserSettings();
   const cropId = selectedCrop?.id || '';
   const { schedules } = useIrrigationSchedule();
+  const { flows: zoneFlows } = useZones(selectedCrop);
   const { alerts } = useAlert();
   const [sensorData, setSensorData] = useState(null);
   const [latestLog, setLatestLog] = useState(null);
@@ -85,7 +87,7 @@ const DashboardPage = () => {
       setSensorData(readingsResult.status === 'fulfilled' ? readingsResult.value.items[0] || null : null);
       const logs = logsResult.status === 'fulfilled' ? logsResult.value : [];
       setIrrigationLogs(logs);
-      setLatestLog(logs[0] || null);
+      setLatestLog(logs.find((log) => !log.zoneId) || null);
       setNow(fetchedAt);
       const failedLoads = [readingsResult, logsResult]
         .filter((result) => result.status === 'rejected');
@@ -135,7 +137,7 @@ const DashboardPage = () => {
         const records = [record, ...current.filter((item) => item.id !== record.id)];
         return records.sort((first, second) => new Date(second.created) - new Date(first.created));
       });
-      setLatestLog((current) => !current || new Date(record.created) >= new Date(current.created) ? record : current);
+      if (!record.zoneId) setLatestLog((current) => !current || new Date(record.created) >= new Date(current.created) ? record : current);
       setNow(new Date());
     });
 
@@ -188,9 +190,9 @@ const DashboardPage = () => {
       return getStartDate(first) - getStartDate(second);
     })[0] || null;
   const displayedStatus = getDisplayedIrrigationStatus(latestLog?.status, latestLog, activeSchedule);
-  const sessions = buildIrrigationSessions(irrigationLogs, now);
+  const sessions = buildIrrigationSessions(irrigationLogs, now, zoneFlows);
   const today = startOfDay(now);
-  const flowRate = Number(selectedCrop?.flow_lpm) || null;
+  const flowRate = Number(selectedCrop?.flow_lpm) || zoneFlowTotal(zoneFlows) || null;
   const estimatedConsumptionToday = estimateDailyConsumption(sessions, today, now, flowRate)
     .get(format(now, 'yyyy-MM-dd')) || 0;
 

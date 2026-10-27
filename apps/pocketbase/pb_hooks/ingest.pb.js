@@ -79,7 +79,7 @@ routerAdd('POST', '/api/neptuno/ingest', (e) => {
   }
 
   const core = require(`${__hooks}/irrigation-core.js`);
-  const { desiredState } = core.processReading(
+  const { desiredState, zones } = core.processReading(
     $app,
     device,
     crop,
@@ -87,5 +87,6 @@ routerAdd('POST', '/api/neptuno/ingest', (e) => {
     { isDemo, nowMs: now.getTime(), sensorReadings, flowLpm },
   );
 
-  return e.json(200, { irrigation: desiredState });
+  // zones: estado de cada válvula (vacío si el cultivo no usa zonas).
+  return e.json(200, { irrigation: desiredState, zones });
 });

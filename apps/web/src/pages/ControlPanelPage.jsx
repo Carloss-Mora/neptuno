@@ -13,6 +13,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 import { Power, Clock, CalendarClock, Droplets, CalendarDays, Sparkles } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
+import ZoneControls from '@/components/ZoneControls';
+import { useZones } from '@/hooks/useZones';
 import { getDisplayedIrrigationStatus, getScheduleState } from '@/utils/irrigationMetrics';
 
 const ControlPanelPage = () => {
@@ -22,6 +24,7 @@ const ControlPanelPage = () => {
   const { toast } = useToast();
   const [currentStatus, setCurrentStatus] = useState('OFF');
   const [lastLog, setLastLog] = useState(null);
+  const { zones } = useZones(selectedCrop);
   const [loading, setLoading] = useState(true);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingStatus, setPendingStatus] = useState(null);
@@ -55,7 +58,7 @@ const ControlPanelPage = () => {
     }
     try {
       const logs = await pb.collection('irrigation_logs').getList(1, 1, {
-        filter: `cropId = "${cropId}"`,
+        filter: `cropId = "${cropId}" && zoneId = ""`,
         sort: '-created',
         $autoCancel: false,
       });
@@ -81,7 +84,7 @@ const ControlPanelPage = () => {
     fetchCurrentStatus();
     if (!currentUser || !cropId) return () => { active = false; };
     pb.collection('irrigation_logs').subscribe('*', (event) => {
-      if (!active || event.record?.cropId !== cropId) return;
+      if (!active || event.record?.cropId !== cropId || event.record?.zoneId) return;
       setCurrentStatus(event.record.status);
       setLastLog(event.record);
       setLoading(false);
@@ -328,6 +331,8 @@ const ControlPanelPage = () => {
                   )}
                 </CardContent>
               </Card>
+
+              <ZoneControls crop={selectedCrop} zones={zones} />
 
               {/* Next Scheduled Info Card */}
               <Card className="overflow-hidden rounded-3xl border-teal-100 bg-white shadow-lg shadow-slate-900/5">

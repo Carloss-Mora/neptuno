@@ -16,6 +16,7 @@ routerAdd('GET', '/api/neptuno/me/export', (e) => {
     crops: grab('crops', 'userId = {:userId}', 'created', 500),
     devices,
     sensors: grab('sensors', 'userId = {:userId}', 'created', 500),
+    zones: grab('zones', 'userId = {:userId}', 'created', 500),
     irrigation_schedules: grab('irrigation_schedules', 'userId = {:userId}', 'created', 1000),
     irrigation_logs: grab('irrigation_logs', 'userId = {:userId} && is_demo != true', '-created', 20000),
     sensor_readings: grab('sensor_readings', 'userId = {:userId} && is_demo != true', '-created', 20000),
