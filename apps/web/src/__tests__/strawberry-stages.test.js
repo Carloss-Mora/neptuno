@@ -29,3 +29,20 @@ describe('valores por etapa de fresa', () => {
     expect(applyStageDefaults(form, '').values).toEqual({});
   });
 });
+
+import { stageForDate } from '@/utils/strawberryStages';
+
+describe('calendario de la fresa', () => {
+  const now = new Date(2026, 9, 26, 15, 0);
+  it('sugiere la etapa según los días desde la siembra', () => {
+    expect(stageForDate('2026-10-16', now)).toEqual({ days: 10, stage: 'vegetativo' });
+    expect(stageForDate('2026-08-27', now)).toEqual({ days: 60, stage: 'floración' });
+    expect(stageForDate('2026-07-27', now)).toEqual({ days: 91, stage: 'fructificación' });
+    expect(stageForDate('2026-10-26T12:00:00.000Z', now).stage).toBe('vegetativo');
+  });
+  it('ignora fechas vacías, inválidas o futuras', () => {
+    expect(stageForDate('', now)).toBeNull();
+    expect(stageForDate('no-fecha', now)).toBeNull();
+    expect(stageForDate('2026-11-30', now)).toBeNull();
+  });
+});
