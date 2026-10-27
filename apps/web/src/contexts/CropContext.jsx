@@ -111,6 +111,15 @@ const referenceFields = (data) => {
   return { reference_minutes_per_day: minutes };
 };
 
+const plantingDate = (value) => {
+  if (!value) return '';
+  const text = String(value).slice(0, 10);
+  const date = new Date(`${text}T00:00:00`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text) || !Number.isFinite(date.getTime())) throw new Error('La fecha de siembra no es válida.');
+  if (date.getTime() > Date.now() + 86400000) throw new Error('La fecha de siembra no puede ser futura.');
+  return `${text} 12:00:00.000Z`;
+};
+
 const normalizeCrop = (data) => {
   validateThresholds(data);
   requirePositive(data.area_m2, 'El área debe ser un número mayor que cero.');
@@ -153,6 +162,7 @@ const normalizeCrop = (data) => {
     ...rainFields(data),
     ...pulseFields(data),
     ...referenceFields(data),
+    ...(('planting_date' in data) ? { planting_date: plantingDate(data.planting_date) } : {}),
   };
 };
 

@@ -64,3 +64,26 @@ export function applyStageDefaults(form, nextStage, { force = false } = {}) {
   }
   return { values, kept };
 }
+
+// Calendario de referencia por días desde la siembra (planta nueva en clima frío de altura, como Susa).
+// Es una aproximación: la variedad, la altitud y el manejo mueven estas fechas, por eso solo se sugiere.
+export const STAGE_CALENDAR = [
+  { stage: 'vegetativo', fromDay: 0, toDay: 60 },
+  { stage: 'floración', fromDay: 60, toDay: 90 },
+  { stage: 'fructificación', fromDay: 90, toDay: Infinity },
+];
+
+const DAY_MS = 86400000;
+
+// plantingDate: 'YYYY-MM-DD' o Date. Devuelve { days, stage } o null si no hay fecha válida o es futura.
+export function stageForDate(plantingDate, now = new Date()) {
+  if (!plantingDate) return null;
+  const text = typeof plantingDate === 'string' ? plantingDate.slice(0, 10) : '';
+  const start = text ? new Date(`${text}T00:00:00`) : new Date(plantingDate);
+  if (!Number.isFinite(start.getTime())) return null;
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Math.round((today.getTime() - start.getTime()) / DAY_MS);
+  if (days < 0) return null;
+  const entry = STAGE_CALENDAR.find((item) => days >= item.fromDay && days < item.toDay);
+  return { days, stage: entry.stage };
+}

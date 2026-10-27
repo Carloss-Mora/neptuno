@@ -13,7 +13,7 @@ import { toFormValue } from '@/utils/optionalNumber';
 import { useUserSettings } from '@/contexts/UserSettingsContext';
 import AreaInput from '@/components/AreaInput';
 import { formatArea } from '@/utils/area';
-import { STRAWBERRY_STAGE_DEFAULTS, applyStageDefaults } from '@/utils/strawberryStages';
+import { STRAWBERRY_STAGE_DEFAULTS, applyStageDefaults, stageForDate } from '@/utils/strawberryStages';
 
 const emptyCrop = {
   name: '',
@@ -36,6 +36,7 @@ const emptyCrop = {
   pulse_on_minutes: '',
   pulse_off_minutes: '',
   reference_minutes_per_day: '',
+  planting_date: '',
 };
 
 const MODE_HELP = {
@@ -71,6 +72,7 @@ const cropToForm = (crop) => ({
   pulse_on_minutes: toFormValue(crop.pulse_on_minutes),
   pulse_off_minutes: toFormValue(crop.pulse_off_minutes),
   reference_minutes_per_day: toFormValue(crop.reference_minutes_per_day),
+  planting_date: crop.planting_date ? String(crop.planting_date).slice(0, 10) : '',
 });
 
 // Los valores por defecto de Ajustes rellenan el formulario de un cultivo nuevo.
@@ -118,6 +120,7 @@ const CropsPage = () => {
     setNotice('');
   };
 
+  const suggested = stageForDate(form.planting_date);
   const pulsesOn = form.pulse_on_minutes !== '' || form.pulse_off_minutes !== '';
   const togglePulses = (event) => {
     const checked = event.target.checked;
@@ -165,6 +168,22 @@ const CropsPage = () => {
         ? { stage, kept: kept.length }
         : null,
     );
+  };
+
+  // Cambia la etapa de un cultivo ya guardado y carga los valores de esa etapa (respetando lo que la persona ajustó).
+  const applySuggestedStage = async (crop, stage) => {
+    setSaving(true);
+    setError('');
+    try {
+      const current = cropToForm(crop);
+      const { values } = applyStageDefaults(current, stage);
+      await updateCrop(crop.id, { ...current, phenological_stage: stage, ...values });
+      setNotice(`Etapa de “${crop.name}” cambiada a ${stageLabels[stage].toLowerCase()}.`);
+    } catch (stageError) {
+      setError(stageError.message || 'No se pudo cambiar la etapa.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const resetForm = () => {
@@ -304,6 +323,18 @@ const CropsPage = () => {
                       <Label htmlFor="crop-reference">Riego fijo habitual (min/día)</Label>
                       <Input id="crop-reference" name="reference_minutes_per_day" type="number" min="1" max="1440" step="1" value={form.reference_minutes_per_day} onChange={handleChange} placeholder="Opcional" />
                       <p className="text-xs text-slate-500">Cuánto regarías cada día sin Neptuno. Sirve para calcular cuánta agua ahorras en Reportes.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="crop-planting">Fecha de siembra</Label>
+                      <Input id="crop-planting" name="planting_date" type="date" max={new Date().toISOString().slice(0, 10)} value={form.planting_date} onChange={handleChange} />
+                      {suggested && (
+                        <p className="text-xs text-slate-600">
+                          Día {suggested.days} desde la siembra: suele corresponder a {stageLabels[suggested.stage].toLowerCase()}.
+                          {suggested.stage !== form.phenological_stage && (
+                            <> <button type="button" className="font-medium text-teal-700 underline" onClick={() => handleStageChange(suggested.stage)}>Usar esa etapa</button></>
+                          )}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="crop-stage">Etapa fenológica</Label>
@@ -450,6 +481,18 @@ const CropsPage = () => {
                       </span>
                       <span className="mt-1 block text-xs font-medium text-teal-700">Modo {crop.control_mode || 'MANUAL'}</span>
                     </button>
+                    {(() => {
+                      const hint = stageForDate(crop.planting_date);
+                      if (!hint || hint.stage === crop.phenological_stage) return null;
+                      return (
+                        <p className="order-last basis-full text-xs text-slate-600">
+                          Día {hint.days} desde la siembra: toca {stageLabels[hint.stage].toLowerCase()}.{' '}
+                          <button type="button" disabled={saving} className="font-medium text-teal-700 underline" onClick={() => applySuggestedStage(crop, hint.stage)}>
+                            Cambiar a {stageLabels[hint.stage].toLowerCase()} y cargar sus valores
+                          </button>
+                        </p>
+                      );
+                    })()}
                     <div className="flex gap-2">
                       <Button type="button" variant="outline" size="sm" onClick={() => startEdit(crop)} aria-label={`Editar ${crop.name}`}><Pencil className="h-4 w-4" /></Button>
                       <Button type="button" variant="outline" size="sm" onClick={() => handleDelete(crop)} disabled={saving} aria-label={`Eliminar ${crop.name}`} className="text-red-700"><Trash2 className="h-4 w-4" /></Button>
