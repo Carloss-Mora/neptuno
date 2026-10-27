@@ -55,6 +55,35 @@ const validateThresholds = (data) => {
   }
 };
 
+// Ubicación y lluvia: solo se envían si vienen en los datos, para no borrarlos al editar otros campos.
+const rainFields = (data) => {
+  const out = {};
+  const hasLatitude = isProvided(data.latitude);
+  const hasLongitude = isProvided(data.longitude);
+  if (hasLatitude !== hasLongitude) throw new Error('Para usar la ubicación indica latitud y longitud.');
+  if (hasLatitude) {
+    const latitude = Number(data.latitude);
+    const longitude = Number(data.longitude);
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) throw new Error('La latitud debe estar entre -90 y 90.');
+    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) throw new Error('La longitud debe estar entre -180 y 180.');
+    out.latitude = latitude;
+    out.longitude = longitude;
+  } else if ('latitude' in data) {
+    out.latitude = 0;
+    out.longitude = 0;
+  }
+  if ('rain_skip' in data) {
+    out.rain_skip = Boolean(data.rain_skip);
+    if (out.rain_skip && !hasLatitude) throw new Error('Para no regar con lluvia primero indica la ubicación del cultivo.');
+  }
+  if (isProvided(data.rain_threshold_mm)) {
+    const mm = Number(data.rain_threshold_mm);
+    if (!Number.isFinite(mm) || mm <= 0 || mm > 200) throw new Error('La lluvia esperada debe estar entre 0 y 200 mm.');
+    out.rain_threshold_mm = mm;
+  }
+  return out;
+};
+
 const normalizeCrop = (data) => {
   validateThresholds(data);
   requirePositive(data.area_m2, 'El área debe ser un número mayor que cero.');
@@ -94,6 +123,7 @@ const normalizeCrop = (data) => {
     alert_water_min: alertWaterMinimum,
     alert_temp_max: alertTemperatureMaximum,
     control_mode: data.control_mode || 'MANUAL',
+    ...rainFields(data),
   };
 };
 

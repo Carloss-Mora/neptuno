@@ -123,6 +123,8 @@ cronAdd('automatic-irrigation', '* * * * *', () => {
           && !Number.isNaN(latestLogDate.getTime())
           && latestLogDate.getTime() >= activeScheduleStartTimestamp;
         if (latestStatus === 'ON' || manualStopDuringSchedule) continue;
+        // Si se espera lluvia, no se inicia el riego programado (no corta uno que ya está en curso).
+        if (require(`${__hooks}/rain-guard.js`).shouldSkip(crop, now.getTime())) continue;
       } else if (latestStatus !== 'ON' || latestSource !== 'SCHEDULE') {
         continue;
       }
