@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { Button } from '@/components/ui/button';
@@ -9,8 +9,6 @@ import {
   Gauge,
   Layers,
   PiggyBank,
-  Radio,
-  Sprout,
   Timer,
   WifiOff,
 } from 'lucide-react';
@@ -68,38 +66,27 @@ const FieldScene = () => (
   </svg>
 );
 
-// Si existe public/hero-cultivo.mp4 (un video real de tu cultivo, sin sonido) se muestra en bucle;
-// si no, se usa la escena dibujada. Con «reducir movimiento» activado solo se ve la imagen fija (hero-cultivo.jpg).
-const HeroMedia = () => {
-  const [hasVideo, setHasVideo] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const [reduceMotion] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const response = await fetch('/hero-cultivo.mp4', { method: 'HEAD' });
-        if (active && response.ok && /video/.test(response.headers.get('content-type') || '')) setHasVideo(true);
-      } catch {
-        // sin video: se queda la escena dibujada
-      }
-    })();
-    return () => { active = false; };
-  }, []);
-  if (!hasVideo || failed) return <FieldScene />;
+// Foto del hero: primero public/hero-cultivo.jpg (tu propia foto, si la agregas); si no, una foto libre de
+// Unsplash (cultivo de fresa, MAUD Concepts); si ninguna carga, la escena dibujada.
+const HERO_SOURCES = [
+  '/hero-cultivo.jpg',
+  'https://images.unsplash.com/photo-1775407786878-36dc07a87bb2?auto=format&fit=crop&w=1800&q=85',
+];
+const HeroPhoto = () => {
+  const [index, setIndex] = useState(0);
+  if (index >= HERO_SOURCES.length) return <FieldScene />;
   return (
-    <video
-      className="aspect-[4/3] h-auto w-full object-cover"
-      src="/hero-cultivo.mp4"
-      poster="/hero-cultivo.jpg"
-      autoPlay={!reduceMotion}
-      muted
-      loop
-      playsInline
-      preload="metadata"
-      onError={() => setFailed(true)}
-      aria-label="Cultivo de fresa con riego por goteo"
+    <>
+    <img
+      key={HERO_SOURCES[index]}
+      src={HERO_SOURCES[index]}
+      alt="Hileras de plantas de fresa en un cultivo"
+      className="h-full min-h-[320px] w-full object-cover"
+      fetchPriority="high"
+      onError={() => setIndex((current) => current + 1)}
     />
+    {index === 1 && <span className="absolute bottom-3 right-4 text-[11px] text-white/85">Foto: MAUD Concepts / Unsplash</span>}
+    </>
   );
 };
 
@@ -111,37 +98,50 @@ const StatusChip = ({ className, label, value, tone }) => (
 );
 
 const steps = [
-  { title: 'Los sensores miden', text: 'La humedad del suelo, la temperatura y el nivel del tanque se leen a cada rato y llegan a tu panel.' },
-  { title: 'Neptuno decide', text: 'Compara la humedad con el rango ideal de tu fresa en su etapa actual y revisa si va a llover.' },
-  { title: 'La válvula riega', text: 'Abre el agua cuando el suelo está seco, la cierra al llegar al punto justo y te cuenta por qué.' },
+  { title: 'Medición', text: 'Sensores de humedad del suelo, temperatura y nivel del tanque reportan de forma continua a la plataforma.' },
+  { title: 'Decisión', text: 'Cada lectura se contrasta con el rango óptimo de la etapa del cultivo y con el pronóstico de lluvia.' },
+  { title: 'Ejecución', text: 'La válvula se abre y se cierra de forma automática, y cada acción queda registrada con su motivo.' },
 ];
 
-const features = [
-  { icon: Gauge, title: 'Riego según la humedad', text: 'Define el rango ideal, o usa los valores sugeridos para vegetativo, floración y fructificación.' },
-  { icon: CloudRain, title: 'No riega si va a llover', text: 'Al aire libre mira el pronóstico de las próximas 6 horas. Si el suelo está muy seco, riega igual.' },
-  { icon: Layers, title: 'Zonas y válvulas', text: 'Divide el lote en zonas con su propia válvula y sensores, y riega cada una cuando lo necesita.' },
-  { icon: Timer, title: 'Riego por pulsos', text: 'Pulsos cortos con pausas para que el agua se infiltre sin encharcar el suelo.' },
-  { icon: PiggyBank, title: 'Cuánta agua ahorras', text: 'Compara tu consumo con el riego que harías sin Neptuno, en litros y en reportes PDF o Excel.' },
-  { icon: BellRing, title: 'Alertas a tiempo', text: 'Tanque bajo, temperatura alta, y posibles fugas u obstrucciones en la línea.' },
+const capabilities = [
+  { icon: Gauge, title: 'Riego por humedad', text: 'Umbrales por etapa fenológica, con valores de referencia para fresa y ajuste libre por cultivo.' },
+  { icon: CloudRain, title: 'Integración meteorológica', text: 'Se suspende el inicio del riego ante lluvia pronosticada, salvo que el suelo esté en estado crítico.' },
+  { icon: Layers, title: 'Gestión por zonas', text: 'Cada zona opera con su propia válvula y sensores, con control independiente.' },
+  { icon: Timer, title: 'Riego por pulsos', text: 'Ciclos cortos con pausa de infiltración para evitar encharcamiento y pérdidas por escorrentía.' },
+  { icon: PiggyBank, title: 'Eficiencia medible', text: 'Consumo estimado y ahorro frente al riego tradicional, exportables en PDF y Excel.' },
+  { icon: BellRing, title: 'Alertas operativas', text: 'Avisos por correo y, opcionalmente, WhatsApp: nivel del tanque, temperatura, fugas y obstrucciones.' },
 ];
 
 const stages = [
-  { name: 'Vegetativo', range: '65–80 %', note: 'Raíces y hojas' },
-  { name: 'Floración', range: '60–75 %', note: 'Menos agua para no perder flor' },
-  { name: 'Fructificación', range: '70–85 %', note: 'La fruta pide más agua' },
+  { name: 'Vegetativo', range: '65 – 80 %', note: 'Establecimiento de raíces y follaje' },
+  { name: 'Floración', range: '60 – 75 %', note: 'Control hídrico para proteger la flor' },
+  { name: 'Fructificación', range: '70 – 85 %', note: 'Mayor demanda durante el llenado del fruto' },
 ];
+
+const pillars = [
+  ['24/7', 'Monitoreo continuo'],
+  ['Automático', 'Decisión basada en datos'],
+  ['Completa', 'Trazabilidad de cada riego'],
+  ['PDF · Excel', 'Reportes exportables'],
+];
+
+const Brand = ({ className }) => (
+  <Link to="/" className="flex items-center" aria-label="Neptuno, inicio">
+    <img src="/neptuno-logo-cropped.png" alt="Neptuno" className={`w-auto object-contain mix-blend-multiply ${className}`} />
+  </Link>
+);
 
 const HomePage = () => (
   <>
     <Helmet>
-      <title>Neptuno - Riego inteligente para fresa</title>
+      <title>Neptuno - Riego de precisión para cultivos de fresa</title>
       <meta
         name="description"
-        content="Neptuno riega tu cultivo de fresa según la humedad del suelo, el pronóstico de lluvia y la etapa del cultivo, y te cuenta por qué."
+        content="Neptuno automatiza el riego de fresa con sensores, pronóstico de lluvia y umbrales por etapa del cultivo, con trazabilidad completa de cada decisión."
       />
     </Helmet>
 
-    <main className="min-h-screen overflow-x-clip bg-dew text-slate-900">
+    <main className="font-landing min-h-screen overflow-x-clip bg-dew text-slate-900">
       <style>{`
         @keyframes drip-fall { 0% { transform: translateY(-4px); opacity: 0; } 15% { opacity: 1; } 80% { opacity: 1; } 100% { transform: translateY(78px); opacity: 0; } }
         @keyframes wet-breathe { 0%, 100% { transform: scale(0.88); opacity: 0.55; } 50% { transform: scale(1); opacity: 1; } }
@@ -152,15 +152,15 @@ const HomePage = () => (
 
       <header>
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3 sm:px-8">
-          <Link to="/" className="flex items-center" aria-label="Neptuno, inicio">
-            <img src="/neptuno-logo-cropped.png" alt="Neptuno" className="h-14 w-auto object-contain mix-blend-multiply sm:h-16" />
-          </Link>
+          <Brand className="h-14 sm:h-16" />
           <nav className="flex items-center gap-2 sm:gap-4">
+            <a href="#plataforma" className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white/70 md:block">Plataforma</a>
+            <a href="#etapas" className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white/70 md:block">Etapas</a>
             <Link to="/login" className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white/70 hover:text-slate-950 sm:px-4">
               Iniciar sesión
             </Link>
             <Link to="/signup">
-              <Button className="rounded-xl bg-blue-700 px-5 font-semibold text-white shadow-md shadow-blue-700/20 hover:bg-blue-800">
+              <Button className="rounded-xl bg-blue-800 px-5 font-semibold text-white shadow-md shadow-blue-900/20 hover:bg-blue-900">
                 Crear cuenta
               </Button>
             </Link>
@@ -169,50 +169,57 @@ const HomePage = () => (
       </header>
 
       <section>
-        <div className="mx-auto grid max-w-7xl items-center gap-8 px-5 pb-16 pt-6 sm:px-8 lg:grid-cols-[1fr_1.05fr] lg:gap-6 lg:pb-24 lg:pt-12">
-          <div className="max-w-xl">
-            <h1 className="text-4xl font-extrabold leading-[1.08] tracking-tight text-slate-950 sm:text-5xl lg:text-[3.6rem]">
-              Cada fresa recibe el agua justa, cuando la pide.
+        <div className="mx-auto grid max-w-7xl items-stretch gap-10 px-5 pb-16 pt-4 sm:px-8 lg:grid-cols-[0.9fr_1.1fr] lg:gap-12 lg:pb-24 lg:pt-8">
+          <div className="flex max-w-xl flex-col justify-center py-4">
+            <h1 className="text-4xl font-extrabold leading-[1.06] tracking-tight text-slate-950 sm:text-5xl lg:text-[3.5rem]">
+              Riego de precisión para cultivos de fresa.
             </h1>
-            <p className="mt-5 max-w-lg text-lg leading-8 text-slate-600">
-              Neptuno mide la humedad del suelo, mira si va a llover y abre la válvula solo cuando hace falta. Y siempre te dice por qué regó.
+            <p className="mt-6 max-w-lg text-lg leading-8 text-slate-600">
+              Neptuno integra sensores, pronóstico meteorológico y automatización para reducir el consumo de agua y proteger el rendimiento del cultivo, con registro de cada decisión.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link to="/signup">
-                <Button size="lg" className="h-12 w-full rounded-xl bg-blue-700 px-7 font-semibold text-white shadow-lg shadow-blue-700/25 hover:bg-blue-800 sm:w-auto">
-                  Crear mi cuenta <ArrowRight className="ml-2 h-4 w-4" />
+                <Button size="lg" className="h-12 w-full rounded-xl bg-blue-800 px-7 font-semibold text-white shadow-lg shadow-blue-900/25 hover:bg-blue-900 sm:w-auto">
+                  Crear cuenta <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-              <a href="#como-funciona">
-                <Button size="lg" variant="outline" className="h-12 w-full rounded-xl border-sky-200 bg-white/70 px-7 font-semibold text-slate-700 hover:bg-white sm:w-auto">
-                  Ver cómo funciona
+              <a href="#plataforma">
+                <Button size="lg" variant="outline" className="h-12 w-full rounded-xl border-slate-300 bg-white/70 px-7 font-semibold text-slate-800 hover:bg-white sm:w-auto">
+                  Conocer la plataforma
                 </Button>
               </a>
             </div>
-            <p className="mt-6 flex items-center gap-2 text-sm text-slate-500">
-              <Sprout className="h-4 w-4 text-sky-600" aria-hidden="true" /> Hecho para cultivos de fresa en clima frío de altura.
-            </p>
           </div>
 
-          <div className="relative mx-auto w-full max-w-[560px] pt-8 lg:pt-0">
-            <div className="rounded-[2rem] border border-white bg-white/60 p-3 shadow-xl shadow-sky-900/10 backdrop-blur">
-              <div className="overflow-hidden rounded-[1.5rem] bg-gradient-to-b from-sky-100 via-sky-50 to-white">
-                <HeroMedia />
-              </div>
-            </div>
-            <StatusChip className="-left-1 top-2 sm:-left-5" label="Humedad del suelo" value="68 %  Húmedo y estable" tone="text-emerald-700" />
-            <StatusChip className="-right-1 bottom-10 sm:-right-5" label="Riego" value="Activo, hace 4 min" tone="text-blue-700" />
+          <div className="relative">
+            <figure className="relative h-full min-h-[340px] overflow-hidden rounded-[2rem] shadow-2xl shadow-sky-900/20 lg:min-h-[520px]">
+              <HeroPhoto />
+              <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-slate-900/35 via-transparent to-transparent" />
+            </figure>
+            <StatusChip className="-left-2 top-6 sm:-left-6" label="Humedad del suelo" value="68 %  Rango óptimo" tone="text-emerald-700" />
+            <StatusChip className="-right-1 bottom-10 sm:-right-5" label="Riego automático" value="Activo, hace 4 min" tone="text-blue-800" />
           </div>
         </div>
       </section>
 
-      <section id="como-funciona" className="bg-white py-20">
+      <section aria-label="Indicadores de la plataforma" className="border-y border-sky-100 bg-white/70">
+        <dl className="mx-auto grid max-w-7xl grid-cols-2 gap-6 px-5 py-8 sm:px-8 lg:grid-cols-4">
+          {pillars.map(([figure, label]) => (
+            <div key={label}>
+              <dt className="text-sm font-semibold text-slate-500">{label}</dt>
+              <dd className="mt-1 text-3xl font-extrabold tracking-tight text-blue-900">{figure}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      <section id="plataforma" className="bg-white py-20">
         <div className="mx-auto max-w-7xl px-5 sm:px-8">
-          <h2 className="max-w-2xl text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Tres pasos, sin que tengas que estar pendiente</h2>
+          <h2 className="max-w-2xl text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Un ciclo operativo completo, sin intervención diaria</h2>
           <ol className="mt-12 grid gap-8 md:grid-cols-3">
             {steps.map((step, index) => (
               <li key={step.title} className="relative">
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-700 text-lg font-extrabold text-white">{index + 1}</span>
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-800 text-lg font-extrabold text-white">{index + 1}</span>
                 {index < steps.length - 1 && <span aria-hidden="true" className="absolute left-14 right-0 top-5 hidden border-t-2 border-dashed border-sky-200 md:block" />}
                 <h3 className="mt-5 text-xl font-bold text-slate-900">{step.title}</h3>
                 <p className="mt-2 leading-7 text-slate-600">{step.text}</p>
@@ -224,35 +231,35 @@ const HomePage = () => (
 
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-5 sm:px-8">
-          <h2 className="max-w-2xl text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Lo que Neptuno hace por tu cultivo</h2>
+          <h2 className="max-w-2xl text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Capacidades de la plataforma</h2>
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map(({ icon: Icon, title, text }) => (
+            {capabilities.map(({ icon: Icon, title, text }) => (
               <article key={title} className="rounded-3xl border border-white bg-white p-6 shadow-lg shadow-sky-900/5">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-50 text-cyan-700"><Icon className="h-6 w-6" aria-hidden="true" /></span>
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-blue-800"><Icon className="h-6 w-6" aria-hidden="true" /></span>
                 <h3 className="mt-5 text-lg font-bold text-slate-900">{title}</h3>
                 <p className="mt-2 leading-7 text-slate-600">{text}</p>
               </article>
             ))}
           </div>
           <div className="mt-5 flex items-start gap-4 rounded-3xl border border-sky-100 bg-white/70 p-6">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-blue-700"><WifiOff className="h-6 w-6" aria-hidden="true" /></span>
-            <p className="leading-7 text-slate-700"><span className="font-bold text-slate-900">Si se cae el internet,</span> el controlador está pensado para seguir con tu última configuración y cerrar la válvula si algo falla, en vez de dejarla abierta.</p>
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-blue-800"><WifiOff className="h-6 w-6" aria-hidden="true" /></span>
+            <p className="leading-7 text-slate-700"><span className="font-bold text-slate-900">Continuidad operativa.</span> Ante una pérdida de conexión, el controlador está diseñado para operar con la última configuración y cerrar la válvula si detecta una falla.</p>
           </div>
         </div>
       </section>
 
-      <section className="bg-white py-20">
+      <section id="etapas" className="bg-white py-20">
         <div className="mx-auto grid max-w-7xl gap-10 px-5 sm:px-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
           <div>
-            <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">La fresa no bebe igual toda su vida</h2>
-            <p className="mt-4 max-w-md leading-7 text-slate-600">Dile a Neptuno la fecha de siembra y te sugiere la etapa y la humedad ideal. Tú puedes ajustar cualquier valor.</p>
+            <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Gestión hídrica según la etapa del cultivo</h2>
+            <p className="mt-4 max-w-md leading-7 text-slate-600">A partir de la fecha de siembra, la plataforma sugiere la etapa y la humedad objetivo. Todos los valores son ajustables por cultivo.</p>
           </div>
           <ul className="grid gap-4 sm:grid-cols-3">
             {stages.map((stage) => (
               <li key={stage.name} className="rounded-3xl border border-sky-100 bg-sky-50/60 p-5">
                 <p className="font-bold text-slate-900">{stage.name}</p>
-                <p className="mt-3 text-3xl font-extrabold text-blue-700">{stage.range}</p>
-                <p className="mt-1 text-sm text-slate-500">de humedad en el suelo</p>
+                <p className="mt-3 text-3xl font-extrabold tracking-tight text-blue-900">{stage.range}</p>
+                <p className="mt-1 text-sm text-slate-500">humedad objetivo del suelo</p>
                 <p className="mt-3 text-sm text-slate-600">{stage.note}</p>
               </li>
             ))}
@@ -262,12 +269,11 @@ const HomePage = () => (
 
       <section className="py-20">
         <div className="mx-auto max-w-4xl px-5 text-center sm:px-8">
-          <Radio className="mx-auto h-8 w-8 text-sky-600" aria-hidden="true" />
-          <h2 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Empieza con un cultivo y míralo regarse</h2>
-          <p className="mx-auto mt-3 max-w-xl text-slate-600">Crea tu cuenta, registra tu cultivo y prueba todo en el laboratorio de simulación, sin conectar nada todavía.</p>
+          <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Gestione el riego con datos, no con suposiciones</h2>
+          <p className="mx-auto mt-3 max-w-xl text-slate-600">Cree su cuenta, registre su cultivo y valide el funcionamiento en el entorno de simulación antes de conectar el equipo.</p>
           <Link to="/signup" className="mt-7 inline-block">
-            <Button size="lg" className="h-12 rounded-xl bg-blue-700 px-8 font-semibold text-white shadow-lg shadow-blue-700/25 hover:bg-blue-800">
-              Crear mi cuenta <ArrowRight className="ml-2 h-4 w-4" />
+            <Button size="lg" className="h-12 rounded-xl bg-blue-800 px-8 font-semibold text-white shadow-lg shadow-blue-900/25 hover:bg-blue-900">
+              Crear cuenta <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
         </div>
@@ -275,10 +281,8 @@ const HomePage = () => (
 
       <footer className="border-t border-sky-100 bg-white/70">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-5 py-6 sm:flex-row sm:px-8">
-          <Link to="/" className="flex items-center" aria-label="Neptuno, inicio">
-            <img src="/neptuno-logo-cropped.png" alt="Neptuno" className="h-12 w-auto object-contain mix-blend-multiply" />
-          </Link>
-          <p className="text-center text-sm text-slate-500">Riego inteligente para una agricultura sostenible.</p>
+          <Brand className="h-12" />
+          <p className="text-center text-sm text-slate-500">Riego de precisión para una agricultura sostenible.</p>
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-slate-500">
             <Link to="/terminos" className="hover:text-slate-800 hover:underline">Términos y condiciones</Link>
             <Link to="/privacidad" className="hover:text-slate-800 hover:underline">Política de privacidad</Link>
