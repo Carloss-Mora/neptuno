@@ -106,7 +106,7 @@ const Header = () => {
                       {currentUser?.avatar && (
                         <AvatarImage src={pb.files.getUrl(currentUser, currentUser.avatar)} alt={currentUser.name || 'Usuario'} />
                       )}
-                      <AvatarFallback className="bg-gradient-to-br from-teal-500 to-cyan-600 text-white font-semibold">
+                      <AvatarFallback className="text-white font-semibold bg-teal-700">
                         {getUserInitials()}
                       </AvatarFallback>
                     </Avatar>
@@ -150,7 +150,7 @@ const Header = () => {
               {currentUser?.avatar && (
                 <AvatarImage src={pb.files.getUrl(currentUser, currentUser.avatar)} alt={currentUser.name || 'Usuario'} />
               )}
-              <AvatarFallback className="bg-gradient-to-br from-teal-500 to-cyan-600 font-semibold text-white">
+              <AvatarFallback className="font-semibold text-white bg-teal-700">
                 {getUserInitials()}
               </AvatarFallback>
             </Avatar>

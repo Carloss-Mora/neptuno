@@ -106,15 +106,15 @@ const LoginPage = () => {
         <meta name="description" content="Inicia sesión en tu cuenta de Neptuno para acceder a tu panel de monitoreo de riego" />
       </Helmet>
 
-      <div className="min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-emerald-50 flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-dew">
         <Card className="w-full max-w-md shadow-2xl border-teal-100">
           <CardHeader className="text-center space-y-4">
             <div className="flex justify-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg bg-teal-700 drop-logo">
                 <Droplets className="w-9 h-9 text-white" />
               </div>
             </div>
-            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
+            <CardTitle className="text-3xl font-bold text-teal-800">
               Bienvenido de nuevo
             </CardTitle>
             <CardDescription className="text-base text-gray-600">
@@ -211,7 +211,7 @@ const LoginPage = () => {
 
               <Button
                 type="submit"
-                className="w-full h-11 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all"
+                className="w-full h-11 text-white font-semibold shadow-lg hover:shadow-xl transition-all bg-teal-700 hover:bg-teal-800"
                 disabled={loading}
               >
                 {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}

@@ -153,7 +153,6 @@ const IrrigationHistoryPage = () => {
       <Header />
 
       <main className="relative min-h-screen overflow-hidden bg-[#f4fbfa] py-10 sm:py-14">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-gradient-to-br from-cyan-100/80 via-teal-50/70 to-transparent" />
         <div className="container relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           {/* Page Header */}
           <div className="mb-8 rounded-3xl border border-teal-100 bg-white p-6 shadow-sm sm:p-8">
@@ -167,7 +166,7 @@ const IrrigationHistoryPage = () => {
           <div className="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
             <Card className="rounded-3xl border-white/80 shadow-lg shadow-slate-900/5">
               <CardContent className="flex items-center gap-4 p-6">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 shadow-md">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl shadow-md bg-teal-700">
                   <Power className="w-6 h-6 text-white" />
                 </div>
                 <div>
@@ -178,7 +177,7 @@ const IrrigationHistoryPage = () => {
             </Card>
             <Card className="rounded-3xl border-white/80 shadow-lg shadow-slate-900/5">
               <CardContent className="flex items-center gap-4 p-6">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 shadow-md">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl shadow-md bg-cyan-600">
                   <Timer className="h-6 w-6 text-white" />
                 </div>
                 <div>

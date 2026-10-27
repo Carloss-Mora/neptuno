@@ -17,6 +17,16 @@ module.exports = {
     },
     extend: {
       colors: {
+        // Escala "hoja": reemplaza al teal de Tailwind en toda la interfaz
+        teal: {
+          50: '#f1f8f4', 100: '#dff0e6', 200: '#bfe0cd', 300: '#94c9ad', 400: '#62ab87',
+          500: '#3f9068', 600: '#327a58', 700: '#2a6449', 800: '#234f3c', 900: '#1d4031',
+        },
+        // Escala "agua": estado de riego y datos de humedad
+        cyan: {
+          50: '#eff9fc', 100: '#d8f0f7', 200: '#b2e1ee', 300: '#7fcbe0', 400: '#4fb2ce',
+          500: '#2f98b8', 600: '#257e9a', 700: '#1f657c', 800: '#1c5265', 900: '#1b4455',
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

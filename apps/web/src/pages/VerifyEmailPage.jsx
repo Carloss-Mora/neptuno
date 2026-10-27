@@ -53,10 +53,10 @@ const VerifyEmailPage = () => {
       <Helmet>
         <title>Verificación de correo - Neptuno</title>
       </Helmet>
-      <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-teal-50 via-cyan-50 to-emerald-50 p-4">
+      <main className="flex min-h-screen items-center justify-center p-4 bg-dew">
         <Card className="w-full max-w-md border-teal-100 shadow-xl">
           <CardHeader className="items-center text-center">
-            <div className="mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-700 text-white">
+            <div className="mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-700 text-white drop-logo">
               <Droplets className="h-8 w-8" />
             </div>
             <CardTitle>Verificación de correo</CardTitle>

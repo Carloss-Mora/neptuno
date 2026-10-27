@@ -30,7 +30,7 @@ const ScheduledIrrigationList = ({ schedules, loading, error, onEdit, onDelete, 
 
   if (!schedules || schedules.length === 0) {
     return (
-      <Card className="border-dashed border-2 border-teal-200 bg-gradient-to-br from-teal-50/80 via-white to-cyan-50/70">
+      <Card className="border-dashed border-2 border-teal-200 bg-teal-50/70">
         <CardContent className="flex flex-col items-center justify-center py-12 text-center">
           <span className="mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-white text-teal-600 shadow-md shadow-teal-900/5 ring-1 ring-teal-100">
             <Calendar className="h-8 w-8" />
@@ -81,7 +81,7 @@ const ScheduledIrrigationList = ({ schedules, loading, error, onEdit, onDelete, 
         <Card key={schedule.id} className={`group overflow-hidden border-slate-200/80 bg-white transition-all duration-200 ${hasPassed ? 'opacity-80' : 'hover:-translate-y-0.5 hover:border-teal-300 hover:shadow-lg hover:shadow-teal-950/5'}`}>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 gap-4">
             <div className="flex items-center space-x-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 text-white shadow-md shadow-teal-600/20 transition-transform group-hover:scale-105">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-white shadow-md shadow-teal-600/20 transition-transform group-hover:scale-105 bg-teal-700">
                 <Clock className="h-6 w-6" />
               </div>
               <div>

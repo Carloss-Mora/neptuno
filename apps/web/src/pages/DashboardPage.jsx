@@ -235,7 +235,7 @@ const DashboardPage = () => {
     return (
       <>
         <Header />
-        <div className="min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-emerald-50 py-16">
+        <div className="min-h-screen py-16 bg-dew">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="mb-8">
               <Skeleton className="h-10 w-64 mb-2" />
@@ -262,7 +262,6 @@ const DashboardPage = () => {
       <Header />
 
       <main className="relative min-h-screen overflow-hidden bg-[#f4fbfa] py-10 sm:py-14">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-gradient-to-br from-teal-100/80 via-cyan-50/70 to-transparent" />
         <div className="container relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           {/* Page Header */}
           <div className="mb-8 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
@@ -284,7 +283,7 @@ const DashboardPage = () => {
                 </div>
               )}
               <Link to="/control">
-                <Button className="rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 font-semibold text-white shadow-md shadow-teal-700/15 hover:from-teal-700 hover:to-cyan-700">
+                <Button className="rounded-xl font-semibold text-white shadow-md shadow-teal-700/15 bg-teal-700 hover:bg-teal-800">
                   Controlar riego <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
@@ -309,7 +308,7 @@ const DashboardPage = () => {
 
           <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <Card className="overflow-hidden rounded-3xl border border-teal-100 bg-white shadow-sm shadow-slate-900/5">
-              <CardContent className="flex items-center justify-between gap-4 bg-gradient-to-r from-white to-teal-50/70 p-6">
+              <CardContent className="flex items-center justify-between gap-4 p-6 bg-teal-50/70">
                 <div>
                   <p className="text-sm font-semibold text-slate-500">Estado del sistema</p>
                   <p className={`mt-2 text-2xl font-bold ${displayedStatus === 'ON' ? 'text-emerald-800' : 'text-slate-800'}`}>
@@ -478,7 +477,7 @@ const DashboardPage = () => {
             <Card className="rounded-3xl border-white/80 bg-white shadow-lg shadow-slate-900/5 transition hover:-translate-y-0.5 hover:shadow-xl">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between mb-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-md">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl shadow-md bg-orange-500">
                     <Thermometer className="w-6 h-6 text-white" />
                   </div>
                 </div>
@@ -506,10 +505,10 @@ const DashboardPage = () => {
                   {getScheduleTimes().map((schedule, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between rounded-2xl border border-teal-100 bg-gradient-to-r from-teal-50 to-cyan-50 p-4"
+                      className="flex items-center justify-between rounded-2xl border border-teal-100 p-4 bg-teal-50/70"
                     >
                       <div className="flex items-center space-x-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 shadow-md">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-xl shadow-md bg-teal-700">
                           <Clock className="w-5 h-5 text-white" />
                         </div>
                         <div>

@@ -4,59 +4,57 @@
 @tailwind utilities;
 
 body {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: "Nunito Sans", "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   overflow-x: clip;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+h1, h2, h3, h4 {
+  font-family: "Nunito", "Nunito Sans", sans-serif;
+  letter-spacing: -0.01em;
 }
 
 @layer base {
   :root {
-    /* Core UI Colors */
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 174 72% 56%;
+    /* Neptuno: rocío (fondo), hoja (acción), agua (estado de riego), fresa (alertas) */
+    --background: 140 28% 97%;
+    --foreground: 152 28% 14%;
+    --border: 140 18% 87%;
+    --input: 140 18% 85%;
+    --ring: 152 42% 38%;
 
-    /* Primary - Teal/Turquoise */
-    --primary: 174 72% 56%;
+    --primary: 152 42% 33%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary - Soft Green */
-    --secondary: 142 71% 45%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 140 22% 93%;
+    --secondary-foreground: 152 28% 18%;
 
-    /* Destructive - Red */
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 350 68% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Muted */
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 140 20% 94%;
+    --muted-foreground: 150 10% 38%;
 
-    /* Accent - Ocean Blue */
-    --accent: 199 89% 48%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 195 52% 90%;
+    --accent-foreground: 200 55% 20%;
 
-    /* Card */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 152 28% 14%;
 
-    /* Popover */
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 152 28% 14%;
 
-    /* Radius */
     --radius: 0.75rem;
 
-    /* Sidebar */
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 174 72% 56%;
+    --sidebar-background: 140 28% 97%;
+    --sidebar-foreground: 152 20% 26%;
+    --sidebar-primary: 152 42% 33%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 40% 96.1%;
-    --sidebar-accent-foreground: 222.2 84% 4.9%;
-    --sidebar-border: 214.3 31.8% 91.4%;
-    --sidebar-ring: 174 72% 56%;
+    --sidebar-accent: 140 20% 93%;
+    --sidebar-accent-foreground: 152 28% 14%;
+    --sidebar-border: 140 18% 87%;
+    --sidebar-ring: 152 42% 38%;
   }
 
   .dark {
@@ -114,4 +112,60 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+}
+
+
+/* Fondo suave para las pantallas (sustituye a los degradados) */
+.bg-dew {
+  background-color: hsl(140 28% 96%);
+}
+
+/* Movimiento: una sola entrada suave por pantalla y respuesta a las acciones de la persona */
+@keyframes settle {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+main {
+  animation: settle 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* La gota del logotipo suelta un par de ondas al cargar y al pasar el cursor */
+@keyframes ripple {
+  0% { transform: scale(0.8); opacity: 0.55; }
+  100% { transform: scale(2.1); opacity: 0; }
+}
+
+.drop-logo {
+  position: relative;
+}
+
+.drop-logo::before,
+.drop-logo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid hsl(195 52% 62%);
+  opacity: 0;
+  pointer-events: none;
+  animation: ripple 1.8s ease-out 0.35s 1 both;
+}
+
+.drop-logo::after {
+  animation-delay: 0.85s;
+}
+
+.drop-logo:hover::before {
+  animation: ripple 1.8s ease-out 1 both;
+}
+
+.drop-logo:hover::after {
+  animation: ripple 1.8s ease-out 0.5s 1 both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  main { animation: none; }
+  .drop-logo::before, .drop-logo::after { animation: none !important; }
+  *, *::before, *::after { transition-duration: 0.01ms !important; }
 }
