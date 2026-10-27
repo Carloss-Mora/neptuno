@@ -73,6 +73,25 @@ describe('Signup page module', () => {
     expect(screen.getByText('Por favor, introduce un correo electrónico válido')).toBeInTheDocument();
   });
 
+  it('requires accepting the terms before creating the account', async () => {
+    const user = userEvent.setup();
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/signup']}>
+          <Routes>
+            <Route path="/signup" element={<SignupPage />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>
+    );
+    await user.type(screen.getByLabelText(/nombre completo/i), 'Test User');
+    await user.type(screen.getByLabelText(/correo electrónico/i), 'valid@example.com');
+    await user.type(screen.getByLabelText(/^contraseña$/i), '12345678');
+    await user.type(screen.getByLabelText(/confirmar contraseña/i), '12345678');
+    await user.click(screen.getByRole('button', { name: /crear cuenta/i }));
+    expect(screen.getByText(/acepta los términos y condiciones/i)).toBeInTheDocument();
+  });
+
   it('requires password length and password confirmation match', async () => {
     const user = userEvent.setup();
 
@@ -122,6 +141,7 @@ describe('Signup page module', () => {
     await user.type(screen.getByLabelText(/correo electrónico/i), 'test@example.com');
     await user.type(screen.getByLabelText(/^contraseña$/i), '12345678');
     await user.type(screen.getByLabelText(/confirmar contraseña/i), '12345678');
+    await user.click(screen.getByRole('checkbox', { name: /acepto/i }));
     await user.click(screen.getByRole('button', { name: /crear cuenta/i }));
 
     expect(await screen.findByRole('heading', { name: /verifica tu correo/i })).toBeInTheDocument();
@@ -156,6 +176,7 @@ describe('Signup page module', () => {
     await user.type(screen.getByLabelText(/correo electrónico/i), 'test@example.com');
     await user.type(screen.getByLabelText(/^contraseña$/i), '12345678');
     await user.type(screen.getByLabelText(/confirmar contraseña/i), '12345678');
+    await user.click(screen.getByRole('checkbox', { name: /acepto/i }));
     await user.click(screen.getByRole('button', { name: /crear cuenta/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/la cuenta se creó, pero no se pudo enviar el código/i);

@@ -12,6 +12,11 @@
 	# Cache everything on CDN by default
 	Header set Cache-Control "public, s-maxage=604800, max-age=0"
 
+	# El service worker y el manifiesto nunca se guardan en caché largo: así las actualizaciones llegan
+	<If "%{REQUEST_URI} =~ m#^/(sw\.js|manifest\.webmanifest)$#">
+		Header set Cache-Control "no-cache"
+	</If>
+
 	# Cache in browser all assets
 	<If "%{REQUEST_URI} =~ m#^/assets/.*$#">
 		Header set Cache-Control "public, max-age=604800"

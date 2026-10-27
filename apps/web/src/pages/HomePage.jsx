@@ -244,7 +244,11 @@ const HomePage = () => (
             <img src="/neptuno-logo-cropped.png" alt="Neptuno" className="h-12 w-auto object-contain" />
           </Link>
           <p className="text-center text-sm text-slate-500">Riego inteligente para una agricultura sostenible.</p>
-          <span className="text-xs text-slate-400">© {new Date().getFullYear()} Neptuno</span>
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-slate-500">
+            <Link to="/terminos" className="hover:text-slate-800 hover:underline">Términos y condiciones</Link>
+            <Link to="/privacidad" className="hover:text-slate-800 hover:underline">Política de privacidad</Link>
+            <span className="text-slate-400">© {new Date().getFullYear()} Neptuno</span>
+          </div>
         </div>
       </footer>
     </main>
