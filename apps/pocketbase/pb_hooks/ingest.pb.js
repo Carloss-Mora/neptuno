@@ -88,5 +88,24 @@ routerAdd('POST', '/api/neptuno/ingest', (e) => {
   );
 
   // zones: estado de cada válvula (vacío si el cultivo no usa zonas).
-  return e.json(200, { irrigation: desiredState, zones });
+  // hold_seconds: cuánto puede seguir el controlador sin contacto antes de cerrar las válvulas.
+  // config: umbrales del cultivo para que el controlador siga regando solo (modo automático) si pierde internet.
+  const isAuto = crop.get('control_mode') === 'AUTO';
+  const positive = (field) => (Number(crop.get(field)) > 0 ? Number(crop.get(field)) : 0);
+  return e.json(200, {
+    irrigation: desiredState,
+    zones,
+    hold_seconds: Math.max(60, intervalSeconds * 3),
+    config: {
+      control_mode: String(crop.get('control_mode') || 'MANUAL'),
+      ...(isAuto ? {
+        humidity_min: positive('humidity_min'),
+        humidity_max: positive('humidity_max'),
+        max_irrigation_minutes: positive('max_irrigation_minutes'),
+        min_rest_minutes: Number(crop.get('min_rest_minutes')) || 0,
+        pulse_on_minutes: positive('pulse_on_minutes'),
+        pulse_off_minutes: positive('pulse_off_minutes'),
+      } : {}),
+    },
+  });
 });

@@ -30,6 +30,7 @@ await j('POST','/api/collections/devices/records',{userId:A.u.id,cropId:crop.id,
 const ingest=(b)=>j('POST','/api/neptuno/ingest',{temperature:22,water_level:80,...b},null,{'X-Device-Key':key});
 r=await ingest({soil_humidity:70,sensor_readings:{[s1.id]:50,[s2.id]:72}});
 ok(r.s===200&&r.d.zones.length===2,'ingest returns both zones ('+JSON.stringify(r.d)+')');
+ok(r.d.hold_seconds>=60&&r.d.config.control_mode==='AUTO'&&r.d.config.humidity_min===65&&r.d.config.max_irrigation_minutes===60,'response carries hold_seconds and thresholds for offline control');
 const st=(ch)=>r.d.zones.find(z=>z.channel===ch).state;
 ok(st(1)==='ON'&&st(2)==='OFF'&&r.d.irrigation==='ON','only the dry zone (1) irrigates; crop is ON');
 await new Promise(x=>setTimeout(x,1100));

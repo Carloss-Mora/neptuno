@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+const { controllerStep } = require('./controller-rules.js');
+
 const readArguments = (args) => {
   const options = {
     url: process.env.POCKETBASE_URL || 'http://127.0.0.1:8090',
@@ -56,7 +58,8 @@ Opciones:
   --humidity <0-100>             Humedad inicial (por defecto: 70)
   --temperature <-10..60>        Temperatura inicial (por defecto: 22)
   --water-level <0-100>           Nivel de agua (por defecto: 80)
-  --failure disconnect|low-water Simula desconexión o nivel bajo
+  --failure disconnect|low-water Simula desconexión o nivel bajo. Con desconexión el dispositivo
+                                 aplica las reglas sin internet (tools/controller-rules.js)
   DEVICE_KEY=<CLAVE>             Alternativa a --key
 `);
 };
@@ -91,12 +94,35 @@ const main = async () => {
   let humidity = options.humidity;
   let waterLevel = options.failure === 'low-water' ? Math.min(options.waterLevel, 10) : options.waterLevel;
   let desiredState = 'OFF';
+  // Estado para operar sin internet: lo último que dijo el servidor y cuándo.
+  let lastContactMs = Date.now();
+  let holdMs = Math.max(60, options.interval * 3) * 1000;
+  let lastConfig = null;
+  let serverZones = [];
+  let onSinceMs = Number.NaN;
+  let lastStopMs = Number.NaN;
   console.log(`Enviando lecturas demo a ${endpoint} cada ${options.interval} s. Ctrl+C para detener.`);
   if (options.failure) console.log(`Fallo simulado: ${options.failure}`);
 
   const sendReading = async () => {
     if (options.failure === 'disconnect') {
-      console.log(`[${new Date().toLocaleTimeString()}] Corte de conexión simulado; no se envió lectura.`);
+      const nowMs = Date.now();
+      const local = controllerStep({
+        nowMs,
+        lastContactMs,
+        holdMs,
+        config: lastConfig,
+        sensorsOk: true,
+        waterLevel,
+        serverZones: serverZones.length > 0 ? serverZones : [{ channel: 1, state: desiredState }],
+        zones: [{ channel: 1, humidity, state: desiredState, activeSinceMs: onSinceMs, lastStoppedAtMs: lastStopMs }],
+      });
+      const next = local.zones[0].state;
+      if (next === 'ON' && desiredState !== 'ON') onSinceMs = nowMs;
+      if (next === 'OFF' && desiredState === 'ON') { lastStopMs = nowMs; onSinceMs = Number.NaN; }
+      desiredState = next;
+      humidity = Math.min(100, Math.max(0, humidity + (desiredState === 'ON' ? 2 : -1)));
+      console.log(`[${new Date().toLocaleTimeString()}] Sin conexión (${Math.round((nowMs - lastContactMs) / 1000)} s) · modo ${local.mode} · humedad ${humidity.toFixed(1)}% · riego ${desiredState} (${local.zones[0].reason})`);
       return;
     }
 
@@ -122,7 +148,14 @@ const main = async () => {
       return;
     }
 
-    desiredState = body.irrigation === 'ON' ? 'ON' : 'OFF';
+    const nextState = body.irrigation === 'ON' ? 'ON' : 'OFF';
+    if (nextState === 'ON' && desiredState !== 'ON') onSinceMs = Date.now();
+    if (nextState === 'OFF' && desiredState === 'ON') { lastStopMs = Date.now(); onSinceMs = Number.NaN; }
+    desiredState = nextState;
+    lastContactMs = Date.now();
+    if (Number(body.hold_seconds) > 0) holdMs = Number(body.hold_seconds) * 1000;
+    lastConfig = body.config || null;
+    serverZones = Array.isArray(body.zones) ? body.zones : [];
     console.log(`[${new Date().toLocaleTimeString()}] Humedad ${humidity.toFixed(1)}% · agua ${waterLevel}% · riego ${desiredState}`);
   };
 
