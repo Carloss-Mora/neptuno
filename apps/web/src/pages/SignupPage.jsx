@@ -263,7 +263,7 @@ const SignupPage = () => {
                 {loading ? 'Creando cuenta...' : 'Crear cuenta'}
               </Button>
 
-              <GoogleAuthButton onAuthenticated={() => navigate('/dashboard')} />
+              <GoogleAuthButton label="Registrarme con Google" onAuthenticated={() => navigate('/dashboard')} />
 
               <div className="text-center pt-2">
                 <p className="text-sm text-gray-600">

@@ -111,3 +111,11 @@ npx playwright test
 Crea un usuario descartable, recorre las pantallas principales y falla ante cualquier respuesta HTTP >= 400 o `console.error`. Atajos: `npm test`, `npm run test:e2e`, `npm run test:ui`.
 
 Ejecuta estos checks solo contra una instancia local de pruebas; no uses una base con datos de producción.
+
+## Registro e inicio de sesión con Google
+
+1. En [Google Cloud Console](https://console.cloud.google.com/) crea un proyecto → *APIs y servicios* → *Pantalla de consentimiento de OAuth* (tipo Externo, con tu correo) → *Credenciales* → *Crear credenciales* → *ID de cliente de OAuth* (aplicación web).
+2. En *URI de redireccionamiento autorizados* añade `http://127.0.0.1:8090/api/oauth2-redirect` y `http://localhost:8090/api/oauth2-redirect`. En producción añade `https://TU-API/api/oauth2-redirect`. Google no acepta IP de red local (como 192.168.x.x), así que en desarrollo entra siempre por `localhost`.
+3. Copia el *ID de cliente* y el *Secreto* a `.env` como `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` y reinicia PocketBase. Si en el arranque ves «[google] Inicio de sesión con Google activado desde el entorno», el botón aparece en Registro e Inicio de sesión.
+4. Mientras la app esté en modo *Pruebas*, solo entran los correos que añadas como usuarios de prueba; para abrirla a todos, pulsa *Publicar aplicación* en la pantalla de consentimiento.
+5. Quien se registra con Google queda con el correo verificado y no necesita código. Si ya existía una cuenta con ese correo, se enlaza a ella.
