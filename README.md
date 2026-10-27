@@ -54,6 +54,13 @@ El código de verificación y las alertas se envían por correo. Si el correo no
 
 Notas: PocketBase limita `request-otp` a 10 solicitudes por hora por IP; la web deja 60 s entre solicitudes. El estado real de cada envío se consulta en `/api/neptuno/auth/otp-status?otpId=…`. Para probar sin enviar correos reales: `node tools/mock-smtp-server.mjs --port 2525` (con `SMTP_HOST=127.0.0.1 SMTP_PORT=2525`) o `node tools/mock-mail-server.mjs --port 9999` (con `BUILDER_MAILER_API_URL=http://127.0.0.1:9999`).
 
+## Sensores, reportes y ajustes
+
+- **Sensores** (`/sensors`): cada cultivo tiene un plano en cuadrícula (hasta 6×6, 2×2 por defecto) donde se colocan hasta 12 sensores (humedad del suelo, temperatura, nivel de agua). Cada uno muestra su última lectura y su estado: *Normal*, *Alerta* (fuera de los umbrales del cultivo), *Sin señal* (pasaron 3 intervalos del dispositivo, mínimo 60 s, sin datos) o *Sin lecturas*. El dispositivo sigue enviando `soil_humidity`, `temperature` y `water_level` a `/api/neptuno/ingest`: esa lectura actualiza todos los sensores del mismo tipo. Para valores distintos por sensor, el dispositivo puede añadir `"sensor_readings": {"<id del sensor>": 41.5}`. Las lecturas del Laboratorio y las `demo` no tocan los sensores.
+- **Reportes** (`/reports`): periodo de 7, 30 o 90 días, o un rango de fechas (máx. 400 días). Muestra consumo de agua (caudal × minutos reales de riego, por lo que requiere el caudal del cultivo), riegos, tiempo de riego, humedad/agua y resumen de lecturas, y permite descargar un **PDF** (resumen con gráfica) y un **Excel** (hojas Resumen, Consumo diario con totales por fórmula, Riegos, Lecturas por hora y Sensores). Las lecturas se agrupan por hora en el servidor (`/api/neptuno/reports/readings`).
+- **Ajustes** (`/settings`): nombre, zona horaria, unidades (litros/galones, °C/°F; los datos siempre se guardan en litros y °C), valores por defecto de los cultivos nuevos, notificaciones, cuánto tiempo conservar las lecturas detalladas (7–90 días; luego se resumen por hora), descarga de tus datos en JSON y eliminación de la cuenta.
+- Prueba del backend de sensores y reportes: `node tools/e2e-sensors.mjs` (con `PB_URL`, `PB_ADMIN_EMAIL`, `PB_ADMIN_PASSWORD`).
+
 ## Laboratorio de simulación
 
 En **Laboratorio** (`/simulator`) cada cultivo puede tener un cultivo virtual para probar el riego sin sensores ni agua. La simulación pasa por el mismo motor de decisiones que un dispositivo físico (`irrigation-core.js`), corre en el servidor (sigue aunque cierres sesión; en marcha avanza un paso por minuto real) y permite avanzar paso a paso, cambiar humedad, agua y temperatura a mano y provocar fallos: sensor desconectado, lectura inválida y riego sin efecto.

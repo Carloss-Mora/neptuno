@@ -23,6 +23,15 @@ module.exports = {
       is_demo: isDemo,
     }));
 
+    // Estado de cada sensor individual (solo con datos reales: el Laboratorio no toca los sensores).
+    if (!isDemo) {
+      try {
+        require(`${__hooks}/sensor-status.js`).update(app, device.get('cropId'), reading, (options && options.sensorReadings) || null, nowIso);
+      } catch (sensorError) {
+        console.error(`No se pudo actualizar el estado de los sensores del cultivo ${device.get('cropId')}:`, sensorError);
+      }
+    }
+
     let desiredState = String(device.get('desired_state') || 'OFF');
     const latestLogs = app.findRecordsByFilter('irrigation_logs', 'cropId = {:cropId}', '-created', 1, 0, { cropId: device.get('cropId') });
     const latestLog = latestLogs[0] || null;

@@ -340,6 +340,20 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateProfile = async ({ name }) => {
+    if (!currentUser) throw new Error('Inicia sesión para cambiar tu perfil.');
+    const record = await pb.collection('users').update(currentUser.id, { name: String(name || '').trim() }, { $autoCancel: false });
+    setCurrentUser(pb.authStore.model || record);
+    return record;
+  };
+
+  const deleteAccount = async () => {
+    if (!currentUser) throw new Error('Inicia sesión para eliminar tu cuenta.');
+    await pb.collection('users').delete(currentUser.id, { $autoCancel: false });
+    pb.authStore.clear();
+    setCurrentUser(null);
+  };
+
   const logout = () => {
     pb.authStore.clear();
     setCurrentUser(null);
@@ -353,6 +367,8 @@ export const AuthProvider = ({ children }) => {
     verifyEmailCode,
     confirmEmailVerification,
     loginWithGoogle,
+    updateProfile,
+    deleteAccount,
     logout,
     isAuthenticated: !!currentUser,
     initialLoading,

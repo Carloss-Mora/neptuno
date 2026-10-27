@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCrop } from '@/contexts/CropContext';
+import { useUserSettings } from '@/contexts/UserSettingsContext';
+import { tempFromCelsius, tempUnitLabel } from '@/utils/units';
 import { useIrrigationSchedule } from '@/hooks/useIrrigationSchedule';
 import { useAlert } from '@/contexts/AlertContext';
 import Header from '@/components/Header';
@@ -28,6 +30,7 @@ import {
 const DashboardPage = () => {
   const { currentUser } = useAuth();
   const { selectedCrop, updateCrop } = useCrop();
+  const { settings: prefs, formatVolume } = useUserSettings();
   const cropId = selectedCrop?.id || '';
   const { schedules } = useIrrigationSchedule();
   const { alerts } = useAlert();
@@ -375,7 +378,7 @@ const DashboardPage = () => {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-slate-500">Consumo estimado hoy</p>
                   <p className="mt-2 text-2xl font-extrabold text-slate-900">
-                    {flowRate ? `${estimatedConsumptionToday.toFixed(1)} L` : 'Configura el caudal'}
+                    {flowRate ? formatVolume(estimatedConsumptionToday) : 'Configura el caudal'}
                   </p>
                   <p className="mt-1 text-sm text-slate-500">
                     {flowRate
@@ -482,7 +485,7 @@ const DashboardPage = () => {
                   </div>
                 </div>
                 <p className="mb-4 text-sm font-semibold text-slate-600">Temperatura</p>
-                <GaugeChart value={sensorData?.temperature || 0} min={0} max={50} unit="°C" />
+                <GaugeChart value={tempFromCelsius(sensorData?.temperature || 0, prefs.unit_temp)} min={tempFromCelsius(0, prefs.unit_temp)} max={tempFromCelsius(50, prefs.unit_temp)} unit={tempUnitLabel(prefs.unit_temp)} />
               </CardContent>
             </Card>
           </div>
