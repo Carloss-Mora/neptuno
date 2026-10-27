@@ -34,6 +34,7 @@ const ReportsPage = () => {
   const { settings } = useUserSettings();
   const cropId = selectedCrop?.id || '';
   const [preset, setPreset] = useState(30);
+  const [demoChoice, setDemoChoice] = useState(null); // null = seguir al cultivo (activado si tiene datos de ejemplo en vivo)
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [logs, setLogs] = useState([]);
@@ -61,6 +62,7 @@ const ReportsPage = () => {
   }, [preset, customFrom, customTo, now]);
 
   const { zones, flows: zoneFlows } = useZones(selectedCrop);
+  const includeDemo = demoChoice === null ? Boolean(selectedCrop?.demo_live) : demoChoice;
   const fromTime = range.from?.getTime();
   const toTime = range.to?.getTime();
 
@@ -71,7 +73,7 @@ const ReportsPage = () => {
     try {
       const [logList, readings, sensorList, deviceList] = await Promise.all([
         pb.collection('irrigation_logs').getFullList({ filter: `cropId = "${cropId}" && created <= "${new Date(toTime).toISOString()}"`, sort: 'created', $autoCancel: false }),
-        pb.send('/api/neptuno/reports/readings', { query: { cropId, from: new Date(fromTime).toISOString(), to: new Date(toTime).toISOString() } }),
+        pb.send('/api/neptuno/reports/readings', { query: { cropId, from: new Date(fromTime).toISOString(), to: new Date(toTime).toISOString(), ...(includeDemo ? { include_demo: '1' } : {}) } }),
         pb.collection('sensors').getFullList({ filter: `cropId = "${cropId}"`, sort: 'created', $autoCancel: false }),
         pb.collection('devices').getFullList({ filter: `cropId = "${cropId}" && is_simulated != true`, $autoCancel: false }),
       ]);
@@ -85,7 +87,7 @@ const ReportsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [cropId, fromTime, toTime]);
+  }, [cropId, fromTime, toTime, includeDemo]);
 
   useEffect(() => {
     load();
@@ -95,9 +97,10 @@ const ReportsPage = () => {
     if (!selectedCrop || !fromTime) return null;
     const interval = devices.length > 0 ? Math.min(...devices.map((device) => Number(device.interval_seconds) || 15)) : 15;
     return buildReport({
-      crop: selectedCrop, logs, hours, sensors, zones, zoneFlows, deviceIntervalSeconds: interval, from: new Date(fromTime), to: new Date(toTime), now: new Date(),
+      crop: selectedCrop, logs, hours, sensors, zones, zoneFlows, deviceIntervalSeconds: interval, from: new Date(fromTime), to: new Date(toTime), now: new Date(), includeDemo,
     });
-  }, [selectedCrop, logs, hours, sensors, zones, zoneFlows, devices, fromTime, toTime]);
+  }, [selectedCrop, logs, hours, sensors, zones, zoneFlows, devices, fromTime, toTime, includeDemo]);
+  const hasDemo = logs.some((log) => log.is_demo) || Boolean(selectedCrop?.demo_live);
 
   const hasFlow = report?.flowLpm !== null && report?.flowLpm !== undefined;
   const volumeUnit = settings.unit_volume;
@@ -179,6 +182,12 @@ const ReportsPage = () => {
                     ))}
                     <Button type="button" size="sm" variant={preset === 'custom' ? 'default' : 'outline'} aria-pressed={preset === 'custom'} onClick={() => setPreset('custom')} className={preset === 'custom' ? 'bg-teal-700 hover:bg-teal-800' : ''}>Elegir fechas</Button>
                   </div>
+                  {hasDemo && (
+                    <label className="flex items-center gap-2 text-sm text-slate-700">
+                      <input type="checkbox" checked={includeDemo} onChange={(event) => setDemoChoice(event.target.checked)} className="h-4 w-4" />
+                      Incluir datos de demostración
+                    </label>
+                  )}
                   {preset === 'custom' && (
                     <div className="flex flex-wrap items-end gap-4">
                       <div className="space-y-1"><Label htmlFor="report-from">Desde</Label><Input id="report-from" type="date" max={dateKey(now)} value={customFrom} onChange={(event) => setCustomFrom(event.target.value)} /></div>

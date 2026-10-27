@@ -5,6 +5,8 @@ onRecordAfterCreateSuccess((event) => {
   if (!log || (log.get('status') !== 'ON' && log.get('status') !== 'OFF')) return;
   // Las zonas se resumen en el aviso del cultivo completo: no se notifica cada válvula por separado.
   if (log.get('zoneId')) return;
+  // Los datos de demostración (laboratorio y datos de ejemplo) nunca generan correos.
+  if (log.get('is_demo')) return;
 
   const statusMessage = log.get('status') === 'ON' ? 'El riego se ha iniciado.' : 'El riego ha finalizado.';
   const source = String(log.get('source') || 'MANUAL');

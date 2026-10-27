@@ -45,6 +45,7 @@ const DashboardPage = () => {
   const [sensorData, setSensorData] = useState(null);
   const [latestLog, setLatestLog] = useState(null);
   const [irrigationLogs, setIrrigationLogs] = useState([]);
+  const [soilSensors, setSoilSensors] = useState([]);
   const [now, setNow] = useState(() => new Date());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -137,6 +138,26 @@ const DashboardPage = () => {
     };
   }, [currentUser, cropId, fetchData]);
 
+  // Humedad de cada zona: promedio de sus sensores de suelo con una lectura de los últimos 30 minutos.
+  useEffect(() => {
+    if (!cropId || zones.length === 0) {
+      setSoilSensors([]);
+      return undefined;
+    }
+    let active = true;
+    const load = async () => {
+      try {
+        const records = await pb.collection('sensors').getFullList({ filter: `cropId = "${cropId}" && kind = "soil_humidity"`, $autoCancel: false });
+        if (active) { setSoilSensors(Array.isArray(records) ? records : []); setNow(new Date()); }
+      } catch (sensorError) {
+        console.error('Could not load zone sensors:', sensorError);
+      }
+    };
+    load();
+    const timer = window.setInterval(load, 60000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [cropId, zones.length]);
+
   const getScheduleTimes = () => {
     return [...schedules]
       .filter((schedule) => schedule && typeof schedule === 'object')
@@ -187,6 +208,16 @@ const DashboardPage = () => {
     .get(format(now, 'yyyy-MM-dd')) || 0;
 
   const states = zoneStates(irrigationLogs);
+  const zoneHumidity = (zoneId) => {
+    const fresh = soilSensors.filter((sensor) => (
+      String(sensor.zoneId) === String(zoneId)
+      && Number.isFinite(Number(sensor.last_value))
+      && sensor.last_reading_at
+      && now.getTime() - new Date(String(sensor.last_reading_at).replace(' ', 'T')).getTime() < 30 * 60000
+    ));
+    if (fresh.length === 0) return null;
+    return fresh.reduce((total, sensor) => total + Number(sensor.last_value), 0) / fresh.length;
+  };
   const stageInfo = selectedCrop ? stageForDate(selectedCrop.planting_date, now) : null;
   const stageKey = selectedCrop?.phenological_stage || stageInfo?.stage || '';
   const humidity = sensorData ? Number(sensorData.soil_humidity) : null;
@@ -449,15 +480,23 @@ const DashboardPage = () => {
                   <ul className="space-y-2">
                     {zones.map((zone) => {
                       const on = states.get(zone.id) === true;
+                      const zoneValue = zoneHumidity(zone.id);
+                      const zoneSoil = soilState(zoneValue, selectedCrop);
                       return (
                         <li key={zone.id} className="flex items-center justify-between gap-3 rounded-2xl bg-sky-50/70 px-4 py-3">
                           <div className="min-w-0">
                             <p className="truncate font-semibold text-slate-900">{zone.name}</p>
                             <p className="text-xs text-slate-500">Válvula {zone.valve_channel}</p>
                           </div>
-                          <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${on ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
-                            {on ? 'Regando' : 'En reposo'}
-                          </span>
+                          <div className="flex shrink-0 flex-col items-end gap-1">
+                            <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${on ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
+                              {on ? 'Regando' : 'En reposo'}
+                            </span>
+                            <span className="flex items-center gap-1.5 text-xs text-slate-600">
+                              {zoneValue === null ? 'Sin lectura reciente' : `${zoneValue.toFixed(0)} % de humedad`}
+                              {zoneSoil && <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${SOIL_TONE_CLASSES[zoneSoil.tone]}`}>{zoneSoil.label}</span>}
+                            </span>
+                          </div>
                         </li>
                       );
                     })}

@@ -51,11 +51,11 @@ export const sensorSummary = (hours) => METRICS.map(([key, label, unit]) => {
   return { key, label, unit, average: weighted / samples, minimum: Math.min(...values), maximum: Math.max(...values), samples };
 });
 
-export const buildReport = ({ crop, logs = [], hours = [], sensors = [], zones = [], zoneFlows = null, deviceIntervalSeconds, from, to, now = new Date() }) => {
+export const buildReport = ({ crop, logs = [], hours = [], sensors = [], zones = [], zoneFlows = null, deviceIntervalSeconds, from, to, now = new Date(), includeDemo = false }) => {
   const zoneFlowTotal = zoneFlows instanceof Map ? [...zoneFlows.values()].reduce((total, value) => total + (Number(value) || 0), 0) : 0;
   const flowLpm = Number(crop?.flow_lpm) > 0 ? Number(crop.flow_lpm) : (zoneFlowTotal > 0 ? zoneFlowTotal : null);
   const zoneNames = new Map(zones.map((zone) => [zone.id, zone.name]));
-  const sessions = buildIrrigationSessions(logs.filter((log) => !log.is_demo), now, zoneFlows).filter((session) => {
+  const sessions = buildIrrigationSessions(includeDemo ? logs : logs.filter((log) => !log.is_demo), now, zoneFlows).filter((session) => {
     const end = sessionEnd(session);
     return end >= from && new Date(session.activationDate) <= to;
   });

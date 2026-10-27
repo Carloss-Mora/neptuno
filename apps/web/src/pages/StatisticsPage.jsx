@@ -6,7 +6,6 @@ import { useCrop } from '@/contexts/CropContext';
 import { useUserSettings } from '@/contexts/UserSettingsContext';
 import { volumeFromLiters, volumeUnitLabel } from '@/utils/units';
 import Header from '@/components/Header';
-import ConsumptionChart from '@/components/ConsumptionChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -54,20 +53,17 @@ const StatisticsPage = () => {
   const { selectedCrop } = useCrop();
   const { settings: prefs, formatVolume } = useUserSettings();
   const cropId = selectedCrop?.id || '';
-  const [consumptionData, setConsumptionData] = useState([]);
   const [irrigationLogs, setIrrigationLogs] = useState([]);
   const [sensorHistory, setSensorHistory] = useState([]);
   const { flows: zoneFlows } = useZones(selectedCrop);
   const flowRate = Number(selectedCrop?.flow_lpm) || zoneFlowTotal(zoneFlows) || null;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [consumptionError, setConsumptionError] = useState('');
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
     if (!userId || !cropId) {
       setIrrigationLogs([]);
-      setConsumptionData([]);
       setSensorHistory([]);
       setLoading(false);
       return undefined;
@@ -77,9 +73,6 @@ const StatisticsPage = () => {
     const fetchStatistics = async () => {
       setLoading(true);
       setError('');
-      setConsumptionError('');
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const consumptionStart = format(subMonths(new Date(), 2), 'yyyy-MM-dd');
 
       try {
         const records = await pb.collection('irrigation_logs').getFullList({
@@ -91,21 +84,6 @@ const StatisticsPage = () => {
       } catch (fetchError) {
         console.error('Error fetching irrigation statistics:', fetchError);
         if (isMounted) setError('No se pudieron cargar las estadísticas de riego. Intenta actualizar la página.');
-      }
-
-      try {
-        const records = await pb.collection('water_consumption').getFullList({
-          filter: `cropId = "${cropId}" && consumption_date >= "${consumptionStart}" && consumption_date <= "${today}" && period = "daily"`,
-          sort: 'consumption_date',
-          $autoCancel: false,
-        });
-        if (isMounted) setConsumptionData(records);
-      } catch (fetchError) {
-        console.error('Error fetching water consumption statistics:', fetchError);
-        if (isMounted) {
-          setConsumptionData([]);
-          setConsumptionError('No hay datos de consumo de agua disponibles todavía.');
-        }
       }
 
       try {
@@ -417,23 +395,6 @@ const StatisticsPage = () => {
                       ? 'Cuando haya sesiones registradas, el cálculo usará su duración real y el caudal configurado.'
                       : 'En la administración del cultivo introduce el caudal medido en L/min.'}
                   </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="mb-6 rounded-3xl border-white/80 shadow-lg shadow-slate-900/5">
-            <CardHeader>
-              <CardTitle className="text-lg font-bold text-slate-900">Consumo de agua registrado</CardTitle>
-              <p className="text-sm text-slate-500">Litros diarios reportados por tus sensores</p>
-            </CardHeader>
-            <CardContent>
-              {consumptionData.length > 0 ? (
-                <ConsumptionChart data={consumptionData} />
-              ) : (
-                <div className="flex min-h-28 items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 text-center">
-                  <Droplets className="h-6 w-6 shrink-0 text-slate-400" />
-                  <p className="text-sm text-slate-600">{consumptionError || 'Todavía no se han registrado lecturas de consumo en este periodo.'}</p>
                 </div>
               )}
             </CardContent>
