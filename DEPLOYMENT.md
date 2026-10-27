@@ -16,7 +16,7 @@
    
    Verifica la recepción del código de seis dígitos antes de abrir los registros al público. Si usas Resend, `onboarding@resend.dev` solo entrega a destinatarios autorizados por Resend; para enviar a cualquier usuario, verifica tu propio dominio y utiliza un remitente de ese dominio.
 4. Antes de iniciar el servicio de producción, respalda la base actual y define las variables anteriores en el entorno del proceso. La migración de usuarios verificados debe ejecutarse con `PUBLIC_APP_URL` configurada; en producción no se aceptan enlaces HTTP.
-5. Configura Google OAuth desde las opciones de autenticación de la colección `users` en PocketBase. Crea primero las credenciales en Google Cloud, registra la URL de retorno que muestra PocketBase y restringe los orígenes/redirecciones a los dominios de Neptuno. El botón solo aparece cuando PocketBase anuncia Google como proveedor activo.
+5. Configura Google OAuth: define `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` (el hook `google-from-env.pb.js` lo activa al arrancar) o actívalo a mano en la colección `users` de PocketBase. Crea primero las credenciales en Google Cloud, registra la URL de retorno que muestra PocketBase y restringe los orígenes/redirecciones a los dominios de Neptuno. El botón solo aparece cuando PocketBase anuncia Google como proveedor activo.
 
 ## Frontend y backend
 
