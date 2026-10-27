@@ -192,7 +192,7 @@ const DashboardPage = () => {
   const humidity = sensorData ? Number(sensorData.soil_humidity) : null;
   const soil = soilState(humidity, selectedCrop);
   const hasRange = Number(selectedCrop?.humidity_min) > 0 && Number(selectedCrop?.humidity_max) > 0;
-  const forecastFresh = selectedCrop?.rain_skip && selectedCrop?.rain_forecast_at
+  const forecastFresh = selectedCrop?.rain_skip && selectedCrop?.growing_environment !== 'greenhouse' && selectedCrop?.rain_forecast_at
     && now.getTime() - new Date(selectedCrop.rain_forecast_at).getTime() < RAIN_FRESH_MS;
   const forecastMm = Number(selectedCrop?.rain_forecast_mm) || 0;
   const totalFarmM2 = (crops || []).reduce((total, crop) => total + (Number(crop.area_m2) > 0 ? Number(crop.area_m2) : 0), 0);
@@ -246,6 +246,7 @@ const DashboardPage = () => {
                   {stageKey && STAGE_LABELS[stageKey] && (
                     <span>{STAGE_LABELS[stageKey]}{stageInfo ? `, día ${stageInfo.days} desde la siembra` : ''}</span>
                   )}
+                  {selectedCrop.growing_environment === 'greenhouse' && <span>Invernadero</span>}
                   <span>Riego {(MODE_LABELS[selectedCrop.control_mode] || 'Manual').toLowerCase()}</span>
                   {cropArea > 0 && <span>{formatArea(cropArea)}</span>}
                   {(sensorData?.is_demo || irrigationLogs.some((log) => log.is_demo)) && (
