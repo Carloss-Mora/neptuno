@@ -66,27 +66,18 @@ const FieldScene = () => (
   </svg>
 );
 
-// Foto del hero: primero public/hero-cultivo.jpg (tu propia foto, si la agregas); si no, una foto libre de
-// Unsplash (cultivo de fresa, MAUD Concepts); si ninguna carga, la escena dibujada.
-const HERO_SOURCES = [
-  '/hero-cultivo.jpg',
-  'https://images.unsplash.com/photo-1775407786878-36dc07a87bb2?auto=format&fit=crop&w=1800&q=85',
-];
+// Foto del hero: public/hero-cultivo.jpg. Si no carga, se usa la escena dibujada.
 const HeroPhoto = () => {
-  const [index, setIndex] = useState(0);
-  if (index >= HERO_SOURCES.length) return <FieldScene />;
+  const [failed, setFailed] = useState(false);
+  if (failed) return <FieldScene />;
   return (
-    <>
     <img
-      key={HERO_SOURCES[index]}
-      src={HERO_SOURCES[index]}
-      alt="Hileras de plantas de fresa en un cultivo"
-      className="h-full min-h-[320px] w-full object-cover"
+      src="/hero-cultivo.jpg"
+      alt="Fresas maduras con gotas de agua sobre la planta"
+      className="h-full w-full object-cover object-[60%_50%]"
       fetchPriority="high"
-      onError={() => setIndex((current) => current + 1)}
+      onError={() => setFailed(true)}
     />
-    {index === 1 && <span className="absolute bottom-3 right-4 text-[11px] text-white/85">Foto: MAUD Concepts / Unsplash</span>}
-    </>
   );
 };
 
@@ -168,36 +159,36 @@ const HomePage = () => (
         </div>
       </header>
 
-      <section>
-        <div className="mx-auto grid max-w-7xl items-stretch gap-10 px-5 pb-16 pt-4 sm:px-8 lg:grid-cols-[0.9fr_1.1fr] lg:gap-12 lg:pb-24 lg:pt-8">
-          <div className="flex max-w-xl flex-col justify-center py-4">
-            <h1 className="text-4xl font-extrabold leading-[1.06] tracking-tight text-slate-950 sm:text-5xl lg:text-[3.5rem]">
-              Riego de precisión para cultivos de fresa.
-            </h1>
-            <p className="mt-6 max-w-lg text-lg leading-8 text-slate-600">
-              Neptuno integra sensores, pronóstico meteorológico y automatización para reducir el consumo de agua y proteger el rendimiento del cultivo, con registro de cada decisión.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link to="/signup">
-                <Button size="lg" className="h-12 w-full rounded-xl bg-blue-800 px-7 font-semibold text-white shadow-lg shadow-blue-900/25 hover:bg-blue-900 sm:w-auto">
-                  Crear cuenta <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-              <a href="#plataforma">
-                <Button size="lg" variant="outline" className="h-12 w-full rounded-xl border-slate-300 bg-white/70 px-7 font-semibold text-slate-800 hover:bg-white sm:w-auto">
-                  Conocer la plataforma
-                </Button>
-              </a>
-            </div>
+      <section className="relative">
+        <div className="relative mx-auto max-w-7xl px-5 sm:px-8">
+          <div className="hero-photo-mask relative -mx-5 h-[300px] overflow-hidden sm:-mx-8 sm:h-[380px] lg:absolute lg:inset-y-0 lg:left-[40%] lg:right-0 lg:mx-0 lg:h-auto lg:rounded-l-[3rem]">
+            <HeroPhoto />
           </div>
-
-          <div className="relative">
-            <figure className="relative h-full min-h-[340px] overflow-hidden rounded-[2rem] shadow-2xl shadow-sky-900/20 lg:min-h-[520px]">
-              <HeroPhoto />
-              <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-slate-900/35 via-transparent to-transparent" />
-            </figure>
-            <StatusChip className="-left-2 top-6 sm:-left-6" label="Humedad del suelo" value="68 %  Rango óptimo" tone="text-emerald-700" />
-            <StatusChip className="-right-1 bottom-10 sm:-right-5" label="Riego automático" value="Activo, hace 4 min" tone="text-blue-800" />
+          <div className="relative grid items-center py-10 lg:min-h-[600px] lg:grid-cols-[0.95fr_1.05fr] lg:py-20">
+            <div className="max-w-xl">
+              <h1 className="text-[2.6rem] leading-[1.05] text-slate-950 sm:text-6xl lg:text-[4rem]">
+                El agua justa, en el momento preciso.
+              </h1>
+              <p className="mt-6 max-w-lg text-lg leading-8 text-slate-600">
+                Neptuno es la plataforma de riego de precisión para cultivos de fresa: mide, decide y ejecuta con datos del suelo, del clima y de cada etapa del cultivo.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Link to="/signup">
+                  <Button size="lg" className="h-12 w-full rounded-xl bg-blue-800 px-7 font-semibold text-white shadow-lg shadow-blue-900/25 hover:bg-blue-900 sm:w-auto">
+                    Crear cuenta <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+                <a href="#plataforma">
+                  <Button size="lg" variant="outline" className="h-12 w-full rounded-xl border-slate-300 bg-white/80 px-7 font-semibold text-slate-800 hover:bg-white sm:w-auto">
+                    Conocer la plataforma
+                  </Button>
+                </a>
+              </div>
+            </div>
+            <div className="relative hidden h-full lg:block">
+              <StatusChip className="bottom-24 left-6" label="Humedad del suelo" value="68 %  Rango óptimo" tone="text-emerald-700" />
+              <StatusChip className="bottom-6 right-6" label="Riego automático" value="Activo, hace 4 min" tone="text-blue-800" />
+            </div>
           </div>
         </div>
       </section>
@@ -215,7 +206,7 @@ const HomePage = () => (
 
       <section id="plataforma" className="bg-white py-20">
         <div className="mx-auto max-w-7xl px-5 sm:px-8">
-          <h2 className="max-w-2xl text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Un ciclo operativo completo, sin intervención diaria</h2>
+          <h2 className="max-w-2xl text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Un ciclo completo, sin intervención diaria</h2>
           <ol className="mt-12 grid gap-8 md:grid-cols-3">
             {steps.map((step, index) => (
               <li key={step.title} className="relative">
@@ -231,7 +222,7 @@ const HomePage = () => (
 
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-5 sm:px-8">
-          <h2 className="max-w-2xl text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Capacidades de la plataforma</h2>
+          <h2 className="max-w-2xl text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Capacidades pensadas para el cultivo</h2>
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {capabilities.map(({ icon: Icon, title, text }) => (
               <article key={title} className="rounded-3xl border border-white bg-white p-6 shadow-lg shadow-sky-900/5">
@@ -251,7 +242,7 @@ const HomePage = () => (
       <section id="etapas" className="bg-white py-20">
         <div className="mx-auto grid max-w-7xl gap-10 px-5 sm:px-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
           <div>
-            <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Gestión hídrica según la etapa del cultivo</h2>
+            <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Cada etapa del cultivo, su propia dosis de agua</h2>
             <p className="mt-4 max-w-md leading-7 text-slate-600">A partir de la fecha de siembra, la plataforma sugiere la etapa y la humedad objetivo. Todos los valores son ajustables por cultivo.</p>
           </div>
           <ul className="grid gap-4 sm:grid-cols-3">
@@ -269,7 +260,7 @@ const HomePage = () => (
 
       <section className="py-20">
         <div className="mx-auto max-w-4xl px-5 text-center sm:px-8">
-          <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Gestione el riego con datos, no con suposiciones</h2>
+          <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Decisiones de riego respaldadas por datos</h2>
           <p className="mx-auto mt-3 max-w-xl text-slate-600">Cree su cuenta, registre su cultivo y valide el funcionamiento en el entorno de simulación antes de conectar el equipo.</p>
           <Link to="/signup" className="mt-7 inline-block">
             <Button size="lg" className="h-12 rounded-xl bg-blue-800 px-8 font-semibold text-white shadow-lg shadow-blue-900/25 hover:bg-blue-900">
