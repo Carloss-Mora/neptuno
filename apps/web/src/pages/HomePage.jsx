@@ -65,7 +65,7 @@ const HomePage = () => (
         </div>
       </header>
 
-      <section className="overflow-hidden bg-[#f5f8f6]">
+      <section className="overflow-hidden bg-dew">
         <div className="mx-auto grid max-w-7xl items-center gap-10 px-5 py-12 sm:px-8 sm:py-16 lg:grid-cols-[0.92fr_1.08fr] lg:gap-14 lg:py-20">
           <div className="max-w-xl">
             <p className="mb-5 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.1em] text-teal-800">
@@ -134,7 +134,7 @@ const HomePage = () => (
         </div>
       </section>
 
-      <section id="beneficios" className="bg-[#f7faf9] py-20 sm:py-24">
+      <section id="beneficios" className="bg-teal-50 py-20 sm:py-24">
         <div className="mx-auto max-w-7xl px-5 sm:px-8">
           <div className="mb-12 max-w-2xl">
             <p className="text-sm font-semibold uppercase tracking-[0.12em] text-teal-700">Una forma más ordenada de regar</p>
@@ -156,7 +156,7 @@ const HomePage = () => (
       </section>
 
       <section className="bg-white py-16 sm:py-20">
-        <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 rounded-2xl border border-teal-100 bg-[#f5f8f6] px-6 py-8 sm:flex-row sm:items-center sm:px-10 sm:py-10">
+        <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 rounded-2xl border border-teal-100 bg-dew px-6 py-8 sm:flex-row sm:items-center sm:px-10 sm:py-10">
           <div className="max-w-2xl">
             <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Empieza a organizar tu riego</h2>
             <p className="mt-2 text-slate-600">Crea tu cuenta para acceder a las lecturas, controles y horarios de tu sistema.</p>

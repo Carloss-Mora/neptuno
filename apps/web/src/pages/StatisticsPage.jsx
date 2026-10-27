@@ -213,7 +213,7 @@ const StatisticsPage = () => {
     return (
       <>
         <Header />
-        <main className="min-h-screen bg-[#f4fbfa] py-12">
+        <main className="min-h-screen bg-dew py-12">
           <div className="container mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <Skeleton className="mb-8 h-28 rounded-3xl" />
             <div className="mb-6 grid gap-5 md:grid-cols-3">
@@ -234,7 +234,7 @@ const StatisticsPage = () => {
       </Helmet>
 
       <Header />
-      <main className="relative min-h-screen overflow-hidden bg-[#f4fbfa] py-10 sm:py-14">
+      <main className="relative min-h-screen overflow-hidden bg-dew py-10 sm:py-14">
         <div className="container relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <section className="mb-8 rounded-3xl border border-teal-100 bg-white p-6 shadow-sm sm:p-8">
             <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
@@ -340,7 +340,7 @@ const StatisticsPage = () => {
                       <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
                       <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
                       <Tooltip cursor={{ fill: '#f0fdfa' }} contentStyle={{ borderRadius: 14, border: '1px solid #ccfbf1' }} />
-                      <Bar dataKey="activations" name="Riegos" fill="#0d9488" radius={[6, 6, 0, 0]} maxBarSize={30} />
+                      <Bar dataKey="activations" name="Riegos" fill="#2468b6" radius={[6, 6, 0, 0]} maxBarSize={30} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (

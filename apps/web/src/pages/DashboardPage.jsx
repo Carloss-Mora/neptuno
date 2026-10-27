@@ -261,7 +261,7 @@ const DashboardPage = () => {
 
       <Header />
 
-      <main className="relative min-h-screen overflow-hidden bg-[#f4fbfa] py-10 sm:py-14">
+      <main className="relative min-h-screen overflow-hidden bg-dew py-10 sm:py-14">
         <div className="container relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           {/* Page Header */}
           <div className="mb-8 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
@@ -307,8 +307,8 @@ const DashboardPage = () => {
           )}
 
           <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            <Card className="overflow-hidden rounded-3xl border border-teal-100 bg-white shadow-sm shadow-slate-900/5">
-              <CardContent className="flex items-center justify-between gap-4 p-6 bg-teal-50/70">
+            <Card className="overflow-hidden rounded-3xl border border-teal-100 bg-teal-50 shadow-sm shadow-slate-900/5">
+              <CardContent className="flex items-center justify-between gap-4 p-6">
                 <div>
                   <p className="text-sm font-semibold text-slate-500">Estado del sistema</p>
                   <p className={`mt-2 text-2xl font-bold ${displayedStatus === 'ON' ? 'text-emerald-800' : 'text-slate-800'}`}>
@@ -477,8 +477,8 @@ const DashboardPage = () => {
             <Card className="rounded-3xl border-white/80 bg-white shadow-lg shadow-slate-900/5 transition hover:-translate-y-0.5 hover:shadow-xl">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between mb-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl shadow-md bg-orange-500">
-                    <Thermometer className="w-6 h-6 text-white" />
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-100 text-orange-600">
+                    <Thermometer className="w-6 h-6" />
                   </div>
                 </div>
                 <p className="mb-4 text-sm font-semibold text-slate-600">Temperatura</p>

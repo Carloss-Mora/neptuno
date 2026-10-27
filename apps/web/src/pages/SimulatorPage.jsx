@@ -131,7 +131,7 @@ const SimulatorPage = () => {
     <>
       <Helmet><title>Laboratorio de simulación - Neptuno</title></Helmet>
       <Header />
-      <main className="min-h-screen bg-[#f4fbfa] px-4 py-8 sm:px-6 sm:py-12">
+      <main className="min-h-screen bg-dew px-4 py-8 sm:px-6 sm:py-12">
         <div className="mx-auto max-w-5xl space-y-6">
           <header className="space-y-2">
             <p className="inline-flex items-center gap-2 text-sm font-semibold text-teal-700"><FlaskConical className="h-4 w-4" /> Laboratorio de simulación</p>
@@ -253,7 +253,7 @@ const SimulatorPage = () => {
                           <Tooltip formatter={(value) => [`${value}%`, 'Humedad']} />
                           {humidityMin !== null && <ReferenceLine y={humidityMin} stroke="#dc2626" strokeDasharray="4 4" label={{ value: 'Mínimo', fontSize: 11 }} />}
                           {humidityMax !== null && <ReferenceLine y={humidityMax} stroke="#16a34a" strokeDasharray="4 4" label={{ value: 'Objetivo', fontSize: 11 }} />}
-                          <Line type="monotone" dataKey="humidity" stroke="#0d9488" strokeWidth={2} dot={false} isAnimationActive={false} />
+                          <Line type="monotone" dataKey="humidity" stroke="#2468b6" strokeWidth={2} dot={false} isAnimationActive={false} />
                         </LineChart>
                       </ResponsiveContainer>
                     )}

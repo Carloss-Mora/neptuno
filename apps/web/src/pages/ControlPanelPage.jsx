@@ -235,7 +235,7 @@ const ControlPanelPage = () => {
 
       <Header />
 
-      <div className="relative min-h-screen overflow-hidden bg-[#f4fbfa] py-10 sm:py-14">
+      <div className="relative min-h-screen overflow-hidden bg-dew py-10 sm:py-14">
         <div className="container relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           {/* Page Header */}
           <div className="mb-10">

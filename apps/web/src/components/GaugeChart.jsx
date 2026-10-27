@@ -10,7 +10,7 @@ const GaugeChart = ({ value, min = 0, max = 50, unit = '°C' }) => {
     { name: 'remaining', value: 100 - percentage },
   ];
 
-  const COLORS = ['#14b8a6', '#e5e7eb'];
+  const COLORS = ['#2468b6', '#e5e7eb'];
 
   return (
     <div className="relative w-full h-48">

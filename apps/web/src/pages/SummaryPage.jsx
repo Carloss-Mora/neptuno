@@ -106,7 +106,7 @@ const SummaryPage = () => {
     <>
       <Helmet><title>Resumen de cultivos - Neptuno</title></Helmet>
       <Header />
-      <main className="min-h-screen bg-[#f4fbfa] px-4 py-10 sm:px-6 sm:py-14">
+      <main className="min-h-screen bg-dew px-4 py-10 sm:px-6 sm:py-14">
         <div className="mx-auto max-w-7xl space-y-6">
           <header>
             <p className="mb-2 inline-flex items-center gap-2 text-sm font-semibold text-teal-700"><Activity className="h-4 w-4" /> Estado general</p>

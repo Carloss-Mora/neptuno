@@ -37,9 +37,9 @@ const ConsumptionChart = ({ data }) => {
           type="monotone" 
           dataKey="consumption" 
           name="Consumo"
-          stroke="#14b8a6" 
+          stroke="#2468b6" 
           strokeWidth={3}
-          dot={{ fill: '#14b8a6', r: 4 }}
+          dot={{ fill: '#2468b6', r: 4 }}
           activeDot={{ r: 6 }}
         />
       </LineChart>
