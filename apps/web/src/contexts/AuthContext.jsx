@@ -337,8 +337,10 @@ export const AuthProvider = ({ children }) => {
       return authData.record;
     } catch (error) {
       console.error('Google authentication failed:', error);
-      const detail = error?.response?.message || '';
-      throw new Error(/términos/i.test(detail) ? detail : 'No se pudo iniciar sesión con Google. Inténtalo de nuevo.');
+      const detail = String(error?.response?.message || '');
+      if (/términos/i.test(detail)) throw new Error(detail);
+      const reason = detail || String(error?.message || '').slice(0, 120);
+      throw new Error(`No se pudo iniciar sesión con Google${reason ? ` (${reason})` : ''}. Inténtalo de nuevo; si sigue igual, entra con tu correo.`);
     }
   };
 

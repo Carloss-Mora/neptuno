@@ -1,12 +1,12 @@
 # Sustituye HOST por tu dirección, por ejemplo neptuno-demo.eastus.cloudapp.azure.com
 # Caddy obtiene y renueva solo el certificado HTTPS.
 HOST {
-	encode gzip
-
 	# PocketBase (API y panel de administración) en la misma dirección que la web.
 	# Cada bloque "handle" es excluyente: lo que empieza por /api o /_ va a PocketBase y nada más.
 	handle /api/* {
-		reverse_proxy 127.0.0.1:8090
+		reverse_proxy 127.0.0.1:8090 {
+			flush_interval -1
+		}
 	}
 	handle /_/* {
 		reverse_proxy 127.0.0.1:8090
@@ -14,11 +14,14 @@ HOST {
 
 	# La web (React): cualquier otra ruta devuelve index.html
 	handle {
+		# Solo la web se comprime; la API y la conexión en vivo de PocketBase (inicio con Google) no se tocan.
+		encode gzip
 		# Los archivos con huella en el nombre (assets/) se guardan mucho tiempo; el resto se revisa siempre,
 		# para que cada actualización llegue al navegador sin vaciar la memoria guardada.
 		@assets path /assets/*
 		header @assets Cache-Control "public, max-age=31536000, immutable"
-		header !@assets Cache-Control "no-cache"
+		@pages not path /assets/*
+		header @pages Cache-Control "no-cache"
 		root * /opt/neptuno/dist/apps/web
 		try_files {path} /index.html
 		file_server

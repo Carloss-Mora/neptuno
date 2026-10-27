@@ -1,16 +1,8 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// Carga la demostración en la cuenta principal la primera vez que entra (o al arrancar, si ya existe).
+// Carga la demostración en la cuenta principal (verificada) como máximo un minuto después de que exista.
 // Los handlers de PocketBase son aislados: sin helpers a nivel de archivo.
-onRecordAuthRequest((e) => {
-  try {
-    require(`${__hooks}/demo-preload.js`).run($app, e.record);
-  } catch (error) {
-    console.error('Demo preload failed:', error);
-  }
-  e.next();
-}, 'users');
-
+// La precarga corre en segundo plano (cada minuto), nunca dentro de una petición de inicio de sesión.
 cronAdd('demo-preload', '* * * * *', () => {
   try {
     const preload = require(`${__hooks}/demo-preload.js`);
