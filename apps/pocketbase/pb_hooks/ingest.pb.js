@@ -56,6 +56,15 @@ routerAdd('POST', '/api/neptuno/ingest', (e) => {
     }
   }
 
+  // Opcional: caudal medido en L/min por un sensor de flujo.
+  let flowLpm = NaN;
+  if (body.flow_lpm !== undefined && body.flow_lpm !== null && body.flow_lpm !== '') {
+    flowLpm = Number(body.flow_lpm);
+    if (!Number.isFinite(flowLpm) || flowLpm < 0 || flowLpm > 500) {
+      throw new BadRequestError('El caudal medido debe estar entre 0 y 500 L/min.');
+    }
+  }
+
   const now = new Date();
   const lastIngest = device.get('last_ingest_at') ? new Date(device.get('last_ingest_at')) : null;
   const intervalSeconds = Math.max(1, Number(device.get('interval_seconds')) || 15);
@@ -75,7 +84,7 @@ routerAdd('POST', '/api/neptuno/ingest', (e) => {
     device,
     crop,
     { soilHumidity, temperature, waterLevel },
-    { isDemo, nowMs: now.getTime(), sensorReadings },
+    { isDemo, nowMs: now.getTime(), sensorReadings, flowLpm },
   );
 
   return e.json(200, { irrigation: desiredState });

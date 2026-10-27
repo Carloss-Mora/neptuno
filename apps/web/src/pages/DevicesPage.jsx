@@ -213,6 +213,11 @@ const DevicesPage = () => {
                               <p className={`text-sm font-medium ${online ? 'text-emerald-700' : 'text-slate-500'}`}>{online ? 'En línea' : 'Sin conexión'}</p>
                               <p className="text-xs text-slate-500">{lastSeen ? `Última lectura: ${new Date(lastSeen).toLocaleString()}` : 'Aún no envía lecturas'}</p>
                               <p className="text-xs text-slate-500">Riego deseado: {device.desired_state || 'OFF'} · cada {device.interval_seconds} s</p>
+                              {device.last_flow_at && (
+                                <p className="text-xs text-slate-500">Caudal medido: {Number(device.last_flow_lpm).toLocaleString('es-CO', { maximumFractionDigits: 2 })} L/min</p>
+                              )}
+                              {device.last_alert_code === 'flow_low' && <p role="alert" className="text-xs font-semibold text-rose-700">Poco caudal con el riego encendido: revisa filtros y goteros.</p>}
+                              {device.last_alert_code === 'flow_leak' && <p role="alert" className="text-xs font-semibold text-rose-700">Sale agua con el riego apagado: revisa si hay una fuga.</p>}
                             </div>
                           </div>
                           <Button type="button" variant="outline" aria-label={`Eliminar ${device.name}`} onClick={() => handleDelete(device)} className="min-h-11 text-red-700 hover:bg-red-50"><Trash2 className="mr-2 h-4 w-4" />Eliminar</Button>

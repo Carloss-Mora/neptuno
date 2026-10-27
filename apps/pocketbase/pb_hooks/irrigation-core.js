@@ -10,6 +10,7 @@ module.exports = {
     const isDemo = Boolean(options && options.isDemo);
     const nowMs = options && Number.isFinite(options.nowMs) ? options.nowMs : Date.now();
     const clock = (options && options.clock) || null;
+    const flowLpm = options && Number.isFinite(options.flowLpm) ? options.flowLpm : NaN;
     const skipNotifications = Boolean(options && options.skipNotifications);
     const nowIso = new Date(nowMs).toISOString();
 
@@ -112,7 +113,24 @@ module.exports = {
     const waterMinimum = crop.get('alert_water_min');
     const maximumTemperature = crop.get('alert_temp_max');
     // PocketBase devuelve 0 en los campos vacíos: solo cuentan los umbrales configurados (> 0).
-    const alertCode = isSet(waterMinimum) && waterLevel < Number(waterMinimum)
+    let flowAlert = '';
+    if (!isDemo && Number.isFinite(flowLpm)) {
+      device.set('last_flow_lpm', flowLpm);
+      device.set('last_flow_at', nowIso);
+      // Desde cuándo está la válvula en el estado actual (el último registro de riego, o ahora si acaba de cambiar).
+      const sinceLog = app.findRecordsByFilter('irrigation_logs', 'cropId = {:cropId}', '-created', 1, 0, { cropId: device.get('cropId') })[0];
+      const stateSinceMs = sinceLog ? new Date(String(sinceLog.get('created')).replace(' ', 'T')).getTime() : NaN;
+      flowAlert = require(`${__hooks}/flow-check.js`).check({
+        measured: flowLpm,
+        expected: isSet(crop.get('flow_lpm')) ? Number(crop.get('flow_lpm')) : NaN,
+        valveOn: desiredState === 'ON',
+        stateSinceMs,
+        nowMs,
+      });
+    }
+    const alertCode = flowAlert
+      ? flowAlert
+      : isSet(waterMinimum) && waterLevel < Number(waterMinimum)
       ? 'water_low'
       : isSet(humidityMinimum) && soilHumidity < Number(humidityMinimum)
         ? 'humidity_low'
@@ -124,7 +142,11 @@ module.exports = {
       device.set('last_alert_code', alertCode);
       if (alertCode && !skipNotifications) {
         try {
-          const message = alertCode === 'water_low'
+          const message = alertCode === 'flow_leak'
+            ? `Sale agua (${flowLpm} L/min) con el riego apagado. Revisa si hay una fuga o la válvula quedó abierta.`
+            : alertCode === 'flow_low'
+              ? `El caudal medido (${flowLpm} L/min) es menos de la mitad del esperado (${crop.get('flow_lpm')} L/min). Revisa si hay una obstrucción en filtros o goteros.`
+              : alertCode === 'water_low'
             ? `El nivel de agua está por debajo del mínimo configurado (${waterMinimum}%).`
             : alertCode === 'humidity_low'
               ? `La humedad del cultivo está por debajo del mínimo configurado (${humidityMinimum}%).`
