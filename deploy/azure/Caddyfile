@@ -8,7 +8,7 @@ HOST {
 	reverse_proxy @pb 127.0.0.1:8090
 
 	# La web (React): cualquier ruta devuelve index.html
-	root * /opt/neptuno/apps/web/dist
+	root * /opt/neptuno/dist/apps/web
 	try_files {path} /index.html
 	file_server
 }
