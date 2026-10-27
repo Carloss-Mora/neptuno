@@ -14,6 +14,11 @@ HOST {
 
 	# La web (React): cualquier otra ruta devuelve index.html
 	handle {
+		# Los archivos con huella en el nombre (assets/) se guardan mucho tiempo; el resto se revisa siempre,
+		# para que cada actualización llegue al navegador sin vaciar la memoria guardada.
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		header !@assets Cache-Control "no-cache"
 		root * /opt/neptuno/dist/apps/web
 		try_files {path} /index.html
 		file_server
