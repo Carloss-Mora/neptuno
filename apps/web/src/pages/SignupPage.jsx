@@ -20,6 +20,7 @@ const SignupPage = () => {
     password: '',
     passwordConfirm: '',
   });
+  const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState('');
   const [verificationEmail, setVerificationEmail] = useState('');
   const [otpId, setOtpId] = useState('');
@@ -54,6 +55,11 @@ const SignupPage = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
       setError('Por favor, introduce un correo electrónico válido');
+      return false;
+    }
+
+    if (!accepted) {
+      setError('Para crear tu cuenta acepta los términos y condiciones y la política de privacidad');
       return false;
     }
 
@@ -255,6 +261,13 @@ const SignupPage = () => {
                 </div>
               </div>
 
+              <label className="flex items-start gap-3 text-sm text-slate-600">
+                <input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} className="mt-1 h-4 w-4" />
+                <span>
+                  Acepto los <Link to="/terminos" target="_blank" className="font-semibold text-blue-700 hover:underline">términos y condiciones</Link> y la <Link to="/privacidad" target="_blank" className="font-semibold text-blue-700 hover:underline">política de privacidad</Link>.
+                </span>
+              </label>
+
               <Button
                 type="submit"
                 className="w-full h-11 text-white font-semibold shadow-lg hover:shadow-xl transition-all bg-teal-700 hover:bg-teal-800"
@@ -264,6 +277,9 @@ const SignupPage = () => {
               </Button>
 
               <GoogleAuthButton label="Registrarme con Google" onAuthenticated={() => navigate('/dashboard')} />
+              <p className="text-center text-xs text-slate-500">
+                Al continuar con Google aceptas los <Link to="/terminos" target="_blank" className="font-semibold text-blue-700 hover:underline">términos</Link> y la <Link to="/privacidad" target="_blank" className="font-semibold text-blue-700 hover:underline">política de privacidad</Link>.
+              </p>
 
               <div className="text-center pt-2">
                 <p className="text-sm text-gray-600">

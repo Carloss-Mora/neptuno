@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useNavigate } from 'react-router-dom';
-import { BellRing, Database, Droplets, FlaskConical, Settings2, ShieldAlert, User } from 'lucide-react';
+import { BellRing, Database, Droplets, FlaskConical, Settings2, ShieldAlert, Smartphone, User } from 'lucide-react';
 import Header from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserSettings } from '@/contexts/UserSettingsContext';
@@ -67,6 +67,43 @@ const DemoDataSection = () => {
         </Button>
       </div>
       {message && <p role="status" className="text-sm text-slate-700">{message}</p>}
+    </div>
+  );
+};
+
+// Instalar Neptuno en el celular: Android y computador ofrecen el aviso del navegador; en iPhone se hace desde Compartir.
+const InstallSection = () => {
+  const [promptEvent, setPromptEvent] = useState(null);
+  const [installed, setInstalled] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(display-mode: standalone)').matches);
+  useEffect(() => {
+    const onPrompt = (event) => { event.preventDefault(); setPromptEvent(event); };
+    const onInstalled = () => { setInstalled(true); setPromptEvent(null); };
+    window.addEventListener('beforeinstallprompt', onPrompt);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => { window.removeEventListener('beforeinstallprompt', onPrompt); window.removeEventListener('appinstalled', onInstalled); };
+  }, []);
+  const isIos = typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const install = async () => {
+    if (!promptEvent) return;
+    promptEvent.prompt();
+    await promptEvent.userChoice.catch(() => null);
+    setPromptEvent(null);
+  };
+  return (
+    <div className="space-y-3 border-t border-slate-100 pt-5">
+      <p className="text-sm font-semibold text-slate-800">Instalar en tu celular</p>
+      {installed ? (
+        <p className="text-sm text-slate-600">Neptuno ya está instalada en este dispositivo.</p>
+      ) : promptEvent ? (
+        <>
+          <p className="text-sm text-slate-600">Ábrela como una app, desde la pantalla de inicio y sin la barra del navegador.</p>
+          <Button type="button" onClick={install} className="bg-teal-700 text-white hover:bg-teal-800">Instalar Neptuno</Button>
+        </>
+      ) : isIos ? (
+        <p className="text-sm text-slate-600">En iPhone: toca el botón Compartir de Safari y elige «Agregar a pantalla de inicio».</p>
+      ) : (
+        <p className="text-sm text-slate-600">En Android: abre el menú del navegador (⋮) y elige «Instalar app» o «Agregar a pantalla de inicio». Requiere abrir Neptuno desde su dirección segura (https).</p>
+      )}
     </div>
   );
 };
@@ -269,6 +306,10 @@ const SettingsPage = () => {
               Los datos simulados no aparecen en tus sensores ni en tus reportes. <Link to="/simulator" className="font-semibold text-teal-700 hover:underline">Abrir el laboratorio</Link>.
             </p>
             <DemoDataSection />
+          </Section>
+
+          <Section icon={Smartphone} title="App en el celular" description="Instala Neptuno para abrirla como cualquier otra app.">
+            <InstallSection />
           </Section>
 
           <Section icon={Database} title="Datos y privacidad" description="Qué se guarda de tus sensores y cómo llevarte tu información.">

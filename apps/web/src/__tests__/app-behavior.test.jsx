@@ -220,6 +220,7 @@ describe('Neptuno app behavior', () => {
     await user.type(screen.getByLabelText(/correo electrónico/i), 'test@example.com');
     await user.type(screen.getByLabelText(/^contraseña$/i), '12345678');
     await user.type(screen.getByLabelText(/confirmar contraseña/i), '12345678');
+    await user.click(screen.getByRole('checkbox', { name: /acepto/i }));
     await user.click(screen.getByRole('button', { name: /crear cuenta/i }));
 
     expect(await screen.findByRole('heading', { name: /verifica tu correo/i })).toBeInTheDocument();
@@ -282,6 +283,7 @@ describe('Neptuno app behavior', () => {
 
     await user.clear(screen.getByLabelText(/confirmar contraseña/i));
     await user.type(screen.getByLabelText(/confirmar contraseña/i), '12345678');
+    await user.click(screen.getByRole('checkbox', { name: /acepto/i }));
     await user.click(screen.getByRole('button', { name: /crear cuenta/i }));
 
     await waitFor(() => {
@@ -314,6 +316,7 @@ describe('Neptuno app behavior', () => {
     await user.type(screen.getByLabelText(/correo electrónico/i), 'duplicado@example.com');
     await user.type(screen.getByLabelText(/^contraseña$/i), '12345678');
     await user.type(screen.getByLabelText(/confirmar contraseña/i), '12345678');
+    await user.click(screen.getByRole('checkbox', { name: /acepto/i }));
     await user.click(screen.getByRole('button', { name: /crear cuenta/i }));
 
     await waitFor(() => {

@@ -9,6 +9,7 @@ import { Toaster } from '@/components/ui/toaster';
 import ScrollToTop from '@/components/ScrollToTop';
 import ProtectedRoute from '@/components/ProtectedRoute.jsx';
 import HomePage from '@/pages/HomePage';
+import LegalPage from '@/pages/LegalPage';
 import LoginPage from '@/pages/LoginPage';
 import SignupPage from '@/pages/SignupPage';
 import VerifyEmailPage from '@/pages/VerifyEmailPage';
@@ -36,6 +37,8 @@ function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
+            <Route path="/terminos" element={<LegalPage kind="terms" />} />
+            <Route path="/privacidad" element={<LegalPage kind="privacy" />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
 
             {/* Protected Routes */}
