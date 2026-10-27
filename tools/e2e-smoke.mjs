@@ -372,7 +372,7 @@ try {
     };
     const otpEmail = `neptuno-smoke-otp-${id}@example.test`;
     const otpUser = await request('/api/collections/users/records', {
-      method: 'POST', body: { email: otpEmail, password, passwordConfirm: password, name: 'E2E OTP' },
+      method: 'POST', body: { email: otpEmail, password, passwordConfirm: password, name: 'E2E OTP', termsAccepted: true },
     });
     expectStatus(otpUser, [200, 201], 'Register unverified user');
     createdUserIds.push(otpUser.data.id);

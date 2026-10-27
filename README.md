@@ -154,3 +154,15 @@ Sin proveedor configurado la preferencia se guarda pero no se envía nada. El bo
 - **Datos de ejemplo:** en **Ajustes → Modo demostración → Datos de ejemplo** se cargan 30 días de lecturas, riegos, zonas y sensores para el cultivo seleccionado, y siguen «en vivo» (una lectura nueva cada 20 min y los sensores se refrescan cada 5). Todo queda marcado como demostración, no envía correos y se borra con un botón sin tocar datos reales. En **Reportes** se incluyen marcando «Incluir datos de demostración».
 - **App instalable (PWA):** Neptuno trae manifiesto, iconos y service worker. En Android el navegador ofrece «Instalar app»; en iPhone, Compartir → «Agregar a pantalla de inicio». Requiere abrir el sitio por **https** (o `localhost`).
 - **Términos y privacidad:** `/terminos` y `/privacidad`. Define `VITE_CONTACT_EMAIL` para mostrar tu correo de contacto.
+
+## Demostración precargada
+
+Al entrar por primera vez con la cuenta principal, Neptuno crea un cultivo de fresa con 30 días de datos de ejemplo
+(zonas, sensores, riegos, lluvia) y deja listo el laboratorio de simulación. Por defecto la cuenta es la del autor; se cambia con
+`NEPTUNO_DEMO_PRELOAD_EMAILS` (correos separados por coma) y se desactiva con
+`NEPTUNO_DEMO_PRELOAD_EMAILS=none`. Para borrarla: Ajustes → Modo demostración → «Borrar datos de ejemplo» (no se vuelve a cargar sola).
+
+## Términos y privacidad
+
+Crear una cuenta exige aceptar los términos y la política de privacidad, tanto con correo como con Google; el servidor lo comprueba
+(`terms-consent.pb.js`) y guarda la fecha en `users.terms_accepted_at`.

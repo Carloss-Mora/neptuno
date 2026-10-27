@@ -12,7 +12,7 @@ const GoogleMark = () => (
   </svg>
 );
 
-const GoogleAuthButton = ({ onAuthenticated, label = 'Continuar con Google' }) => {
+const GoogleAuthButton = ({ onAuthenticated, label = 'Continuar con Google', termsAccepted = false, requireTerms = false }) => {
   const { loginWithGoogle } = useAuth();
   const [available, setAvailable] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -42,7 +42,7 @@ const GoogleAuthButton = ({ onAuthenticated, label = 'Continuar con Google' }) =
     setLoading(true);
     setError('');
     try {
-      await loginWithGoogle();
+      await loginWithGoogle({ termsAccepted });
       onAuthenticated();
     } catch (loginError) {
       setError(loginError.message || 'No se pudo iniciar sesión con Google.');
@@ -63,7 +63,7 @@ const GoogleAuthButton = ({ onAuthenticated, label = 'Continuar con Google' }) =
             variant="outline"
             className="h-11 w-full border-slate-300 bg-white font-semibold text-slate-700 hover:bg-slate-50"
             onClick={handleGoogleLogin}
-            disabled={loading}
+            disabled={loading || (requireTerms && !termsAccepted)}
           >
             <GoogleMark />
             {loading ? 'Conectando con Google…' : label}

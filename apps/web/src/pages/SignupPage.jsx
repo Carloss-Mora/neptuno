@@ -276,9 +276,9 @@ const SignupPage = () => {
                 {loading ? 'Creando cuenta...' : 'Crear cuenta'}
               </Button>
 
-              <GoogleAuthButton label="Registrarme con Google" onAuthenticated={() => navigate('/dashboard')} />
+              <GoogleAuthButton label="Registrarme con Google" termsAccepted={accepted} requireTerms onAuthenticated={() => navigate('/dashboard')} />
               <p className="text-center text-xs text-slate-500">
-                Al continuar con Google aceptas los <Link to="/terminos" target="_blank" className="font-semibold text-blue-700 hover:underline">términos</Link> y la <Link to="/privacidad" target="_blank" className="font-semibold text-blue-700 hover:underline">política de privacidad</Link>.
+                Marca la casilla de arriba para registrarte con Google. Al hacerlo aceptas los <Link to="/terminos" target="_blank" className="font-semibold text-blue-700 hover:underline">términos</Link> y la <Link to="/privacidad" target="_blank" className="font-semibold text-blue-700 hover:underline">política de privacidad</Link>.
               </p>
 
               <div className="text-center pt-2">

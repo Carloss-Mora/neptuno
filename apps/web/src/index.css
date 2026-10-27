@@ -170,22 +170,7 @@ main {
   *, *::before, *::after { transition-duration: 0.01ms !important; }
 }
 
-/* Página principal: titulares en Fraunces (serif de contraste suave) y texto en Manrope, para un tono formal */
+/* Página principal: su propia paleta (hoja, fresa, niebla) y tipografía; los estilos viven en HomePage */
 .font-landing {
-  font-family: "Manrope", "Nunito Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-.font-landing h1, .font-landing h2, .font-landing h3, .font-landing .font-display {
-  font-family: "Fraunces", Georgia, "Times New Roman", serif;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-.hero-photo-mask {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22%);
-  mask-image: linear-gradient(to bottom, transparent 0, #000 22%);
-}
-@media (min-width: 1024px) {
-  .hero-photo-mask {
-    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 34%);
-    mask-image: linear-gradient(to right, transparent 0, #000 34%);
-  }
+  font-family: "Public Sans", "Nunito Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }

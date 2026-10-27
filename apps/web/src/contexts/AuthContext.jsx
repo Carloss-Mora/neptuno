@@ -253,6 +253,7 @@ export const AuthProvider = ({ children }) => {
         passwordConfirm,
         name: safeName,
         emailVisibility: true,
+        termsAccepted: true,
       };
 
       await usersCollection.create(payload);
@@ -326,17 +327,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = async ({ termsAccepted = false } = {}) => {
     try {
       const authData = await pb.collection('users').authWithOAuth2({
         provider: 'google',
-        createData: { emailVisibility: false },
+        createData: { emailVisibility: false, termsAccepted },
       });
       setCurrentUser(authData.record);
       return authData.record;
     } catch (error) {
       console.error('Google authentication failed:', error);
-      throw new Error('No se pudo iniciar sesión con Google. Inténtalo de nuevo.');
+      const detail = error?.response?.message || '';
+      throw new Error(/términos/i.test(detail) ? detail : 'No se pudo iniciar sesión con Google. Inténtalo de nuevo.');
     }
   };
 
