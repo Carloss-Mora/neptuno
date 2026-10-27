@@ -10,6 +10,7 @@ import { AlertCircle, Pencil, Plus, Sprout, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toFormValue } from '@/utils/optionalNumber';
 import { useUserSettings } from '@/contexts/UserSettingsContext';
+import { STRAWBERRY_STAGE_DEFAULTS, applyStageDefaults } from '@/utils/strawberryStages';
 
 const emptyCrop = {
   name: '',
@@ -65,6 +66,7 @@ const CropsPage = () => {
   const [form, setForm] = useState(() => withDefaults(userSettings));
   const [editingId, setEditingId] = useState('');
   const [error, setError] = useState('');
+  const [stageNote, setStageNote] = useState(null);
   const [notice, setNotice] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -86,9 +88,23 @@ const CropsPage = () => {
     setNotice('');
   };
 
+  const handleStageChange = (event, force = false) => {
+    const stage = typeof event === 'string' ? event : event.target.value;
+    const { values, kept } = applyStageDefaults(form, stage, { force });
+    setForm((current) => ({ ...current, phenological_stage: stage, ...values }));
+    setError('');
+    setNotice('');
+    setStageNote(
+      STRAWBERRY_STAGE_DEFAULTS[stage]
+        ? { stage, kept: kept.length }
+        : null,
+    );
+  };
+
   const resetForm = () => {
     setEditingId('');
     setForm(withDefaults(userSettings));
+    setStageNote(null);
     setError('');
     setNotice('');
   };
@@ -200,7 +216,7 @@ const CropsPage = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="crop-stage">Etapa fenológica</Label>
-                      <select id="crop-stage" name="phenological_stage" value={form.phenological_stage} onChange={handleChange} className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm">
+                      <select id="crop-stage" name="phenological_stage" value={form.phenological_stage} onChange={handleStageChange} className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm">
                         <option value="">Sin especificar</option>
                         {Object.entries(stageLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                       </select>
@@ -234,11 +250,24 @@ const CropsPage = () => {
                       <Input id="crop-alert-temperature" name="alert_temp_max" type="number" min="-10" max="60" step="any" value={form.alert_temp_max} onChange={handleChange} placeholder="Desactivada" />
                     </div>
                   </div>
+                  {stageNote && (
+                    <div className="rounded-lg border border-cyan-200 bg-cyan-50 p-3 text-sm text-cyan-900">
+                      <p>
+                        Cargué valores sugeridos para {stageLabels[stageNote.stage].toLowerCase()}: {STRAWBERRY_STAGE_DEFAULTS[stageNote.stage].note}
+                        {stageNote.kept > 0 && ` Conservé ${stageNote.kept} ${stageNote.kept === 1 ? 'valor que ya habías escrito' : 'valores que ya habías escrito'}.`}
+                      </p>
+                      {stageNote.kept > 0 && (
+                        <button type="button" className="mt-1 font-medium underline" onClick={() => handleStageChange(stageNote.stage, true)}>
+                          Reemplazar también esos valores
+                        </button>
+                      )}
+                    </div>
+                  )}
                   <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                    Los umbrales de humedad iniciales no están precargados: valida los valores con AGROSAVIA (2022) antes de usar el modo AUTO. Los límites de tiempo son parámetros de seguridad que debes configurar para tu instalación.
+                    Al elegir la etapa se cargan valores iniciales basados en datos de fresa (tiempos de riego de LSU AgCenter, clima de la fresa en Colombia). Los porcentajes de humedad son un punto de partida: la literatura los mide en tensión del suelo (≈ -10 a -30 kPa), así que calíbralos con tu sensor y valida con AGROSAVIA (2022) antes de usar el modo AUTO.
                   </p>
                   <p className="text-xs leading-relaxed text-amber-800">
-                    Valores iniciales pendientes de validar con AGROSAVIA (2022). AUTO no actuará hasta que ambos umbrales y el máximo de riego continuo estén configurados.
+                    AUTO no actuará hasta que ambos umbrales y el máximo de riego continuo estén configurados.
                   </p>
                   <div className="space-y-2">
                     <Label htmlFor="crop-control-mode">Modo de control</Label>
