@@ -18,25 +18,25 @@ h1, h2, h3, h4 {
 @layer base {
   :root {
     /* Neptuno: brisa (fondo celeste), ola (acción, azul del logotipo), espuma (agua y riego), coral (alertas) */
-    --background: 210 45% 96%;
+    --background: 205 75% 93%;
     --foreground: 220 45% 11%;
-    --border: 214 30% 82%;
+    --border: 208 48% 80%;
     --input: 214 30% 78%;
     --ring: 214 68% 45%;
 
-    --primary: 214 80% 36%;
+    --primary: 214 88% 38%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 207 60% 94%;
+    --secondary: 205 70% 90%;
     --secondary-foreground: 217 45% 20%;
 
     --destructive: 350 68% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --muted: 208 50% 95%;
+    --muted: 206 62% 92%;
     --muted-foreground: 217 22% 30%;
 
-    --accent: 190 62% 90%;
+    --accent: 188 70% 84%;
     --accent-foreground: 200 60% 22%;
 
     --card: 0 0% 100%;
@@ -117,7 +117,7 @@ h1, h2, h3, h4 {
 
 /* Fondo suave para las pantallas (sustituye a los degradados) */
 .bg-dew {
-  background-color: hsl(210 45% 95%);
+  background-color: hsl(205 75% 93%);
 }
 
 /* Movimiento: una sola entrada suave por pantalla y respuesta a las acciones de la persona */
