@@ -300,7 +300,7 @@ describe('Dashboard and route module', () => {
     const { unmount } = render(dashboard());
 
     await user.click(await screen.findByRole('button', { name: 'Modificar área' }));
-    const areaInput = await screen.findByLabelText('Área de cultivo (m²)');
+    const areaInput = await screen.findByLabelText('Área total del cultivo');
     await user.clear(areaInput);
     await user.type(areaInput, '250');
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
@@ -313,15 +313,15 @@ describe('Dashboard and route module', () => {
       );
     });
     expect(screen.getByRole('status')).toHaveTextContent('Área guardada.');
-    expect(screen.getByText('Área registrada: 250 m²')).toBeInTheDocument();
+    expect(screen.getByText('Área total registrada: 250 m²')).toBeInTheDocument();
     expect(screen.getByText('0.2 L/min × duración real')).toBeInTheDocument();
     await waitFor(() => {
       expect(storedCrop.area_m2).toBe(250);
-      expect(screen.getByText('Área registrada: 250 m²')).toBeInTheDocument();
+      expect(screen.getByText('Área total registrada: 250 m²')).toBeInTheDocument();
     }, { timeout: 6000 });
 
     unmount();
     render(dashboard());
-    expect(await screen.findByText('Área registrada: 250 m²')).toBeInTheDocument();
+    expect(await screen.findByText('Área total registrada: 250 m²')).toBeInTheDocument();
   });
 });
