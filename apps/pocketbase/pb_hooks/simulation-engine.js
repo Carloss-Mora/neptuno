@@ -89,12 +89,24 @@ module.exports = {
         {
           isDemo: true,
           nowMs,
-          clock: { activeSinceMs: onSinceMs, lastStoppedAtMs: offSinceMs },
+          clock: { activeSinceMs: onSinceMs, lastStoppedAtMs: offSinceMs, pulseCycle: Boolean(sim.get('pulse_cycle')), cycleOnMs: num(sim.get('cycle_on_ms')) },
           skipNotifications: true,
         },
       );
       state = result.desiredState;
       reason = result.reason;
+      // Seguimiento del ciclo de pulsos para el siguiente paso.
+      if (result.pulse === 'pause') {
+        sim.set('cycle_on_ms', num(sim.get('cycle_on_ms')) + Math.max(0, nowMs - onSinceMs));
+        sim.set('pulse_cycle', true);
+      } else if (result.pulse === 'resume') {
+        sim.set('pulse_cycle', false);
+      } else if (state === 'OFF' && (wasOn || result.endCycle)) {
+        sim.set('pulse_cycle', false);
+        sim.set('cycle_on_ms', 0);
+      } else if (state === 'ON' && !wasOn) {
+        sim.set('cycle_on_ms', 0);
+      }
     }
 
     if (state === 'ON' && !wasOn) { onSinceMs = nowMs; }

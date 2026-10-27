@@ -44,7 +44,7 @@ cronAdd('device-watchdog', '* * * * *', () => {
         { cropId: crop.id },
       );
       const activeLog = activeLogs[0];
-      if (activeLog?.get('status') === 'ON' && ['THRESHOLD', 'SCHEDULE'].includes(String(activeLog.get('source')))) {
+      if (activeLog?.get('status') === 'ON' && ['THRESHOLD', 'SCHEDULE', 'PULSE'].includes(String(activeLog.get('source')))) {
         $app.save(new Record(logsCollection, {
           userId: crop.get('userId'),
           cropId: crop.id,

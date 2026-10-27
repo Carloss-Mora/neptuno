@@ -14,20 +14,22 @@ const key='k'+crypto.randomBytes(8).toString('hex');
 await j('POST','/api/collections/devices/records',{userId:u.id,cropId:crop.id,name:'D',key_hash:crypto.createHash('sha256').update(key).digest('hex'),interval_seconds:1,desired_state:'OFF'},su);
 const ingest=(h)=>j('POST','/api/neptuno/ingest',{soil_humidity:h,temperature:22,water_level:80},null,{'X-Device-Key':key});
 const lastLog=async()=>((await j('GET',`/api/collections/irrigation_logs/records?perPage=1&sort=-created&filter=${encodeURIComponent(`cropId="${crop.id}"`)}`,null,su)).d.items[0]||null);
+// Un apagado manual activa 30 min de control manual en modo AUTO; la prueba lo limpia para medir solo la lluvia.
+const stop=async()=>{await j('POST','/api/collections/irrigation_logs/records',{userId:u.id,cropId:crop.id,status:'OFF',source:'MANUAL'},su);await j('PATCH','/api/collections/crops/records/'+crop.id,{manual_override_until:''},su);};
 const setForecast=(mm,ageMs=0)=>j('PATCH','/api/collections/crops/records/'+crop.id,{rain_forecast_mm:mm,rain_forecast_at:new Date(Date.now()-ageMs).toISOString().replace('T',' ')},su);
 // 1) Sin pronóstico: seco → riega
 await setForecast(0); let r=await ingest(60); ok(r.s===200,'ingest ok'); let l=await lastLog(); ok(l&&l.status==='ON'&&l.source==='THRESHOLD','sin lluvia prevista, humedad baja → enciende');
-await j('POST','/api/collections/irrigation_logs/records',{userId:u.id,cropId:crop.id,status:'OFF',source:'MANUAL'},su);
+await stop();
 await new Promise(x=>setTimeout(x,1100));
 // 2) Lluvia prevista, ligeramente seco → no enciende
 await setForecast(4); const before=(await lastLog()).id; await ingest(60); l=await lastLog(); ok(l.id===before,'lluvia prevista (4 mm) y humedad apenas baja → NO enciende');
 // 3) Muy seco → riega igual
 await new Promise(x=>setTimeout(x,1100)); await ingest(40); l=await lastLog(); ok(l.status==='ON','muy seco → riega aunque se espere lluvia');
-await j('POST','/api/collections/irrigation_logs/records',{userId:u.id,cropId:crop.id,status:'OFF',source:'MANUAL'},su);
+await stop();
 // 4) Pronóstico viejo → se ignora
 await setForecast(4,3*3600000); await new Promise(x=>setTimeout(x,1100)); await ingest(60); l=await lastLog(); ok(l.status==='ON','pronóstico de hace 3 h se ignora → enciende');
 // 5) Pronóstico bajo el umbral → riega
-await j('POST','/api/collections/irrigation_logs/records',{userId:u.id,cropId:crop.id,status:'OFF',source:'MANUAL'},su);
+await stop();
 await setForecast(1); await new Promise(x=>setTimeout(x,1100)); await ingest(60); l=await lastLog(); ok(l.status==='ON','1 mm < 2 mm → enciende');
 // 6) Endpoint de pronóstico exige dueño
 const other=`o${Date.now()}@example.test`; await j('POST','/api/collections/users/records',{email:other,password:'Np-lab-12345!',passwordConfirm:'Np-lab-12345!',name:'O',verified:true},su);
