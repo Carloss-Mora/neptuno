@@ -137,3 +137,20 @@ Ejecuta estos checks solo contra una instancia local de pruebas; no uses una bas
 ## Panel Principal (Inicio)
 
 Es la primera pantalla del agricultor: nombre del cultivo, etapa y día desde la siembra, estado del riego con el motivo del último cambio y el próximo riego, lluvia prevista (si activaste «no regar con lluvia»), humedad con su estado (Muy seco / Seco / Húmedo y estable / Mucha agua) frente al rango ideal, nivel de agua, temperatura, consumo estimado de hoy (pide registrar el caudal si falta), alertas activas, resumen de zonas y «Mi finca». El área total de la finca es solo informativa: la suma del área de todos tus cultivos. El área de cada cultivo se edita en **Cultivos**.
+
+## Alertas por WhatsApp (opcional)
+
+Cada persona decide en **Ajustes → Alertas por WhatsApp** si las quiere y registra su celular con indicativo. Solo se envían las **alertas importantes** (tanque bajo, temperatura alta, dispositivo sin conexión), nunca cada riego. El número se valida y se guarda como `+57…`.
+
+El servidor elige el proveedor con variables de entorno (ver `.env.example`):
+
+- **`cloud` (recomendado para producción):** API oficial de WhatsApp Business de Meta. Necesitas una cuenta de WhatsApp Business, un token y el ID del número, y crear una plantilla de mensaje aprobada con un solo parámetro `{{1}}` (por defecto `neptuno_alerta`, idioma `es`). Meta cobra por conversación según su tarifa vigente.
+- **`callmebot` (gratis, para pruebas o uso personal):** cada persona activa su número escribiéndole al bot de CallMeBot y pega en Ajustes la clave que recibe.
+
+Sin proveedor configurado la preferencia se guarda pero no se envía nada. El botón «Enviar mensaje de prueba» confirma que todo funciona. Probado con un servidor falso (`tools/e2e-whatsapp.mjs`); no se ha probado con la API real de Meta.
+
+## Datos de ejemplo y app instalable
+
+- **Datos de ejemplo:** en **Ajustes → Modo demostración → Datos de ejemplo** se cargan 30 días de lecturas, riegos, zonas y sensores para el cultivo seleccionado, y siguen «en vivo» (una lectura nueva cada 20 min y los sensores se refrescan cada 5). Todo queda marcado como demostración, no envía correos y se borra con un botón sin tocar datos reales. En **Reportes** se incluyen marcando «Incluir datos de demostración».
+- **App instalable (PWA):** Neptuno trae manifiesto, iconos y service worker. En Android el navegador ofrece «Instalar app»; en iPhone, Compartir → «Agregar a pantalla de inicio». Requiere abrir el sitio por **https** (o `localhost`).
+- **Términos y privacidad:** `/terminos` y `/privacidad`. Define `VITE_CONTACT_EMAIL` para mostrar tu correo de contacto.

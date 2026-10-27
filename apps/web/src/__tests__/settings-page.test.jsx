@@ -103,3 +103,27 @@ describe('validateDefaults', () => {
     expect(validateDefaults({ default_flow_lpm: -3 })).toMatch(/mayor que 0/);
   });
 });
+
+describe('Settings page: WhatsApp y app instalable', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('muestra el número solo si la persona activa WhatsApp y avisa si el servidor no lo tiene configurado', async () => {
+    mockPb.collection.mockReturnValue({ getList: vi.fn(async () => ({ items: [] })) });
+    mockPb.send.mockResolvedValue({ available: false, provider: '', needs_api_key: false });
+    renderPage();
+    await waitFor(() => expect(screen.getByText('Quiero recibir las alertas importantes por WhatsApp')).toBeInTheDocument());
+    expect(screen.queryByLabelText('Tu celular con indicativo')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('checkbox', { name: /whatsapp/i }));
+    expect(screen.getByLabelText('Tu celular con indicativo')).toBeInTheDocument();
+    expect(await screen.findByText(/aún no tiene un proveedor de WhatsApp/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Enviar mensaje de prueba' })).toBeDisabled();
+  });
+
+  it('pide la clave solo con el proveedor CallMeBot', async () => {
+    mockPb.collection.mockReturnValue({ getList: vi.fn(async () => ({ items: [{ id: 'r1', whatsapp_enabled: true, whatsapp_phone: '+573001234567' }] })) });
+    mockPb.send.mockResolvedValue({ available: true, provider: 'callmebot', needs_api_key: true });
+    renderPage();
+    expect(await screen.findByLabelText('Clave de CallMeBot')).toBeInTheDocument();
+    expect(screen.getByLabelText('Tu celular con indicativo')).toHaveValue('+573001234567');
+  });
+});

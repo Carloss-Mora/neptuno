@@ -41,16 +41,28 @@ cronAdd('notification-delivery', '* * * * *', () => {
         continue;
       }
 
-      $app.newMailClient().send(new MailerMessage({
-        from: {
-          address: $app.settings().meta.senderAddress,
-          name: $app.settings().meta.senderName || 'Neptuno',
-        },
-        to: [{ address: user.get('email') }],
-        subject: item.get('subject'),
-        text: item.get('message'),
-        html: `<p>${escapeHtml(item.get('message'))}</p>`,
-      }));
+      const channels = require(`${__hooks}/notification-queue.js`).channelsFor($app, item.get('userId'), item.get('kind'));
+      if (channels.email) {
+        $app.newMailClient().send(new MailerMessage({
+          from: {
+            address: $app.settings().meta.senderAddress,
+            name: $app.settings().meta.senderName || 'Neptuno',
+          },
+          to: [{ address: user.get('email') }],
+          subject: item.get('subject'),
+          text: item.get('message'),
+          html: `<p>${escapeHtml(item.get('message'))}</p>`,
+        }));
+      }
+      if (channels.whatsapp) {
+        try {
+          require(`${__hooks}/whatsapp.js`).send(channels.setting, `Neptuno: ${item.get('message')}`);
+        } catch (whatsappError) {
+          // Si el correo ya salió, un fallo de WhatsApp no debe repetirlo; si WhatsApp era el único canal, se reintenta.
+          if (!channels.email) throw whatsappError;
+          console.error(`No se pudo enviar el WhatsApp de la notificación ${item.id}:`, whatsappError);
+        }
+      }
       $app.save(new Record($app.findCollectionByNameOrId('notification_deliveries'), {
         userId: item.get('userId'),
         cropId: item.get('cropId'),
