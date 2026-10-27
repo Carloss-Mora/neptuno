@@ -4,11 +4,14 @@
 // pero NO se ha compilado ni probado en hardware. Revisa los pines, calibra los sensores y pruébalo
 // con la bomba desconectada antes de usarlo. Las mismas reglas están probadas en tools/controller-rules.js.
 //
-// Librerías: WiFi, HTTPClient (incluidas en el núcleo ESP32) y ArduinoJson 7.
+// Librerías: WiFi, HTTPClient (incluidas en el núcleo ESP32), ArduinoJson 7, OneWire y DallasTemperature.
+// Conexiones y lista de materiales: docs/HARDWARE.md.
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 
 // ---- Configuración de tu instalación ----------------------------------------------------------------------
 const char* WIFI_SSID = "TU_WIFI";
@@ -21,6 +24,11 @@ const int ZONES = 2;                                  // número de válvulas (1
 const int RELAY_PINS[ZONES] = {26, 27};               // salida de cada válvula (canal 1, 2, ...)
 const int SOIL_PINS[ZONES] = {34, 35};                // sensor de humedad de suelo de cada zona (ADC)
 const int WATER_LEVEL_PIN = 32;                       // nivel del tanque (ADC)
+const int TEMP_PIN = 4;                               // sensor de temperatura DS18B20 (con resistencia de 4.7 kΩ a 3.3 V)
+const int FLOW_PIN = 25;                              // sensor de caudal YF-S201 (opcional; déjalo en -1 si no lo tienes)
+const float FLOW_PULSES_PER_LITER = 450.0;            // YF-S201: ~450 pulsos por litro (calíbralo con un balde y un reloj)
+// IDs de los sensores de suelo registrados en Neptuno (Sensores), uno por zona, en el mismo orden. Vacío = no se envían por sensor.
+const char* SOIL_SENSOR_IDS[ZONES] = {"", ""};
 const bool RELAY_ACTIVE_LOW = true;                   // muchos módulos de relé activan con LOW
 
 // Calibración: lectura ADC con el sensor en el aire (seco) y sumergido en agua (100 %).
@@ -44,6 +52,13 @@ struct Config {
   float humidityMin = 0, humidityMax = 0;
   unsigned long maxIrrigationMs = 0, minRestMs = 0, pulseOnMs = 0, pulseOffMs = 0;
 } config;
+
+OneWire oneWire(TEMP_PIN);
+DallasTemperature tempSensor(&oneWire);
+volatile unsigned long flowPulses = 0;
+void IRAM_ATTR onFlowPulse() { flowPulses++; }
+float temperatureC = NAN, lastGoodTemperature = 18.0;
+unsigned long flowWindowStart = 0;
 
 Zone zones[ZONES];
 unsigned long lastContact = 0, holdMs = 60000, lastSend = 0;
@@ -77,6 +92,21 @@ void readSensors() {
   }
   float w = readPercent(WATER_LEVEL_PIN, WATER_ADC_EMPTY, WATER_ADC_FULL);
   if (isnan(w)) sensorsOk = false; else waterLevel = w;
+  tempSensor.requestTemperatures();
+  float t = tempSensor.getTempCByIndex(0);
+  temperatureC = (t == DEVICE_DISCONNECTED_C) ? NAN : t;   // la temperatura no detiene el riego: solo se informa
+}
+
+// Caudal medido (L/min) desde la última lectura; NAN si no hay sensor o no hay riego.
+float readFlowLpm(unsigned long now) {
+  if (FLOW_PIN < 0) return NAN;
+  noInterrupts(); unsigned long pulses = flowPulses; flowPulses = 0; interrupts();
+  float minutes = (now - flowWindowStart) / 60000.0;
+  flowWindowStart = now;
+  bool anyOn = false;
+  for (int i = 0; i < ZONES; i++) if (zones[i].on) anyOn = true;
+  if (!anyOn || minutes <= 0) return NAN;
+  return (pulses / FLOW_PULSES_PER_LITER) / minutes;
 }
 
 // Misma política que apps/pocketbase/pb_hooks/irrigation-policy.js, para una zona.
@@ -128,9 +158,15 @@ bool sendReading() {
   float soilAverage = 0;
   for (int i = 0; i < ZONES; i++) soilAverage += zones[i].humidity;
   body["soil_humidity"] = soilAverage / ZONES;
-  body["temperature"] = 22.0;                         // TODO: lee tu sensor de temperatura (DHT22, DS18B20...)
+  // El servidor exige la temperatura: si el sensor falla se reenvía la última lectura buena (la temperatura no gobierna el riego).
+  if (!isnan(temperatureC)) lastGoodTemperature = temperatureC;
+  body["temperature"] = lastGoodTemperature;
   body["water_level"] = waterLevel;
-  // Para humedades distintas por sensor añade "sensor_readings": {"<id del sensor>": valor}.
+  float flow = readFlowLpm(millis());
+  if (!isnan(flow) && flow > 0.05) body["flow_lpm"] = flow;   // Neptuno compara con el caudal esperado y avisa de fugas u obstrucciones
+  // Humedad por sensor (para ver cada zona en el Panel Principal).
+  JsonObject perSensor = body["sensor_readings"].to<JsonObject>();
+  for (int i = 0; i < ZONES; i++) if (strlen(SOIL_SENSOR_IDS[i]) > 0) perSensor[SOIL_SENSOR_IDS[i]] = zones[i].humidity;
   String payload;
   serializeJson(body, payload);
 
@@ -181,6 +217,9 @@ void setup() {
     pinMode(RELAY_PINS[i], OUTPUT);
     digitalWrite(RELAY_PINS[i], RELAY_ACTIVE_LOW ? HIGH : LOW);  // válvulas cerradas al arrancar
   }
+  tempSensor.begin();
+  if (FLOW_PIN >= 0) { pinMode(FLOW_PIN, INPUT_PULLUP); attachInterrupt(digitalPinToInterrupt(FLOW_PIN), onFlowPulse, FALLING); }
+  flowWindowStart = millis();
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   lastContact = millis();
