@@ -166,3 +166,20 @@ Al entrar por primera vez con la cuenta principal, Neptuno crea un cultivo de fr
 
 Crear una cuenta exige aceptar los términos y la política de privacidad, tanto con correo como con Google; el servidor lo comprueba
 (`terms-consent.pb.js`) y guarda la fecha en `users.terms_accepted_at`.
+
+## Publicar en Azure y mantener actualizado
+
+- `deploy/azure/setup.sh`: instala todo en una máquina virtual Ubuntu (web + PocketBase + HTTPS con Caddy).
+- `deploy/azure/update.sh`: baja los cambios de GitHub, recompila y reinicia. Agrega los ajustes de sala llena
+  (`NEPTUNO_TRUST_PROXY`, `NEPTUNO_RELAXED_LIMITS`) y la cuenta de invitados (`NEPTUNO_DEMO_GUEST=correo:clave`).
+- `deploy/azure/install-auto-update.sh`: revisa GitHub cada 3 minutos y actualiza solo (se congela a la hora indicada en `auto-update.sh`).
+
+Detrás de Caddy, PocketBase solo ve la dirección del proxy: `NEPTUNO_TRUST_PROXY=true` hace que use la dirección real de cada persona
+y los límites de peticiones no se compartan entre todos.
+
+## QR para abrir la app en el celular
+
+- Publicada en Azure: el QR es la dirección pública (los celulares necesitan datos móviles o internet).
+- En red local, sin internet: con la app corriendo (`npm run dev`), ejecuta `npm run qr`. Genera `neptuno-qr-local.png` con la dirección
+  de tu computador; los celulares deben estar en la misma red WiFi (o conectados al punto de acceso de tu celular). El registro con
+  código por correo y con Google necesita internet; para entrar sin ello usa una cuenta ya creada.

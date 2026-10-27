@@ -13,3 +13,4 @@ apps/web/node_modules/.vite/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+neptuno-qr-local.png

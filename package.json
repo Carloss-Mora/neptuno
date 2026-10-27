@@ -9,12 +9,14 @@
     "lint": "concurrently --raw \"npm run lint --prefix apps/web\"",
     "test": "npm run test:run --prefix apps/web",
     "test:e2e": "node tools/e2e-smoke.mjs",
-    "test:ui": "playwright test"
+    "test:ui": "playwright test",
+    "qr": "node tools/qr-local.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",
     "@types/node": "^26.6.5",
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "qrcode": "^1.5.4"
   },
   "workspaces": [
     "apps/*"

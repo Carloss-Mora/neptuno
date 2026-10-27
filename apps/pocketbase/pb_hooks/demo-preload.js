@@ -5,10 +5,21 @@
 const DEFAULT_EMAILS = 'carloz1mora2005@gmail.com';
 const CROP_NAME = 'Fresas · Finca demostración';
 
+// Cuenta de invitados para la exposición: NEPTUNO_DEMO_GUEST="correo:clave". Entra sin recibir ningún código.
+function guest() {
+  const raw = String($os.getenv('NEPTUNO_DEMO_GUEST') || '').trim();
+  const index = raw.indexOf(':');
+  if (index < 3 || raw.length - index - 1 < 8) return null;
+  return { email: raw.slice(0, index).toLowerCase(), password: raw.slice(index + 1) };
+}
+
 function emails() {
   const raw = String($os.getenv('NEPTUNO_DEMO_PRELOAD_EMAILS') || '').trim();
   if (raw.toLowerCase() === 'none') return [];
-  return (raw || DEFAULT_EMAILS).split(',').map((item) => item.trim().toLowerCase()).filter(Boolean);
+  const list = (raw || DEFAULT_EMAILS).split(',').map((item) => item.trim().toLowerCase()).filter(Boolean);
+  const visitor = guest();
+  if (visitor) list.push(visitor.email);
+  return list;
 }
 
 function markerPath(userId) {
@@ -16,6 +27,24 @@ function markerPath(userId) {
 }
 
 module.exports = {
+  ensureGuest(app) {
+    const visitor = guest();
+    if (!visitor) return;
+    try {
+      app.findAuthRecordByEmail('users', visitor.email);
+      return;
+    } catch (error) { /* no existe todavía */ }
+    const record = new Record(app.findCollectionByNameOrId('users'));
+    record.set('email', visitor.email);
+    record.set('name', 'Invitado Neptuno');
+    record.set('emailVisibility', false);
+    record.set('verified', true);
+    record.set('password', visitor.password);
+    record.set('terms_accepted_at', new DateTime());
+    app.save(record);
+    console.log(`[demo] Cuenta de invitados creada: ${visitor.email}`);
+  },
+
   run(app, user) {
     if (!user || !emails().includes(String(user.get('email')).toLowerCase())) return false;
     const marker = markerPath(user.id);

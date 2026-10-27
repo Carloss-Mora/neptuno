@@ -18,6 +18,7 @@ onRecordCreateRequest((e) => {
 }, 'users');
 
 onRecordAuthWithOAuth2Request((e) => {
+  console.log(`[oauth] ${e.providerName}: ${e.isNewRecord ? 'cuenta nueva' : 'cuenta existente'}`);
   if (e.isNewRecord) {
     const data = e.createData || {};
     if (data.termsAccepted !== true && data.termsAccepted !== 'true') {
@@ -28,8 +29,13 @@ onRecordAuthWithOAuth2Request((e) => {
       if (e.record) e.record.set('terms_accepted_at', new DateTime());
       else data.terms_accepted_at = new Date().toISOString();
     } catch (error) {
-      console.error('No se pudo guardar la fecha de aceptación de términos:', error);
+      console.error('[oauth] No se pudo guardar la fecha de aceptación de términos:', error);
     }
   }
-  e.next();
+  try {
+    e.next();
+  } catch (error) {
+    console.error('[oauth] Falló el inicio de sesión con Google:', error);
+    throw error;
+  }
 }, 'users');
