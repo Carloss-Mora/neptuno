@@ -6,7 +6,7 @@ export const SENSOR_KINDS = {
   water_level: { label: 'Nivel de agua', short: 'Agua', unit: '%' },
 };
 
-export const SENSOR_STATES = {
+const SENSOR_STATES = {
   ok: { label: 'Normal' },
   alert: { label: 'Alerta' },
   stale: { label: 'Sin señal' },
@@ -54,7 +54,7 @@ export const sensorStatus = (sensor, crop, intervalSeconds, nowMs = Date.now()) 
   return { state: 'ok', label: SENSOR_STATES.ok.label, detail: `Actualizado hace ${formatAge(ageMs)}.` };
 };
 
-export const DEFAULT_LAYOUT = { rows: 2, cols: 2 };
+const DEFAULT_LAYOUT = { rows: 2, cols: 2 };
 
 export const layoutOf = (crop) => ({
   rows: Number(crop?.layout_rows) >= 1 ? Number(crop.layout_rows) : DEFAULT_LAYOUT.rows,

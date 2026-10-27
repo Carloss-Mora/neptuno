@@ -1,5 +1,5 @@
 // Unidades que elige cada persona en Ajustes. Los datos siempre se guardan en litros y °C.
-export const LITERS_PER_GALLON = 3.785411784;
+const LITERS_PER_GALLON = 3.785411784;
 
 export const DEFAULT_PREFERENCES = {
   timezone: '',
@@ -9,7 +9,7 @@ export const DEFAULT_PREFERENCES = {
 
 export const volumeUnitLabel = (unit) => (unit === 'gal' ? 'gal' : 'L');
 export const tempUnitLabel = (unit) => (unit === 'F' ? '°F' : '°C');
-export const flowUnitLabel = (unit) => (unit === 'gal' ? 'gal/min' : 'L/min');
+const flowUnitLabel = (unit) => (unit === 'gal' ? 'gal/min' : 'L/min');
 
 export const volumeFromLiters = (liters, unit) => (unit === 'gal' ? liters / LITERS_PER_GALLON : liters);
 export const tempFromCelsius = (celsius, unit) => (unit === 'F' ? (celsius * 9) / 5 + 32 : celsius);
@@ -26,7 +26,7 @@ export const formatTemperature = (celsius, unit, digits = 1) => {
   return `${trim(tempFromCelsius(celsius, unit), digits).toLocaleString('es-CO')} ${tempUnitLabel(unit)}`;
 };
 
-export const isValidTimeZone = (timeZone) => {
+const isValidTimeZone = (timeZone) => {
   if (!timeZone) return false;
   try {
     new Intl.DateTimeFormat('es-CO', { timeZone });

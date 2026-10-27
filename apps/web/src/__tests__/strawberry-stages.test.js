@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { STRAWBERRY_STAGE_DEFAULTS, STAGE_FIELDS, stagePreset, applyStageDefaults } from '@/utils/strawberryStages';
+import { STRAWBERRY_STAGE_DEFAULTS, STAGE_FIELDS, stagePreset, applyStageDefaults, stageForDate } from '@/utils/strawberryStages';
 
 describe('valores por etapa de fresa', () => {
   it('cada etapa es coherente', () => {
@@ -29,8 +29,6 @@ describe('valores por etapa de fresa', () => {
     expect(applyStageDefaults(form, '').values).toEqual({});
   });
 });
-
-import { stageForDate } from '@/utils/strawberryStages';
 
 describe('calendario de la fresa', () => {
   const now = new Date(2026, 9, 26, 15, 0);

@@ -41,6 +41,7 @@ const Header = () => {
   const tabRefs = useRef({});
   const [indicator, setIndicator] = useState({ left: 0, width: 0, visible: false });
 
+  /* eslint-disable react-hooks/exhaustive-deps */
   const measureIndicator = () => {
     const activeLink = navLinks.find((link) => isActive(link.to));
     const el = activeLink && tabRefs.current[activeLink.to];
@@ -56,6 +57,7 @@ const Header = () => {
     window.addEventListener('resize', measureIndicator);
     return () => window.removeEventListener('resize', measureIndicator);
   }, [location.pathname]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   const getUserInitials = () => {
     if (currentUser?.name) {
