@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useNavigate } from 'react-router-dom';
-import { BellRing, Database, Droplets, Settings2, ShieldAlert, User } from 'lucide-react';
+import { BellRing, Database, Droplets, FlaskConical, Settings2, ShieldAlert, User } from 'lucide-react';
 import Header from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserSettings } from '@/contexts/UserSettingsContext';
@@ -213,6 +213,12 @@ const SettingsPage = () => {
             ))}
             <p className="text-sm text-slate-600">
               Los umbrales que disparan las alertas se configuran por cultivo en <Link to="/crops" className="font-semibold text-teal-700 hover:underline">Cultivos</Link>.
+            </p>
+          </Section>
+
+          <Section icon={FlaskConical} title="Modo demostración" description="Un laboratorio para probar el riego con datos simulados, sin tocar tu cultivo real.">
+            <p className="text-sm text-slate-600">
+              Los datos simulados no aparecen en tus sensores ni en tus reportes. <Link to="/simulator" className="font-semibold text-teal-700 hover:underline">Abrir el laboratorio</Link>.
             </p>
           </Section>
 

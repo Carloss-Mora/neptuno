@@ -1,3 +1,4 @@
+import { soilState } from '@/utils/soilState';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
@@ -316,6 +317,9 @@ const SensorsPage = () => {
                                 <p className="text-2xl font-extrabold tracking-tight text-slate-900">{readingText(sensor)}</p>
                                 <p className="truncate text-sm font-semibold text-slate-700">{sensor.name}</p>
                                 <p className="truncate text-xs text-slate-500">{SENSOR_KINDS[sensor.kind]?.label}</p>
+                                {sensor.kind === 'soil_humidity' && status.state !== 'stale' && status.state !== 'never' && soilState(sensor.last_value, selectedCrop) && (
+                                  <p className="mt-1 text-xs font-semibold text-slate-700">{soilState(sensor.last_value, selectedCrop).label}</p>
+                                )}
                               </div>
                             </button>
                           );

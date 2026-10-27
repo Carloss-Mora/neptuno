@@ -1,4 +1,5 @@
 
+import { startReason, endReason } from '@/utils/irrigationReason';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { useAuth } from '@/contexts/AuthContext';
@@ -77,6 +78,7 @@ const IrrigationHistoryPage = () => {
             durationMs: closingDate - activationDate,
             durationStr: formatDistanceStrict(activationDate, closingDate, { locale: es }),
             source: openSession.source,
+            closeSource: record.source,
             is_demo: openSession.is_demo,
           });
           openSession = null;
@@ -281,7 +283,8 @@ const IrrigationHistoryPage = () => {
                             {log.durationStr}
                           </TableCell>
                           <TableCell className="text-sm text-slate-600">
-                            {log.source === 'AUTOMATIC' ? 'Automático' : log.source === 'MANUAL' ? 'Manual' : 'Registro'}
+                            <p>{startReason(log.source)}</p>
+                            {log.closeSource && <p className="text-xs text-slate-500">Fin: {endReason(log.closeSource)}</p>}
                           </TableCell>
                         </TableRow>
                       ))}
