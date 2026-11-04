@@ -36,7 +36,7 @@ El vigilante del servidor registra el riego como apagado si un dispositivo deja 
 
 ## Control automático
 
-El modo `AUTO` requiere umbrales mínimos/máximos de humedad y límites configurados de duración y descanso. Los valores agronómicos no vienen precargados y deben validarse con AGROSAVIA (2022) antes de usarse. El nivel de agua inferior al 20% bloquea el riego.
+El modo `AUTO` requiere umbrales mínimos/máximos de humedad y límites configurados de duración y descanso. Los valores agronómicos no vienen precargados y deben validarse con un agrónomo y la literatura técnica (p. ej. LSU AgCenter, UC ANR) antes de usarse. El nivel de agua inferior al 20% bloquea el riego.
 
 El consumo se presenta como **estimado**: caudal configurado en L/min multiplicado por los minutos reales registrados. No se infiere consumo de agua cuando falta un caudal medido.
 
@@ -183,3 +183,11 @@ y los límites de peticiones no se compartan entre todos.
 - En red local, sin internet: con la app corriendo (`npm run dev`), ejecuta `npm run qr`. Genera `neptuno-qr-local.png` con la dirección
   de tu computador; los celulares deben estar en la misma red WiFi (o conectados al punto de acceso de tu celular). El registro con
   código por correo y con Google necesita internet; para entrar sin ello usa una cuenta ya creada.
+
+
+## Validación y evidencia reproducible
+
+- Pruebas unitarias: `cd apps/web && npx vitest run` (incluye `accessibility.test.jsx`).
+- Experimento numérico de ahorro de agua (temporizador vs. riego AUTO, usando el motor real): `node tools/experiment-water-saving.mjs --seasons 100 --out resultado.json`. Es una **simulación**, no una medición en campo.
+- Accesibilidad: auditoría axe-core (WCAG 2.2 AA) sin violaciones; salto al contenido, nombres accesibles en medidores y tablas desplazables con teclado.
+- Rendimiento: rutas con carga diferida (`React.lazy`), reduciendo el JS inicial.

@@ -13,9 +13,9 @@ const GaugeChart = ({ value, min = 0, max = 50, unit = '°C' }) => {
   const COLORS = ['#2468b6', '#e5e7eb'];
 
   return (
-    <div className="relative w-full h-48">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
+    <div className="relative w-full h-48" role="img" aria-label={`Medidor: ${value} ${unit} (escala de ${min} a ${max} ${unit})`}>
+      <div className="h-full w-full" aria-hidden="true" inert=""><ResponsiveContainer width="100%" height="100%">
+        <PieChart accessibilityLayer={false} tabIndex={-1}>
           <Pie
             data={data}
             cx="50%"
@@ -32,7 +32,7 @@ const GaugeChart = ({ value, min = 0, max = 50, unit = '°C' }) => {
             ))}
           </Pie>
         </PieChart>
-      </ResponsiveContainer>
+      </ResponsiveContainer></div>
       <div className="absolute inset-0 flex items-center justify-center" style={{ top: '20%' }}>
         <div className="text-center">
           <p className="text-4xl font-bold text-gray-900">{value}</p>

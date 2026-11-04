@@ -29,7 +29,7 @@ const SensorCard = ({ icon: Icon, label, value, unit, progress, color = 'teal', 
           {badge && <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${SOIL_TONE_CLASSES[badge.tone]}`}>{badge.label}</span>}
         </div>
         {progress !== undefined && (
-          <Progress value={progress} className="h-2" />
+          <Progress value={progress} className="h-2" aria-label={`${label}: ${Math.round(progress)} %`} />
         )}
       </CardContent>
     </Card>

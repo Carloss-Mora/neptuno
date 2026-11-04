@@ -196,7 +196,7 @@ const StatisticsPage = () => {
     return (
       <>
         <Header />
-        <main className="min-h-screen bg-dew py-12">
+        <main id="contenido" tabIndex={-1} className="min-h-screen bg-dew py-12">
           <div className="container mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <Skeleton className="mb-8 h-28 rounded-3xl" />
             <div className="mb-6 grid gap-5 md:grid-cols-3">
@@ -217,7 +217,7 @@ const StatisticsPage = () => {
       </Helmet>
 
       <Header />
-      <main className="relative min-h-screen overflow-hidden bg-dew py-10 sm:py-14">
+      <main id="contenido" tabIndex={-1} className="relative min-h-screen overflow-hidden bg-dew py-10 sm:py-14">
         <div className="container relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <section className="mb-8 rounded-3xl border border-teal-100 bg-white p-6 shadow-sm sm:p-8">
             <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
@@ -320,8 +320,8 @@ const StatisticsPage = () => {
                   <ResponsiveContainer width="100%" height={260}>
                     <BarChart data={dailyActivity} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
                       <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="4 4" />
-                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
-                      <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
+                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                      <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
                       <Tooltip cursor={{ fill: '#f0fdfa' }} contentStyle={{ borderRadius: 14, border: '1px solid #ccfbf1' }} />
                       <Bar dataKey="activations" name="Riegos" fill="#2468b6" radius={[6, 6, 0, 0]} maxBarSize={30} />
                     </BarChart>
@@ -346,8 +346,8 @@ const StatisticsPage = () => {
                   <ResponsiveContainer width="100%" height={260}>
                     <BarChart data={dailyActivity} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
                       <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="4 4" />
-                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
+                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
                       <Tooltip cursor={{ fill: '#ecfeff' }} contentStyle={{ borderRadius: 14, border: '1px solid #cffafe' }} formatter={(value) => [`${Math.round(value)} min`, 'Tiempo']} />
                       <Bar dataKey="minutes" name="Minutos" fill="#0891b2" radius={[6, 6, 0, 0]} maxBarSize={30} />
                     </BarChart>
@@ -375,8 +375,8 @@ const StatisticsPage = () => {
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={dailyActivity} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
                     <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="4 4" />
-                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
+                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
                     <Tooltip
                       cursor={{ fill: '#e0f2fe' }}
                       contentStyle={{ borderRadius: 14, border: '1px solid #bae6fd' }}
@@ -405,7 +405,7 @@ const StatisticsPage = () => {
               <CardTitle className="text-lg font-bold text-slate-900">Comparación mensual estimada</CardTitle>
               <p className="text-sm text-slate-500">Consumo estimado: caudal configurado × minutos reales de riego.</p>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-3">
+            <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="rounded-2xl bg-teal-50 p-5">
                 <p className="text-sm font-medium text-teal-800">Mes actual</p>
                 <p className="mt-2 text-3xl font-extrabold text-teal-900">{flowRate ? formatVolume(monthlyConsumption.current) : '—'}</p>

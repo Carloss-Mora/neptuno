@@ -266,7 +266,7 @@ const DashboardPage = () => {
 
       <Header />
 
-      <main className="relative min-h-screen overflow-hidden bg-dew py-8 sm:py-12">
+      <main id="contenido" tabIndex={-1} className="relative min-h-screen overflow-hidden bg-dew py-8 sm:py-12">
         <div className="container relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div className="min-w-0 flex-1">
@@ -418,7 +418,7 @@ const DashboardPage = () => {
                     ? `Rango ideal de este cultivo: ${selectedCrop.humidity_min}–${selectedCrop.humidity_max} %`
                     : 'Define el rango de humedad en Cultivos para ver si el suelo está seco o con mucha agua.'}
                 </p>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-slate-600">
                   {sensorData?.created ? `Actualizado ${new Date(sensorData.created).toLocaleString('es-ES')}` : 'Esperando la primera lectura de sensores'}
                 </p>
               </CardContent>
@@ -494,7 +494,7 @@ const DashboardPage = () => {
                             </span>
                             <span className="flex items-center gap-1.5 text-xs text-slate-600">
                               {zoneValue === null ? 'Sin lectura reciente' : `${zoneValue.toFixed(0)} % de humedad`}
-                              {zoneSoil && <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${SOIL_TONE_CLASSES[zoneSoil.tone]}`}>{zoneSoil.label}</span>}
+                              {zoneSoil && <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${SOIL_TONE_CLASSES[zoneSoil.tone]}`}>{zoneSoil.label}</span>}
                             </span>
                           </div>
                         </li>

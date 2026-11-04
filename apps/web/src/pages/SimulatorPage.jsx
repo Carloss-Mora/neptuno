@@ -131,7 +131,7 @@ const SimulatorPage = () => {
     <>
       <Helmet><title>Laboratorio de simulación - Neptuno</title></Helmet>
       <Header />
-      <main className="min-h-screen bg-dew px-4 py-8 sm:px-6 sm:py-12">
+      <main id="contenido" tabIndex={-1} className="min-h-screen bg-dew px-4 py-8 sm:px-6 sm:py-12">
         <div className="mx-auto max-w-5xl space-y-6">
           <header className="space-y-2">
             <p className="inline-flex items-center gap-2 text-sm font-semibold text-teal-700"><FlaskConical className="h-4 w-4" /> Laboratorio de simulación</p>
@@ -204,7 +204,7 @@ const SimulatorPage = () => {
                 </CardContent>
               </Card>
 
-              <div className="grid gap-6 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <Card>
                   <CardHeader><CardTitle>Condiciones</CardTitle><CardDescription>Cambia los valores a mano para probar el motor.</CardDescription></CardHeader>
                   <CardContent className="space-y-4">
@@ -215,7 +215,7 @@ const SimulatorPage = () => {
                     </div>
                     <NumberAction id="sim-temperature" label="Temperatura (°C)" value={simulation.temperature} min={-10} max={60} step={0.5} disabled={busy} onApply={(value) => command('set_temperature', { value })} />
                     {humidityMin !== null && (
-                      <Button type="button" variant="outline" disabled={busy} onClick={() => command('set_humidity', { value: Math.max(0, humidityMin - 10) })}>Bajar la humedad por debajo del mínimo</Button>
+                      <Button type="button" variant="outline" className="h-auto min-h-10 whitespace-normal text-left" disabled={busy} onClick={() => command('set_humidity', { value: Math.max(0, humidityMin - 10) })}>Bajar la humedad por debajo del mínimo</Button>
                     )}
                     <div className="space-y-1.5">
                       <Label htmlFor="sim-step">Minutos simulados por paso</Label>
@@ -251,8 +251,8 @@ const SimulatorPage = () => {
                           <XAxis dataKey="time" stroke="#6b7280" style={{ fontSize: '12px' }} />
                           <YAxis domain={[0, 100]} stroke="#6b7280" style={{ fontSize: '12px' }} unit="%" />
                           <Tooltip formatter={(value) => [`${value}%`, 'Humedad']} />
-                          {humidityMin !== null && <ReferenceLine y={humidityMin} stroke="#dc2626" strokeDasharray="4 4" label={{ value: 'Mínimo', fontSize: 11 }} />}
-                          {humidityMax !== null && <ReferenceLine y={humidityMax} stroke="#16a34a" strokeDasharray="4 4" label={{ value: 'Objetivo', fontSize: 11 }} />}
+                          {humidityMin !== null && <ReferenceLine y={humidityMin} stroke="#dc2626" strokeDasharray="4 4" label={{ value: 'Mínimo', fontSize: 12 }} />}
+                          {humidityMax !== null && <ReferenceLine y={humidityMax} stroke="#16a34a" strokeDasharray="4 4" label={{ value: 'Objetivo', fontSize: 12 }} />}
                           <Line type="monotone" dataKey="humidity" stroke="#2468b6" strokeWidth={2} dot={false} isAnimationActive={false} />
                         </LineChart>
                       </ResponsiveContainer>
@@ -262,7 +262,7 @@ const SimulatorPage = () => {
 
               <Card>
                 <CardHeader><CardTitle>Historial de decisiones</CardTitle><CardDescription>Hora simulada, lectura, resultado y motivo de cada paso.</CardDescription></CardHeader>
-                <CardContent className="overflow-x-auto">
+                <CardContent className="overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" tabIndex={0}>
                   <Table>
                     <TableHeader><TableRow><TableHead>Hora simulada</TableHead><TableHead>Humedad</TableHead><TableHead>Riego</TableHead><TableHead>Motivo</TableHead></TableRow></TableHeader>
                     <TableBody>

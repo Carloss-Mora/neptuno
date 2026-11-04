@@ -264,7 +264,7 @@ const CropsPage = () => {
         <meta name="description" content="Administra tus cultivos y configura su modo de riego." />
       </Helmet>
       <Header />
-      <main className="min-h-screen bg-dew py-10 sm:py-14">
+      <main id="contenido" tabIndex={-1} className="min-h-screen bg-dew py-10 sm:py-14">
         <div className="container mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
           <header>
             <p className="mb-2 inline-flex items-center gap-2 text-sm font-semibold text-teal-700">
@@ -287,7 +287,7 @@ const CropsPage = () => {
           )}
           {notice && <p role="status" className="rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-800">{notice}</p>}
 
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.85fr)]">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.85fr)]">
             <Card className="border-teal-100 bg-white shadow-sm">
               <CardHeader>
                 <CardTitle>{editingId ? 'Editar cultivo' : 'Agregar cultivo'}</CardTitle>
@@ -316,7 +316,7 @@ const CropsPage = () => {
                     </select>
                     <p className="text-xs text-slate-500">{MODE_HELP[form.control_mode]}</p>
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="crop-name">Nombre</Label>
                       <Input id="crop-name" name="name" value={form.name} onChange={handleChange} placeholder="Fresas del lote norte" required maxLength={100} />
@@ -390,7 +390,7 @@ const CropsPage = () => {
                             </span>
                           </label>
                           {pulsesOn && (
-                            <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <div className="space-y-1">
                                 <Label htmlFor="crop-pulse-on">Minutos regando por pulso</Label>
                                 <Input id="crop-pulse-on" name="pulse_on_minutes" type="number" min="1" max="1440" step="1" value={form.pulse_on_minutes} onChange={handleChange} />
@@ -425,7 +425,7 @@ const CropsPage = () => {
                         </span>
                       </label>
                       {form.rain_skip && (
-                        <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                           <div className="space-y-1">
                             <Label htmlFor="crop-latitude">Latitud</Label>
                             <Input id="crop-latitude" name="latitude" type="number" step="any" min="-90" max="90" value={form.latitude} onChange={handleChange} placeholder="4.4545" />

@@ -220,7 +220,7 @@ const SignupPage = () => {
             ) : (
             <form noValidate onSubmit={handleSubmit} className="space-y-5">
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start space-x-2">
+                <div role="alert" id="signup-error" className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start space-x-2">
                   <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-red-800">{error}</p>
                 </div>
@@ -257,7 +257,7 @@ const SignupPage = () => {
                 <Label htmlFor="passwordConfirm" className="text-gray-700 font-medium">Confirmar Contraseña</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <Input id="passwordConfirm" name="passwordConfirm" type="password" autoComplete="new-password" minLength={8} placeholder="••••••••" value={formData.passwordConfirm} onChange={handleChange} className="pl-10 h-11 border-gray-300 focus:border-teal-500 focus:ring-teal-500 text-gray-900" required />
+                  <Input id="passwordConfirm" name="passwordConfirm" type="password" aria-invalid={error.includes('coinciden') ? true : undefined} aria-describedby={error.includes('coinciden') ? 'signup-error' : undefined} autoComplete="new-password" minLength={8} placeholder="••••••••" value={formData.passwordConfirm} onChange={handleChange} className="pl-10 h-11 border-gray-300 focus:border-teal-500 focus:ring-teal-500 text-gray-900" required />
                 </div>
               </div>
 

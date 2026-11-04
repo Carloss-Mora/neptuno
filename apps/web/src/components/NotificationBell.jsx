@@ -44,7 +44,7 @@ const NotificationBell = () => {
         >
           <Bell className="w-5 h-5 text-gray-600" />
           {alerts.length > 0 && (
-            <span className="absolute top-1 right-1 flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full border-2 border-white">
+            <span className="absolute top-1 right-1 flex items-center justify-center min-w-5 h-5 px-1 text-xs font-bold text-white bg-red-500 rounded-full border-2 border-white">
               {alerts.length}
             </span>
           )}

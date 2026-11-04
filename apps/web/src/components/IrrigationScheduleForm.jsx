@@ -202,7 +202,7 @@ const IrrigationScheduleForm = ({ onSave, initialData = null, onCancel }) => {
               Este horario ya pasó y no se puede editar.
             </p>
           )}
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div className="space-y-3 rounded-2xl border border-teal-100 bg-teal-50/40 p-4">
               <div className="flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full bg-teal-500 ring-4 ring-teal-100" />

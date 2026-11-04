@@ -297,7 +297,7 @@ const SettingsPage = () => {
     <>
       <Helmet><title>Ajustes - Neptuno</title></Helmet>
       <Header />
-      <main className="min-h-screen bg-dew px-4 py-10 pb-28 sm:px-6 sm:py-14 sm:pb-28">
+      <main id="contenido" tabIndex={-1} className="min-h-screen bg-dew px-4 py-10 pb-28 sm:px-6 sm:py-14 sm:pb-28">
         <div className="mx-auto max-w-3xl space-y-6">
           <header>
             <p className="mb-2 inline-flex items-center gap-2 text-sm font-semibold text-teal-700"><Settings2 className="h-4 w-4" /> Preferencias</p>
@@ -343,7 +343,7 @@ const SettingsPage = () => {
           </Section>
 
           <Section icon={Settings2} title="Valores por defecto de los cultivos nuevos" description="Se rellenan solos al crear un cultivo; en cada cultivo los puedes cambiar. Valídalos con tu asesor agronómico.">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {numberField('default-humidity-min', 'Humedad mínima (%)', 'default_humidity_min', { max: '100' })}
               {numberField('default-humidity-max', 'Humedad máxima (%)', 'default_humidity_max', { max: '100' })}
               {numberField('default-max-irrigation', 'Riego continuo máximo (min)', 'default_max_irrigation_minutes', { max: '1440' }, 'Por seguridad, el riego se detiene al llegar a este tiempo.')}

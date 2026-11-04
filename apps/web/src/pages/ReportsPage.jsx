@@ -158,7 +158,7 @@ const ReportsPage = () => {
     <>
       <Helmet><title>Reportes - Neptuno</title></Helmet>
       <Header />
-      <main className="min-h-screen bg-dew py-10 sm:py-14">
+      <main id="contenido" tabIndex={-1} className="min-h-screen bg-dew py-10 sm:py-14">
         <div className="container mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
           <header>
             <p className="mb-2 inline-flex items-center gap-2 text-sm font-semibold text-teal-700"><FileText className="h-4 w-4" /> Reportes</p>
@@ -245,7 +245,7 @@ const ReportsPage = () => {
                     <CardContent><WaterConsumptionChart daily={report.daily} hasFlow={hasFlow} volumeUnit={volumeUnit} /></CardContent>
                   </Card>
 
-                  <div className="grid gap-6 lg:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                     <Card className="rounded-3xl border-teal-100">
                       <CardHeader>
                         <CardTitle>Humedad y nivel de agua</CardTitle>
@@ -277,7 +277,7 @@ const ReportsPage = () => {
                         <CardTitle>Lecturas de sensores</CardTitle>
                         <CardDescription>Promedio y extremos horarios del periodo.</CardDescription>
                       </CardHeader>
-                      <CardContent className="overflow-x-auto">
+                      <CardContent className="overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" tabIndex={0}>
                         <table className="w-full min-w-[22rem] text-left text-sm">
                           <thead><tr className="border-b border-slate-200 text-slate-500">
                             <th scope="col" className="py-2 pr-3 font-medium">Medida</th><th scope="col" className="py-2 pr-3 font-medium">Promedio</th>

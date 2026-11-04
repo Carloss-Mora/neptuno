@@ -170,7 +170,7 @@ const IrrigationHistoryPage = () => {
 
       <Header />
 
-      <main className="relative min-h-screen overflow-hidden bg-dew py-10 sm:py-14">
+      <main id="contenido" tabIndex={-1} className="relative min-h-screen overflow-hidden bg-dew py-10 sm:py-14">
         <div className="container relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           {/* Page Header */}
           <div className="mb-8 rounded-3xl border border-teal-100 bg-white p-6 shadow-sm sm:p-8">
@@ -268,7 +268,7 @@ const IrrigationHistoryPage = () => {
                   <p className="mt-1 text-sm text-slate-500">Prueba otro periodo o activa el sistema para crear registros.</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" tabIndex={0}>
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-slate-50/80">

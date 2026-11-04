@@ -91,7 +91,7 @@ const HomePage = () => (
       />
     </Helmet>
 
-    <main className="np font-landing min-h-screen overflow-x-clip">
+    <main id="contenido" tabIndex={-1} className="np font-landing min-h-screen overflow-x-clip">
       <style>{styles}</style>
 
       <header style={{ background: 'var(--mist)' }}>

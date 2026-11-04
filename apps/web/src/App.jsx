@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Navigate, Route, Routes, BrowserRouter as Router } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { CropProvider } from '@/contexts/CropContext';
@@ -9,20 +8,21 @@ import { Toaster } from '@/components/ui/toaster';
 import ScrollToTop from '@/components/ScrollToTop';
 import ProtectedRoute from '@/components/ProtectedRoute.jsx';
 import HomePage from '@/pages/HomePage';
-import LegalPage from '@/pages/LegalPage';
 import LoginPage from '@/pages/LoginPage';
 import SignupPage from '@/pages/SignupPage';
-import VerifyEmailPage from '@/pages/VerifyEmailPage';
-import DashboardPage from '@/pages/DashboardPage';
-import ControlPanelPage from '@/pages/ControlPanelPage';
-import StatisticsPage from '@/pages/StatisticsPage';
-import IrrigationHistoryPage from '@/pages/IrrigationHistoryPage.jsx';
-import CropsPage from '@/pages/CropsPage';
-import DevicesPage from '@/pages/DevicesPage';
-import SettingsPage from '@/pages/SettingsPage';
-import SimulatorPage from '@/pages/SimulatorPage';
-import SensorsPage from '@/pages/SensorsPage';
-import ReportsPage from '@/pages/ReportsPage';
+
+const LegalPage = lazy(() => import('@/pages/LegalPage'));
+const VerifyEmailPage = lazy(() => import('@/pages/VerifyEmailPage'));
+const DashboardPage = lazy(() => import('@/pages/DashboardPage'));
+const ControlPanelPage = lazy(() => import('@/pages/ControlPanelPage'));
+const StatisticsPage = lazy(() => import('@/pages/StatisticsPage'));
+const IrrigationHistoryPage = lazy(() => import('@/pages/IrrigationHistoryPage.jsx'));
+const CropsPage = lazy(() => import('@/pages/CropsPage'));
+const DevicesPage = lazy(() => import('@/pages/DevicesPage'));
+const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
+const SimulatorPage = lazy(() => import('@/pages/SimulatorPage'));
+const SensorsPage = lazy(() => import('@/pages/SensorsPage'));
+const ReportsPage = lazy(() => import('@/pages/ReportsPage'));
 
 function App() {
   return (
@@ -32,6 +32,8 @@ function App() {
         <AlertProvider>
           <Router>
             <ScrollToTop />
+            <a href="#contenido" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-slate-900 focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-primary">Saltar al contenido</a>
+            <Suspense fallback={<div role="status" aria-live="polite" className="flex min-h-screen items-center justify-center bg-dew text-slate-600">Cargando…</div>}>
             <Routes>
             {/* Public Routes */}
             <Route path="/" element={<HomePage />} />
@@ -124,6 +126,7 @@ function App() {
               }
             />
             </Routes>
+            </Suspense>
             <Toaster />
           </Router>
         </AlertProvider>

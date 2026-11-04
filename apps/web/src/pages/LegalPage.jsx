@@ -46,7 +46,7 @@ const LegalPage = ({ kind }) => {
   return (
     <>
       <Helmet><title>{doc.title} - Neptuno</title></Helmet>
-      <main className="min-h-screen bg-dew px-5 py-10 text-slate-800">
+      <main id="contenido" tabIndex={-1} className="min-h-screen bg-dew px-5 py-10 text-slate-800">
         <article className="mx-auto max-w-3xl rounded-3xl border border-white bg-white p-6 shadow-lg shadow-sky-900/5 sm:p-10">
           <Link to="/" className="inline-flex items-center gap-2 text-sm font-semibold text-blue-700 hover:text-blue-900">
             <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Volver a Neptuno

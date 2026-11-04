@@ -220,7 +220,7 @@ const SensorsPage = () => {
     <>
       <Helmet><title>Sensores - Neptuno</title></Helmet>
       <Header />
-      <main className="min-h-screen bg-dew py-10 sm:py-14">
+      <main id="contenido" tabIndex={-1} className="min-h-screen bg-dew py-10 sm:py-14">
         <div className="container mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
           <header className="flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -256,14 +256,14 @@ const SensorsPage = () => {
                 <SummaryTile label="Sin señal o sin datos" value={counts.stale + counts.never} tone="border-amber-200 bg-amber-50" />
               </section>
 
-              <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
                 <Card className="rounded-3xl border-teal-100">
                   <CardHeader className="flex-row flex-wrap items-start justify-between gap-3 space-y-0">
                     <div>
                       <CardTitle>Plano de «{selectedCrop.name}»</CardTitle>
                       <CardDescription>Toca un sensor para editarlo o un espacio libre para agregar uno.</CardDescription>
                     </div>
-                    <div className="flex items-center gap-3 text-sm text-slate-600">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-slate-600">
                       {[['Filas', rows, canShrinkRows, (delta) => changeLayout(rows + delta, cols), rows < 6],
                         ['Columnas', cols, canShrinkCols, (delta) => changeLayout(rows, cols + delta), cols < 6]].map(([label, value, canShrink, change, canGrow]) => (
                         <div key={label} className="flex items-center gap-1" role="group" aria-label={label}>
@@ -437,7 +437,7 @@ const SensorsPage = () => {
                   <CardTitle>Detalle de cada sensor</CardTitle>
                   <CardDescription>Última lectura y estado, ordenados por su posición en el plano.</CardDescription>
                 </CardHeader>
-                <CardContent className="overflow-x-auto">
+                <CardContent className="overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" tabIndex={0}>
                   {sensors.length === 0 ? (
                     <p className="py-6 text-center text-slate-500">Todavía no hay sensores. Agrega el primero desde el plano.</p>
                   ) : (

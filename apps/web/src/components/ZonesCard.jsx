@@ -113,7 +113,7 @@ const ZonesCard = ({ crop, userId, zones, reload, sensors }) => {
       </CardHeader>
       <CardContent className="space-y-4">
         {zones.length > 0 && (
-          <ul className="grid gap-3 sm:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {zones.map((zone) => {
               const on = states.get(zone.id) === true;
               return (
@@ -138,7 +138,7 @@ const ZonesCard = ({ crop, userId, zones, reload, sensors }) => {
 
         {editing !== null && (
           <form onSubmit={save} className="space-y-3 rounded-2xl border border-cyan-100 bg-cyan-50/50 p-4" noValidate>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-1">
                 <Label htmlFor="zone-name">Nombre de la zona</Label>
                 <Input id="zone-name" value={form.name} maxLength={60} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="Lote norte" />
